@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* Aurora — fonte de verdade dos hex em docs/10-ux/color-palette.md.
+   Light = defaults no @theme; dark = override em [data-theme="dark"]. */
+@theme {
+  --color-aurora-bg: #f6f8fc;
+  --color-aurora-surface: #ffffff;
+  --color-aurora-surface-2: #eef2f9;
+  --color-aurora-fg: #1e293b;
+  --color-aurora-muted: #64748b;
+  --color-aurora-border: #e2e8f0;
+  --color-aurora-accent: #6366f1;
+  --color-aurora-accent-muted: #e0e7ff;
+  --color-aurora-success: #10b981;
+  --color-aurora-warning: #f59e0b;
+  --color-aurora-danger: #ef4444;
+  --color-aurora-info: #0ea5e9;
+  --color-board-accent: var(--board-accent, var(--color-aurora-accent));
+  --color-board-accent-muted: var(--board-accent-muted, var(--color-aurora-accent-muted));
+  --color-board-bg: var(--board-bg, var(--color-aurora-bg));
+  --color-board-surface: var(--board-surface, var(--color-aurora-surface));
+  --color-board-border: var(--board-border, var(--color-aurora-border));
+  --radius-aurora: 0.75rem;
+}
+
+[data-theme="dark"] {
+  --color-aurora-bg: #0f141c;
+  --color-aurora-surface: #161d29;
+  --color-aurora-surface-2: #1f2937;
+  --color-aurora-fg: #e5edf7;
+  --color-aurora-muted: #94a3b8;
+  --color-aurora-border: #293445;
+  --color-aurora-accent: #818cf8;
+  --color-aurora-accent-muted: #312e81;
+  --color-aurora-success: #34d399;
+  --color-aurora-warning: #fbbf24;
+  --color-aurora-danger: #f87171;
+  --color-aurora-info: #38bdf8;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-aurora-bg);
+  color: var(--color-aurora-fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+:root {
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+.board-theme-scope {
+  background-color: var(--color-board-bg);
+  min-height: 100%;
+}

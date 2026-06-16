@@ -1,0 +1,29 @@
+{
+  "name": "nextgen-planner",
+  "private": true,
+  "version": "0.0.0",
+  "description": "NextGen Planner - SaaS B2B de produtividade e gestao de projetos (Kanban + Whiteboard + Calendario + Dashboard).",
+  "packageManager": "npm@11.13.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json,css}\"",
+    "supabase:env": "powershell -ExecutionPolicy Bypass -File scripts/sync-supabase-env.ps1"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

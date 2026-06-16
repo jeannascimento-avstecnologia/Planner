@@ -1,0 +1,154 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  formatDateLabel,
+  getMonthGrid,
+  shiftMonth,
+  toDateInputValue,
+} from "@/lib/calendar-grid";
+import { btnBoardSecondary, btnSecondary } from "@/lib/ui-classes";
+
+type Props = {
+  name: string;
+  defaultValue?: string;
+  placeholder?: string;
+  onChange?: (value: string) => void;
+  variant?: "global" | "board";
+};
+
+export function DatePickerPopover({
+  name,
+  defaultValue = "",
+  placeholder = "Adicionar prazo",
+  onChange,
+  variant = "global",
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(defaultValue);
+  const initial = defaultValue ? new Date(defaultValue + "T12:00:00") : new Date();
+  const [viewYear, setViewYear] = useState(initial.getFullYear());
+  const [viewMonth, setViewMonth] = useState(initial.getMonth());
+  const ref = useRef<HTMLDivElement>(null);
+
+  const board = variant === "board";
+  const borderCls = board ? "border-board-border" : "border-aurora-border";
+  const surfaceCls = board ? "bg-board-surface" : "bg-aurora-surface";
+  const accentCls = board ? "text-board-accent" : "text-aurora-accent";
+  const accentBgCls = board ? "bg-board-accent" : "bg-aurora-accent";
+  const accentMutedCls = board ? "hover:bg-board-accent-muted" : "hover:bg-aurora-accent-muted";
+  const accentMuted30Cls = board ? "hover:bg-board-accent-muted/30" : "hover:bg-aurora-accent-muted/30";
+  const ringCls = board ? "ring-board-accent" : "ring-aurora-accent";
+  const clearBtnCls = board ? btnBoardSecondary : btnSecondary;
+
+  useEffect(() => {
+    setValue(defaultValue);
+  }, [defaultValue]);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const grid = getMonthGrid(new Date(viewYear, viewMonth, 1));
+  const today = new Date();
+  const todayStr = toDateInputValue(today.getFullYear(), today.getMonth(), today.getDate());
+
+  function pick(day: number) {
+    const iso = toDateInputValue(viewYear, viewMonth, day);
+    setValue(iso);
+    setOpen(false);
+    onChange?.(iso);
+  }
+
+  function clear() {
+    setValue("");
+    setOpen(false);
+    onChange?.("");
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <input type="hidden" name={name} value={value} />
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-2 rounded-md border ${borderCls} ${surfaceCls} px-2 py-1.5 text-left text-sm text-aurora-fg ${accentMuted30Cls}`}
+      >
+        <Calendar className={`h-4 w-4 shrink-0 ${accentCls}`} />
+        <span className={value ? "text-aurora-fg" : "text-aurora-muted"}>
+          {value ? formatDateLabel(value) : placeholder}
+        </span>
+      </button>
+
+      {open ? (
+        <div className={`absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border ${borderCls} ${surfaceCls} p-3 shadow-lg`}>
+          <div className="mb-2 flex items-center justify-between">
+            <button
+              type="button"
+              aria-label="Mes anterior"
+              onClick={() => {
+                const n = shiftMonth(viewYear, viewMonth, -1);
+                setViewYear(n.year);
+                setViewMonth(n.month);
+              }}
+              className={`rounded p-1 ${accentMutedCls}`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-xs font-medium capitalize text-aurora-fg">{grid.monthLabel}</span>
+            <button
+              type="button"
+              aria-label="Proximo mes"
+              onClick={() => {
+                const n = shiftMonth(viewYear, viewMonth, 1);
+                setViewYear(n.year);
+                setViewMonth(n.month);
+              }}
+              className={`rounded p-1 ${accentMutedCls}`}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-aurora-muted">
+            {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
+              <div key={`${d}-${i}`} className="py-0.5 font-medium">
+                {d}
+              </div>
+            ))}
+            {Array.from({ length: grid.firstDayOfWeek }).map((_, i) => (
+              <div key={`pad-${i}`} />
+            ))}
+            {Array.from({ length: grid.daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const iso = toDateInputValue(viewYear, viewMonth, day);
+              const isSelected = value === iso;
+              const isToday = iso === todayStr;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => pick(day)}
+                  className={`rounded py-1 text-xs ${accentMutedCls} ${
+                    isSelected ? `${accentBgCls} text-white` : isToday ? `ring-1 ${ringCls}` : ""
+                  }`}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          {value ? (
+            <button type="button" onClick={clear} className={`mt-2 w-full text-xs ${clearBtnCls}`}>
+              Limpar prazo
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}

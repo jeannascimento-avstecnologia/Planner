@@ -1,0 +1,128 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { createCardInput } from "@nextgen/contracts";
+import { lexoPosition } from "@/lib/fractional";
+
+export type OrgCardHit = {
+  id: string;
+  title: string;
+  board_id: string;
+  board_name: string;
+  column_id: string;
+};
+
+export type BoardOption = { id: string; name: string };
+export type ColumnOption = { id: string; board_id: string; name: string };
+
+export async function searchOrgCards(orgId: string, query: string): Promise<OrgCardHit[]> {
+  const q = query.trim();
+  if (!q) return [];
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("cards")
+    .select("id, title, board_id, column_id, boards(name)")
+    .eq("org_id", orgId)
+    .is("completed_at", null)
+    .ilike("title", `%${q}%`)
+    .order("updated_at", { ascending: false })
+    .limit(20);
+
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    title: c.title,
+    board_id: c.board_id,
+    column_id: c.column_id,
+    board_name:
+      c.boards && typeof c.boards === "object" && "name" in c.boards
+        ? String((c.boards as { name: string }).name)
+        : "",
+  }));
+}
+
+export async function assignDueDate(
+  cardId: string,
+  boardId: string,
+  dueDate: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const iso = `${dueDate}T12:00:00.000Z`;
+  const { error } = await supabase.from("cards").update({ due_date: iso }).eq("id", cardId);
+  if (error) return { ok: false, error: error.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: card } = await supabase.from("cards").select("org_id").eq("id", cardId).single();
+  if (card) {
+    await supabase.from("card_events").insert({
+      org_id: card.org_id,
+      board_id: boardId,
+      card_id: cardId,
+      actor_id: user?.id ?? null,
+      type: "due_changed",
+      metadata: { due_date: iso },
+    });
+  }
+
+  revalidatePath(`/boards/${boardId}`);
+  revalidatePath("/calendar");
+  revalidatePath("/boards");
+  return { ok: true };
+}
+
+export async function createDeadlineCard(
+  boardId: string,
+  columnId: string,
+  title: string,
+  dueDate: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const parsed = createCardInput.safeParse({
+    boardId,
+    columnId,
+    title,
+    dueDate: `${dueDate}T12:00:00.000Z`,
+  });
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: board } = await supabase.from("boards").select("org_id").eq("id", boardId).single();
+  if (!board) return { ok: false, error: "Projeto nao encontrado." };
+
+  const { data: card, error } = await supabase
+    .from("cards")
+    .insert({
+      board_id: boardId,
+      column_id: columnId,
+      org_id: board.org_id,
+      title: parsed.data.title,
+      priority: "medium",
+      due_date: parsed.data.dueDate,
+      position: lexoPosition(),
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !card) return { ok: false, error: error?.message ?? "Falha ao criar." };
+
+  await supabase.from("card_events").insert({
+    org_id: board.org_id,
+    board_id: boardId,
+    card_id: card.id,
+    actor_id: user?.id ?? null,
+    type: "created",
+    to_column_id: columnId,
+    metadata: { due_date: parsed.data.dueDate },
+  });
+
+  revalidatePath(`/boards/${boardId}`);
+  revalidatePath("/calendar");
+  revalidatePath("/boards");
+  return { ok: true };
+}
