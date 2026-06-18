@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
-import { attachTag, createTag, detachTag } from "@/app/(app)/boards/[boardId]/actions";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, X } from "lucide-react";
+import { attachTag, createTag, deleteTag, detachTag } from "@/app/(app)/boards/[boardId]/actions";
 import { inputBoardClassSm, btnBoardPrimarySm, TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TagChip } from "./badges";
 import type { TagRow } from "./types";
 
@@ -13,20 +16,47 @@ type Props = {
   orgId: string;
   tagIds: string[];
   tags: TagRow[];
+  isOrgAdmin?: boolean;
 };
 
-export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags }: Props) {
+export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags, isOrgAdmin = false }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState<string>(TAG_DEFAULT_COLORS[0]);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TagRow | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left });
+  }, []);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
     }
-    if (open) document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+    if (open) {
+      updatePosition();
+      document.addEventListener("mousedown", onDoc);
+      window.addEventListener("resize", updatePosition);
+      window.addEventListener("scroll", updatePosition, true);
+    }
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, updatePosition]);
 
   const attached = tags.filter((t) => tagIds.includes(t.id));
 
@@ -35,14 +65,61 @@ export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags }: Props
     fd.set("cardId", cardId);
     fd.set("boardId", boardId);
     fd.set("tagId", tagId);
-    startTransition(() => (isAttached ? detachTag(fd) : attachTag(fd)));
+    startTransition(async () => {
+      await (isAttached ? detachTag(fd) : attachTag(fd));
+      router.refresh();
+    });
+  }
+
+  function handleCreate() {
+    const name = newName.trim();
+    if (!name) return;
+    setError(null);
+    const fd = new FormData();
+    fd.set("orgId", orgId);
+    fd.set("boardId", boardId);
+    fd.set("name", name);
+    fd.set("color", newColor);
+
+    startTransition(async () => {
+      const result = await createTag(fd);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      const attachFd = new FormData();
+      attachFd.set("cardId", cardId);
+      attachFd.set("boardId", boardId);
+      attachFd.set("tagId", result.tagId);
+      await attachTag(attachFd);
+      setNewName("");
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    const fd = new FormData();
+    fd.set("tagId", deleteTarget.id);
+    fd.set("boardId", boardId);
+    startTransition(async () => {
+      const result = await deleteTag(fd);
+      if ("error" in result) {
+        setError(result.error);
+        setDeleteTarget(null);
+        return;
+      }
+      setDeleteTarget(null);
+      router.refresh();
+    });
   }
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1">
         {attached.map((t) => (
-          <span key={t.id} className="inline-flex items-center gap-0.5">
+          <span key={t.id} className="inline-flex max-w-full items-center gap-0.5">
             <TagChip tag={t} />
             <button
               type="button"
@@ -57,64 +134,119 @@ export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags }: Props
         ))}
         <div className="relative" ref={ref}>
           <button
+            ref={triggerRef}
             type="button"
-            onClick={() => setOpen((o) => !o)}
+            onClick={() => {
+              setOpen((o) => {
+                const next = !o;
+                if (next) setTimeout(updatePosition, 0);
+                return next;
+              });
+            }}
             className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-aurora-muted text-aurora-muted hover:border-board-accent hover:text-board-accent"
             aria-label="Adicionar marcador"
           >
             <Plus className="h-4 w-4" />
           </button>
 
-          {open ? (
-            <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-board-border bg-board-surface p-2 shadow-lg">
-              <p className="mb-2 text-xs font-medium text-aurora-muted">Marcadores</p>
-              <ul className="max-h-36 space-y-1 overflow-y-auto">
-                {tags.length === 0 ? (
-                  <li className="text-xs text-aurora-muted">Nenhum marcador na org.</li>
-                ) : (
-                  tags.map((t) => {
-                    const on = tagIds.includes(t.id);
-                    return (
-                      <li key={t.id}>
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onClick={() => toggleTag(t.id, on)}
-                          className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-board-accent-muted/50 ${on ? "ring-1 ring-board-accent" : ""}`}
-                        >
-                          <span
-                            className="h-3 w-3 shrink-0 rounded-full"
-                            style={{ backgroundColor: t.color }}
-                          />
-                          <span className="text-aurora-fg">{t.name}</span>
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-              <form
-                action={(fd) => startTransition(() => createTag(fd))}
-                className="mt-2 flex gap-1 border-t border-board-border pt-2"
-                onSubmit={() => setOpen(false)}
-              >
-                <input type="hidden" name="orgId" value={orgId} />
-                <input type="hidden" name="boardId" value={boardId} />
-                <input name="name" placeholder="Novo" required className={inputBoardClassSm + " flex-1"} />
-                <input
-                  type="color"
-                  name="color"
-                  defaultValue={TAG_DEFAULT_COLORS[0]}
-                  className="h-8 w-8 cursor-pointer rounded border border-board-border"
-                />
-                <button type="submit" className={btnBoardPrimarySm} disabled={pending}>
-                  +
-                </button>
-              </form>
-            </div>
-          ) : null}
+          {open && typeof document !== "undefined"
+            ? createPortal(
+                <div
+                  ref={panelRef}
+                  role="dialog"
+                  aria-label="Marcadores"
+                  className="fixed z-[100] w-64 rounded-lg border border-board-border bg-board-surface p-2 shadow-lg"
+                  style={{ top: pos.top, left: pos.left }}
+                >
+                  <p className="mb-2 text-xs font-medium text-aurora-muted">Marcadores</p>
+                  <ul className="max-h-36 space-y-1 overflow-y-auto">
+                    {tags.length === 0 ? (
+                      <li className="text-xs text-aurora-muted">Nenhum marcador neste projeto.</li>
+                    ) : (
+                      tags.map((t) => {
+                        const on = tagIds.includes(t.id);
+                        return (
+                          <li key={t.id} className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => toggleTag(t.id, on)}
+                              className={`flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-board-accent-muted/50 ${on ? "ring-1 ring-board-accent" : ""}`}
+                            >
+                              <span
+                                className="h-3 w-3 shrink-0 rounded-full"
+                                style={{ backgroundColor: t.color }}
+                              />
+                              <span className="truncate text-aurora-fg">{t.name}</span>
+                            </button>
+                            {isOrgAdmin ? (
+                              <button
+                                type="button"
+                                aria-label={`Excluir marcador ${t.name}`}
+                                disabled={pending}
+                                onClick={() => setDeleteTarget(t)}
+                                className="shrink-0 rounded p-1 text-aurora-muted hover:bg-aurora-danger/10 hover:text-aurora-danger"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            ) : null}
+                          </li>
+                        );
+                      })
+                    )}
+                  </ul>
+                  <div className="mt-2 flex gap-1 border-t border-board-border pt-2">
+                    <input
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="Novo"
+                      aria-label="Nome do marcador"
+                      className={inputBoardClassSm + " flex-1"}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreate();
+                        }
+                      }}
+                    />
+                    <input
+                      type="color"
+                      value={newColor}
+                      onChange={(e) => setNewColor(e.target.value)}
+                      className="h-8 w-8 cursor-pointer rounded-full border border-board-border"
+                      aria-label="Cor do marcador"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Criar marcador"
+                      onClick={handleCreate}
+                      className={btnBoardPrimarySm}
+                      disabled={pending}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {error ? <p className="mt-1 text-xs text-aurora-danger">{error}</p> : null}
+                </div>,
+                document.body,
+              )
+            : null}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Excluir marcador"
+        message={
+          deleteTarget
+            ? `Excluir marcador "${deleteTarget.name}"? Remove de todos os cards.`
+            : ""
+        }
+        confirmLabel="Excluir"
+        pending={pending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

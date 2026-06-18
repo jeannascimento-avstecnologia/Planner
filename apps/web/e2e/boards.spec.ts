@@ -7,7 +7,7 @@ test.describe("Boards / Kanban", () => {
   });
 
   test("lista de boards mostra org e board do seed", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "Projetos", exact: true })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("heading", { name: "Projetos", exact: true })).toBeVisible();
     await expect(page.getByText("Acme Inc")).toBeVisible();
     await expect(projectLink(page, /Roadmap/)).toBeVisible();
   });
@@ -47,10 +47,33 @@ test.describe("Boards / Kanban", () => {
     });
     await todo.getByPlaceholder("Novo card").fill(cardTitle);
     await todo.getByRole("button", { name: "Adicionar", exact: true }).click();
-
-    await expect(page.getByText(cardTitle)).toBeVisible({ timeout: 15_000 });
+    await expect(todo.getByRole("button", { name: cardTitle })).toBeVisible({ timeout: 15_000 });
 
     await page.reload();
-    await expect(page.getByText(cardTitle)).toBeVisible();
+    await expect(page.getByRole("button", { name: cardTitle })).toBeVisible();
+  });
+
+  test("switcher oferece quatro modos de visualizacao", async ({ page }) => {
+    await projectLink(page, /Roadmap/).click();
+    await expect(page.getByRole("button", { name: "Kanban" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Linha do tempo" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Calendario" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tabela" })).toBeVisible();
+  });
+
+  test("filtro de marcador persiste ao trocar para tabela", async ({ page }) => {
+    await projectLink(page, /Roadmap/).click();
+    await expect(page.getByText("Walking skeleton de auth")).toBeVisible();
+    await page.getByRole("button", { name: "backend", exact: true }).click();
+    await page.getByRole("button", { name: "Tabela" }).click();
+    await expect(page.getByText("Walking skeleton de auth")).toBeHidden();
+    await expect(page.getByText("RLS + pgTAP")).toBeVisible();
+  });
+
+  test("visualizacao lista de projetos com agrupamento", async ({ page }) => {
+    await page.getByRole("button", { name: "Lista" }).click();
+    await expect(page.getByText("Agrupar por")).toBeVisible();
+    await expect(page.locator("table").first()).toBeVisible();
+    await expect(page.locator("table").getByRole("link", { name: "Roadmap", exact: true })).toBeVisible();
   });
 });

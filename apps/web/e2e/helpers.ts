@@ -7,7 +7,14 @@ export const STANDARD_USER = {
 
 export const SEED_BOARD_ID = "33333333-3333-3333-3333-333333333333";
 
-/** Link do projeto na lista (nao confundir com tiles de prazo). */
+/** Tile de projeto na grade (modo hub usa botao). */
+export function projectTile(page: Page, name?: RegExp | string) {
+  const base = page.getByTestId("project-tile");
+  if (name === undefined) return base;
+  return base.filter({ hasText: name });
+}
+
+/** @deprecated use projectTile + open-project para hub */
 export function projectLink(page: Page, name: RegExp | string) {
   return page.locator("ul.grid.grid-cols-1").getByRole("link", { name });
 }
@@ -38,4 +45,19 @@ export function collectConsoleErrors(page: Page): string[] {
 
 export function uniqueEmail(prefix = "qa"): string {
   return `${prefix}+${Date.now()}${Math.floor(Math.random() * 1000)}@nextgen.dev`;
+}
+
+/** Abre drawer e define prazo via campo DD.MM.AAAA. */
+export async function pickDueDateInDrawer(page: Page, daysFromToday: number): Promise<void> {
+  const target = new Date();
+  target.setDate(target.getDate() + daysFromToday);
+  const dd = String(target.getDate()).padStart(2, "0");
+  const mm = String(target.getMonth() + 1).padStart(2, "0");
+  const yyyy = target.getFullYear();
+  const drawer = page.locator("aside").filter({ hasText: "Editar card" });
+  const dueInput = drawer.getByPlaceholder("DD.MM.AAAA").last();
+  await dueInput.fill(`${dd}.${mm}.${yyyy}`);
+  await dueInput.blur();
+  await drawer.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Salvando...")).toBeHidden({ timeout: 15_000 });
 }

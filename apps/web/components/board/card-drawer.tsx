@@ -14,12 +14,28 @@ type Props = {
   orgId: string;
   tags: TagRow[];
   members: ProfileRow[];
+  isOrgAdmin?: boolean;
+  tifluxEnabled?: boolean;
+  onOpenTifluxCreate?: (cardId: string) => void;
+  onOpenTifluxLink?: (cardId: string) => void;
   onClose: () => void;
 };
 
-export function CardDrawer({ card, boardId, orgId, tags, members, onClose }: Props) {
+export function CardDrawer({
+  card,
+  boardId,
+  orgId,
+  tags,
+  members,
+  isOrgAdmin = false,
+  tifluxEnabled = false,
+  onOpenTifluxCreate,
+  onOpenTifluxLink,
+  onClose,
+}: Props) {
   const [pending, startTransition] = useTransition();
   const dueValue = card.due_date ? card.due_date.slice(0, 10) : "";
+  const startValue = card.start_date ? card.start_date.slice(0, 10) : "";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
@@ -58,6 +74,28 @@ export function CardDrawer({ card, boardId, orgId, tags, members, onClose }: Pro
 
           <div className="grid grid-cols-2 gap-2">
             <div>
+              <label className="mb-1 block text-xs font-medium text-aurora-muted">Inicio</label>
+              <DatePickerPopover
+                name="startDate"
+                defaultValue={startValue}
+                placeholder="Inicio (opcional)"
+                clearLabel="Limpar inicio"
+                variant="board"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-aurora-muted">Prazo</label>
+              <DatePickerPopover
+                name="dueDate"
+                defaultValue={dueValue}
+                clearLabel="Limpar prazo"
+                variant="board"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
               <label className="mb-1 block text-xs font-medium text-aurora-muted">Prioridade</label>
               <select name="priority" defaultValue={card.priority} className={inputBoardClassSm}>
                 {(["low", "medium", "high", "urgent"] as CardPriority[]).map((p) => (
@@ -67,10 +105,7 @@ export function CardDrawer({ card, boardId, orgId, tags, members, onClose }: Pro
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-aurora-muted">Prazo</label>
-              <DatePickerPopover name="dueDate" defaultValue={dueValue} variant="board" />
-            </div>
+            <div />
           </div>
 
           <div>
@@ -93,8 +128,42 @@ export function CardDrawer({ card, boardId, orgId, tags, members, onClose }: Pro
               orgId={orgId}
               tagIds={card.tagIds}
               tags={tags}
+              isOrgAdmin={isOrgAdmin}
             />
           </div>
+
+          {tifluxEnabled ? (
+            <div>
+              <p className="mb-1 text-xs font-medium text-aurora-muted">Tiflux</p>
+              {card.tiflux_ticket_number ? (
+                <span
+                  className="inline-flex items-center rounded bg-aurora-accent px-2 py-1 text-xs font-medium text-white"
+                  title={`Chamado Tiflux #${card.tiflux_ticket_number}`}
+                >
+                  Chamado #{card.tiflux_ticket_number}
+                </span>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="tiflux-drawer-create"
+                    onClick={() => onOpenTifluxCreate?.(card.id)}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-aurora-accent px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
+                  >
+                    Criar ticket
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="tiflux-drawer-link"
+                    onClick={() => onOpenTifluxLink?.(card.id)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-aurora-accent px-3 py-1.5 text-sm font-medium text-aurora-accent transition hover:bg-aurora-accent-muted/40"
+                  >
+                    Associar a um ticket
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null}
 
           <button type="submit" disabled={pending} className={btnBoardPrimarySm}>
             {pending ? "Salvando..." : "Salvar"}

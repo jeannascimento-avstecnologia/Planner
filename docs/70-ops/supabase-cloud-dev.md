@@ -49,8 +49,18 @@ Dashboard → **Authentication** → **URL Configuration**:
 
 | Campo | Valor (dev local) |
 |-------|-------------------|
-| Site URL | `http://localhost:3000` |
-| Redirect URLs | `http://localhost:3000/auth/callback` |
+| Site URL | `http://localhost:3001` |
+| Redirect URLs | `http://localhost:3001/auth/callback` |
+
+Recomendado: `npm run dev:local` (porta 3001 fixa). Ver [local-dev-start.md](local-dev-start.md).
+
+## 5b. Google OAuth (opcional)
+
+1. Google Cloud → OAuth client (Web) com redirect `https://<PROJECT_REF>.supabase.co/auth/v1/callback` e origin `http://localhost:3001`.
+2. Supabase → **Authentication → Providers → Google** → Enable + Client ID/Secret.
+3. Spec completa: [google-oauth.md](../20-architecture/google-oauth.md).
+
+Não é necessário variável `GOOGLE_*` no `.env` do app.
 
 ## 6. Variáveis de ambiente do app
 
@@ -76,17 +86,18 @@ O script tenta obter chaves via `supabase projects api-keys`.
 
 ```bash
 npm install
-npm run dev
+npm run dev:local
 ```
 
-Abra http://localhost:3000/login e entre com o usuário seed.
+Abra http://localhost:3001/login e entre com o usuário seed.
 
 ## Smoke test
 
-1. `npm run dev` — app em `localhost:3000`
+1. `npm run dev:local` — app em `localhost:3001`
 2. Login `admin@nextgen.dev` / `password123`
 3. Redireciona para `/boards` com projeto **Roadmap**
 4. Abrir um board — kanban carrega cards do seed
+5. (Opcional) **Continuar com Google** após configurar OAuth (seção 5b)
 
 ## Tipos TypeScript (opcional)
 

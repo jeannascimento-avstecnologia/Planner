@@ -39,9 +39,13 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d`;
 }
 
-type Props = { notifications: NotificationItem[]; unreadCount: number; collapsed?: boolean };
+type Props = {
+  notifications: NotificationItem[];
+  unreadCount: number;
+  variant?: "sidebar" | "topbar";
+};
 
-export function NotificationBell({ notifications, unreadCount, collapsed }: Props) {
+export function NotificationBell({ notifications, unreadCount, variant = "sidebar" }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -64,9 +68,10 @@ export function NotificationBell({ notifications, unreadCount, collapsed }: Prop
       const r = btnRef.current?.getBoundingClientRect();
       if (r) {
         const width = 288;
-        const left = collapsed
-          ? Math.min(r.right + 8, window.innerWidth - width - 8)
-          : Math.min(r.left, window.innerWidth - width - 8);
+        const left =
+          variant === "topbar"
+            ? Math.min(r.right - width, window.innerWidth - width - 8)
+            : Math.min(r.left, window.innerWidth - width - 8);
         setPos({ top: Math.min(r.bottom + 4, window.innerHeight - 360), left: Math.max(8, left) });
       }
     }
@@ -90,6 +95,8 @@ export function NotificationBell({ notifications, unreadCount, collapsed }: Prop
     });
   }
 
+  const isTopbar = variant === "topbar";
+
   return (
     <>
       <button
@@ -98,16 +105,18 @@ export function NotificationBell({ notifications, unreadCount, collapsed }: Prop
         onClick={toggle}
         aria-label="Notificacoes"
         title="Notificacoes"
-        className={`relative flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-aurora-fg transition hover:bg-aurora-accent-muted/50 ${
-          collapsed ? "justify-center" : ""
-        }`}
+        className={
+          isTopbar
+            ? `relative flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-white/90 text-aurora-fg dark:text-gray-900`
+            : "relative flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-aurora-sidebar-muted transition hover:bg-white/5 hover:text-aurora-sidebar-fg"
+        }
       >
         <Bell className="h-4 w-4 shrink-0" />
-        {!collapsed ? <span>Notificacoes</span> : null}
+        {!isTopbar ? <span>Notificacoes</span> : null}
         {unreadCount > 0 ? (
           <span
             className={`flex h-4 min-w-4 items-center justify-center rounded-full bg-aurora-danger px-1 text-[10px] font-bold text-white ${
-              collapsed ? "absolute right-1 top-1" : "ml-auto"
+              isTopbar ? "absolute -right-0.5 -top-0.5" : "ml-auto"
             }`}
           >
             {unreadCount > 9 ? "9+" : unreadCount}

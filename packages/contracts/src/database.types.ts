@@ -31,9 +31,9 @@ export type Database = {
         Relationships: [];
       };
       boards: {
-        Row: { id: string; org_id: string; name: string; description: string | null; icon: string | null; color: string | null; created_by: string | null; archived: boolean; created_at: string; updated_at: string };
-        Insert: { id?: string; org_id: string; name: string; description?: string | null; icon?: string | null; color?: string | null; created_by?: string | null; archived?: boolean; created_at?: string; updated_at?: string };
-        Update: { id?: string; org_id?: string; name?: string; description?: string | null; icon?: string | null; color?: string | null; created_by?: string | null; archived?: boolean; created_at?: string; updated_at?: string };
+        Row: { id: string; org_id: string; name: string; description: string | null; icon: string | null; color: string | null; created_by: string | null; archived: boolean; tiflux_enabled: boolean; integrations: Json; created_at: string; updated_at: string };
+        Insert: { id?: string; org_id: string; name: string; description?: string | null; icon?: string | null; color?: string | null; created_by?: string | null; archived?: boolean; tiflux_enabled?: boolean; integrations?: Json; created_at?: string; updated_at?: string };
+        Update: { id?: string; org_id?: string; name?: string; description?: string | null; icon?: string | null; color?: string | null; created_by?: string | null; archived?: boolean; tiflux_enabled?: boolean; integrations?: Json; created_at?: string; updated_at?: string };
         Relationships: [];
       };
       board_members: {
@@ -52,19 +52,22 @@ export type Database = {
         Row: {
           id: string; board_id: string; column_id: string; org_id: string; parent_id: string | null;
           title: string; description: string | null; priority: Database["public"]["Enums"]["card_priority"];
-          due_date: string | null; position: string; assignee_id: string | null; completed_at: string | null;
+          due_date: string | null; start_date: string | null; position: string; assignee_id: string | null; completed_at: string | null;
+          tiflux_ticket_number: string | null; tiflux_ticket_id: string | null; tiflux_payload: Json | null; tiflux_created_at: string | null;
           created_by: string | null; created_at: string; updated_at: string;
         };
         Insert: {
           id?: string; board_id: string; column_id: string; org_id: string; parent_id?: string | null;
           title: string; description?: string | null; priority?: Database["public"]["Enums"]["card_priority"];
-          due_date?: string | null; position: string; assignee_id?: string | null; completed_at?: string | null;
+          due_date?: string | null; start_date?: string | null; position: string; assignee_id?: string | null; completed_at?: string | null;
+          tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Update: {
           id?: string; board_id?: string; column_id?: string; org_id?: string; parent_id?: string | null;
           title?: string; description?: string | null; priority?: Database["public"]["Enums"]["card_priority"];
-          due_date?: string | null; position?: string; assignee_id?: string | null; completed_at?: string | null;
+          due_date?: string | null; start_date?: string | null; position?: string; assignee_id?: string | null; completed_at?: string | null;
+          tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Relationships: [];
@@ -94,9 +97,9 @@ export type Database = {
         Relationships: [];
       };
       tags: {
-        Row: { id: string; org_id: string; name: string; color: string; created_at: string };
-        Insert: { id?: string; org_id: string; name: string; color: string; created_at?: string };
-        Update: { id?: string; org_id?: string; name?: string; color?: string; created_at?: string };
+        Row: { id: string; org_id: string; board_id: string; name: string; color: string; created_at: string };
+        Insert: { id?: string; org_id: string; board_id: string; name: string; color: string; created_at?: string };
+        Update: { id?: string; org_id?: string; board_id?: string; name?: string; color?: string; created_at?: string };
         Relationships: [];
       };
       card_tags: {
@@ -187,7 +190,7 @@ export type Database = {
       };
     };
     Enums: {
-      membership_role: "admin" | "viewer";
+      membership_role: "admin" | "viewer" | "manager";
       card_priority: "low" | "medium" | "high" | "urgent";
       card_event_type:
         | "created"

@@ -12,24 +12,24 @@ export default function ForgotPasswordPage() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <p className="text-sm text-aurora-muted">
+      <p className="text-base font-bold text-white mb-4">
         Informe seu email e enviaremos um link para redefinir a senha.
       </p>
       <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium">
+        <label htmlFor="email" className="text-sm font-medium text-white">
           Email
         </label>
         <input id="email" name="email" type="email" required autoComplete="email" className={inputClass} />
       </div>
 
-      {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
-      {state.message ? <p className="text-sm text-emerald-600">{state.message}</p> : null}
+      {state.error ? <p className="text-sm text-red-600 font-bold">{state.error}</p> : null}
+      {state.message ? <p className="text-sm text-emerald-600 font-bold">{state.message}</p> : null}
 
       <button type="submit" disabled={pending} className={`w-full ${btnPrimary}`}>
         {pending ? "Enviando..." : "Enviar link"}
       </button>
 
-      <p className="text-center text-sm text-aurora-muted">
+      <p className="text-center text-base font-bold text-white mt-4">
         <Link href="/login" className={linkClass}>
           Voltar ao login
         </Link>

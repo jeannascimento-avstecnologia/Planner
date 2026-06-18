@@ -118,6 +118,23 @@ export async function requestPasswordReset(
   return { message: "Se o email existir, enviamos o link de redefinicao." };
 }
 
+export async function signInWithGoogle(): Promise<void> {
+  const configError = authConfigError();
+  if (configError) redirect(`/login?error=${encodeURIComponent(configError)}`);
+
+  const supabase = await createClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001";
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${appUrl}/auth/callback?next=/boards`,
+      queryParams: { access_type: "offline", prompt: "consent" },
+    },
+  });
+  if (error || !data.url) redirect("/login?error=callback");
+  redirect(data.url);
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();

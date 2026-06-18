@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createBoardInput, updateBoardAppearanceInput } from "@nextgen/contracts";
+import { createBoardInput, updateBoardAppearanceInput, updateBoardSettingsInput, deleteBoardInput } from "@nextgen/contracts";
+import type { Database } from "@nextgen/contracts";
 
 function slugify(value: string): string {
   const base = value
@@ -68,4 +69,48 @@ export async function updateBoardAppearance(formData: FormData): Promise<void> {
 
   revalidatePath("/boards");
   revalidatePath(`/boards/${parsed.data.boardId}`);
+}
+
+export type BoardSettingsResult = { ok: true } | { error: string };
+
+export async function updateBoardSettings(formData: FormData): Promise<BoardSettingsResult> {
+  const parsed = updateBoardSettingsInput.safeParse({
+    boardId: formData.get("boardId"),
+    name: formData.get("name") || undefined,
+    description: formData.has("description") ? formData.get("description") || null : undefined,
+    icon: formData.has("icon") ? formData.get("icon") || null : undefined,
+    color: formData.has("color") ? formData.get("color") || null : undefined,
+    archived: formData.has("archived") ? formData.get("archived") === "true" : undefined,
+    tifluxEnabled: formData.has("tifluxEnabled") ? formData.get("tifluxEnabled") === "true" : undefined,
+  });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+
+  const patch: Database["public"]["Tables"]["boards"]["Update"] = {};
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  if (parsed.data.description !== undefined) patch.description = parsed.data.description;
+  if (parsed.data.icon !== undefined) patch.icon = parsed.data.icon;
+  if (parsed.data.color !== undefined) patch.color = parsed.data.color;
+  if (parsed.data.archived !== undefined) patch.archived = parsed.data.archived;
+  if (parsed.data.tifluxEnabled !== undefined) patch.tiflux_enabled = parsed.data.tifluxEnabled;
+
+  const { error } = await supabase.from("boards").update(patch).eq("id", parsed.data.boardId);
+  if (error) return { error: "Nao foi possivel salvar as configuracoes." };
+
+  revalidatePath("/boards");
+  revalidatePath(`/boards/${parsed.data.boardId}`);
+  return { ok: true };
+}
+
+export async function deleteBoard(formData: FormData): Promise<BoardSettingsResult> {
+  const parsed = deleteBoardInput.safeParse({ boardId: formData.get("boardId") });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("boards").delete().eq("id", parsed.data.boardId);
+  if (error) return { error: "Nao foi possivel excluir o projeto." };
+
+  revalidatePath("/boards");
+  return { ok: true };
 }

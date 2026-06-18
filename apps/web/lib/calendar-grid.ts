@@ -35,3 +35,9 @@ export function shiftMonth(year: number, month: number, delta: number): { year: 
   const d = new Date(year, month + delta, 1);
   return { year: d.getFullYear(), month: d.getMonth() };
 }
+
+/** Celulas vazias apos o ultimo dia do mes (completa a grade 7 colunas). */
+export function getTrailingPadCount(firstDayOfWeek: number, daysInMonth: number): number {
+  const total = firstDayOfWeek + daysInMonth;
+  return (7 - (total % 7)) % 7;
+}

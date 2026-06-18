@@ -34,12 +34,15 @@ insert into public.memberships (org_id, user_id, role)
 values ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'admin')
 on conflict (org_id, user_id) do nothing;
 
-insert into public.boards (id, org_id, name, description, icon, color, created_by)
+insert into public.boards (id, org_id, name, description, icon, color, created_by, tiflux_enabled, integrations)
 values ('33333333-3333-3333-3333-333333333333',
         '22222222-2222-2222-2222-222222222222',
         'Roadmap', 'Board de demonstracao', 'rocket', '#6366F1',
-        '11111111-1111-1111-1111-111111111111')
-on conflict (id) do nothing;
+        '11111111-1111-1111-1111-111111111111', true,
+        '{"tiflux":{"clientName":"Acme Inc","deskName":"Suporte","requestorName":"Admin"}}'::jsonb)
+on conflict (id) do update set
+  tiflux_enabled = excluded.tiflux_enabled,
+  integrations = excluded.integrations;
 
 insert into public.columns (id, board_id, org_id, name, position) values
   ('44444444-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'To Do', 'a0'),
@@ -47,15 +50,15 @@ insert into public.columns (id, board_id, org_id, name, position) values
   ('44444444-0000-0000-0000-000000000003', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'Done',  'a2')
 on conflict (id) do nothing;
 
-insert into public.cards (board_id, column_id, org_id, title, position, priority, due_date, created_by) values
-  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Configurar Supabase local', 'm0', 'high', (now() + interval '3 days'), '11111111-1111-1111-1111-111111111111'),
-  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Walking skeleton de auth', 'm1', 'medium', (now() + interval '7 days'), '11111111-1111-1111-1111-111111111111'),
-  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'RLS + pgTAP', 'm0', 'urgent', (now() + interval '1 day'), '11111111-1111-1111-1111-111111111111')
+insert into public.cards (board_id, column_id, org_id, title, position, priority, start_date, due_date, created_by) values
+  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Configurar Supabase local', 'm0', 'high', (now() - interval '1 day'), (now() + interval '3 days'), '11111111-1111-1111-1111-111111111111'),
+  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Walking skeleton de auth', 'm1', 'medium', null, (now() + interval '7 days'), '11111111-1111-1111-1111-111111111111'),
+  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'RLS + pgTAP', 'm0', 'urgent', (now() - interval '2 days'), (now() + interval '1 day'), '11111111-1111-1111-1111-111111111111')
 on conflict do nothing;
 
-insert into public.tags (id, org_id, name, color) values
-  ('55555555-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'backend', '#456993'),
-  ('55555555-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'urgente', '#334155')
+insert into public.tags (id, org_id, board_id, name, color) values
+  ('55555555-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', 'backend', '#456993'),
+  ('55555555-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', 'urgente', '#334155')
 on conflict (id) do nothing;
 
 insert into public.card_tags (card_id, tag_id, org_id)

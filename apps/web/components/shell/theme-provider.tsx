@@ -13,7 +13,7 @@ export function ThemeScript() {
 
 type Theme = "light" | "dark";
 
-export function ThemeToggle({ collapsed }: { collapsed?: boolean }) {
+export function ThemeToggle({ variant = "sidebar" }: { variant?: "sidebar" | "topbar" }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
@@ -35,13 +35,19 @@ export function ThemeToggle({ collapsed }: { collapsed?: boolean }) {
   const Icon = theme === "dark" ? Sun : Moon;
   const label = theme === "dark" ? "Tema claro" : "Tema escuro";
 
+  const isTopbar = variant === "topbar";
+
   return (
     <button
       type="button"
       onClick={toggle}
       title={label}
       aria-label={label}
-      className={`flex items-center justify-center rounded-lg p-1.5 text-aurora-muted transition hover:bg-aurora-accent-muted hover:text-aurora-accent ${collapsed ? "" : ""}`}
+      className={
+        isTopbar
+          ? "flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-white/90 text-aurora-fg dark:text-gray-900"
+          : "flex items-center justify-center rounded-lg p-1.5 text-aurora-sidebar-muted transition hover:bg-white/10 hover:text-aurora-sidebar-fg"
+      }
     >
       <Icon className="h-4 w-4" />
     </button>

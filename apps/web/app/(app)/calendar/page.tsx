@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatDue, isOverdue } from "@/components/board/types";
+import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import { CalendarClient } from "./calendar-client";
 import { IcalFeedButton } from "./ical-feed-button";
 
@@ -21,7 +22,7 @@ export default async function CalendarPage() {
   const [{ data: cards }, { data: boards }, { data: columns }] = await Promise.all([
     supabase
       .from("cards")
-      .select("id, title, due_date, completed_at, board_id, boards(name)")
+      .select("id, title, due_date, completed_at, board_id, boards(name, color)")
       .eq("org_id", orgId)
       .not("due_date", "is", null)
       .gte("due_date", start.toISOString())
@@ -31,17 +32,21 @@ export default async function CalendarPage() {
     supabase.from("columns").select("id, board_id, name").eq("org_id", orgId).order("position"),
   ]);
 
-  const events = (cards ?? []).map((c) => ({
-    id: c.id,
-    title: c.title,
-    due_date: c.due_date!,
-    board_id: c.board_id,
-    board_name:
+  const events = (cards ?? []).map((c) => {
+    const boardMeta =
       c.boards && typeof c.boards === "object" && "name" in c.boards
-        ? String((c.boards as { name: string }).name)
-        : "",
-    overdue: isOverdue(c.due_date, c.completed_at),
-  }));
+        ? (c.boards as { name: string; color: string | null })
+        : null;
+    return {
+      id: c.id,
+      title: c.title,
+      due_date: c.due_date!,
+      board_id: c.board_id,
+      board_name: boardMeta?.name ?? "",
+      board_color: boardMeta?.color ?? null,
+      overdue: isOverdue(c.due_date, c.completed_at),
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -66,9 +71,15 @@ export default async function CalendarPage() {
           {events.length === 0 ? (
             <li className="text-aurora-muted">Nenhum prazo neste periodo.</li>
           ) : (
-            events.map((e) => (
+            events.map((e) => {
+              const tint = e.board_color || DEFAULT_BOARD_COLOR;
+              return (
               <li key={e.id} className="flex justify-between gap-2">
-                <Link href={`/boards/${e.board_id}`} className="text-aurora-fg hover:text-aurora-accent">
+                <Link
+                  href={`/boards/${e.board_id}`}
+                  className="text-aurora-fg hover:underline"
+                  style={{ borderLeft: `3px solid ${tint}`, paddingLeft: 8 }}
+                >
                   {e.title}
                   {e.board_name ? <span className="text-aurora-muted"> · {e.board_name}</span> : null}
                 </Link>
@@ -76,7 +87,8 @@ export default async function CalendarPage() {
                   {formatDue(e.due_date)}
                 </span>
               </li>
-            ))
+            );
+            })
           )}
         </ul>
       </section>

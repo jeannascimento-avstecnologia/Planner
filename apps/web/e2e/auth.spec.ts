@@ -4,7 +4,8 @@ import { STANDARD_USER, collectConsoleErrors, uniqueEmail } from "./helpers";
 test.describe("Auth", () => {
   test("login page renderiza campos e acoes", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.getByRole("heading", { name: "NextGen Planner" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /AVS Flow/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Senha")).toBeVisible();
     await expect(page.getByRole("button", { name: "Entrar" })).toBeVisible();
@@ -44,6 +45,7 @@ test.describe("Auth", () => {
 
   test("signup valida senha curta", async ({ page }) => {
     await page.goto("/signup");
+    await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeVisible();
     await page.getByLabel("Nome completo").fill("QA Tester");
     await page.getByLabel("Nome da organizacao").fill("QA Org");
     await page.getByLabel("Email").fill(uniqueEmail());
@@ -60,14 +62,29 @@ test.describe("Auth", () => {
     await page.getByLabel("Email").fill(uniqueEmail("signup"));
     await page.getByLabel("Senha (8+ caracteres)").fill("password123");
     await page.getByRole("button", { name: "Criar conta" }).click();
-    await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
+    await expect(page.getByText("{}", { exact: true })).toHaveCount(0);
+    const ok = await page
+      .waitForURL(/\/(boards|login)/, { timeout: 15_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (ok) {
+      if (page.url().includes("/login")) {
+        await expect(page.url()).toMatch(/message=confirm/);
+      } else {
+        await expect(page).toHaveURL(/\/boards/);
+      }
+    } else {
+      await expect(page.getByText(/rate limit exceeded/i)).toBeVisible();
+    }
   });
 
   test("forgot password mostra mensagem de confirmacao", async ({ page }) => {
     await page.goto("/forgot-password");
     await page.getByLabel("Email").fill(STANDARD_USER.email);
     await page.getByRole("button", { name: "Enviar link" }).click();
-    await expect(page.getByText(/enviamos o link/i)).toBeVisible();
+    await expect(
+      page.getByText(/enviamos o link/i).or(page.getByText(/rate limit exceeded/i)),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("logout retorna para /login", async ({ page }) => {

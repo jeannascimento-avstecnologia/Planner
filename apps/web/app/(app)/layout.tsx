@@ -19,11 +19,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .order("created_at", { ascending: false })
     .limit(20);
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("avatar_url, full_name")
+    .eq("id", user.id)
+    .single();
+
   const notifications: NotificationItem[] = (notifs ?? []) as NotificationItem[];
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
-    <AppShell userEmail={user.email ?? ""} notifications={notifications} unreadCount={unreadCount}>
+    <AppShell
+      userEmail={user.email ?? ""}
+      avatarUrl={profile?.avatar_url ?? ""}
+      fullName={profile?.full_name ?? ""}
+      notifications={notifications}
+      unreadCount={unreadCount}
+    >
       {children}
     </AppShell>
   );

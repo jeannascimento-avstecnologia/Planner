@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getMonthGrid, shiftMonth } from "@/lib/calendar-grid";
+import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import { DeadlineAgendaModal } from "@/components/calendar/deadline-agenda-modal";
 import type { BoardOption, ColumnOption } from "@/app/(app)/calendar/actions";
 
@@ -13,6 +14,7 @@ export type CalendarEvent = {
   due_date: string;
   board_id: string;
   board_name: string;
+  board_color: string | null;
   overdue: boolean;
 };
 
@@ -107,18 +109,24 @@ export function CalendarClient({ events, orgId, boards, columns }: Props) {
               >
                 <span className="text-xs font-medium text-aurora-fg">{day}</span>
                 <ul className="mt-1 space-y-0.5">
-                  {dayEvents.slice(0, 2).map((e) => (
-                    <li key={e.id}>
-                      <Link
-                        href={`/boards/${e.board_id}`}
-                        onClick={(ev) => ev.stopPropagation()}
-                        className={`block truncate text-[10px] ${e.overdue ? "text-aurora-accent" : "text-aurora-muted"}`}
-                        title={e.title}
-                      >
-                        {e.title}
-                      </Link>
-                    </li>
-                  ))}
+                  {dayEvents.slice(0, 2).map((e) => {
+                    const tint = e.board_color || DEFAULT_BOARD_COLOR;
+                    return (
+                      <li key={e.id}>
+                        <Link
+                          href={`/boards/${e.board_id}`}
+                          onClick={(ev) => ev.stopPropagation()}
+                          className={`block truncate rounded px-1 py-0.5 text-[10px] font-medium ${
+                            e.overdue ? "bg-aurora-danger/15 text-aurora-danger" : "text-white"
+                          }`}
+                          style={e.overdue ? undefined : { backgroundColor: tint }}
+                          title={e.title}
+                        >
+                          {e.title}
+                        </Link>
+                      </li>
+                    );
+                  })}
                   {dayEvents.length > 2 ? (
                     <li className="text-[10px] text-aurora-muted">+{dayEvents.length - 2}</li>
                   ) : null}

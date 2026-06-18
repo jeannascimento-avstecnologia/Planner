@@ -20,7 +20,7 @@ export function buildIcsFeed(cards: IcalCard[], calendarName: string): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//NextGen Planner//PT",
+    "PRODID:-//AVS Flow//PT",
     `X-WR-CALNAME:${escapeIcal(calendarName)}`,
     "CALSCALE:GREGORIAN",
   ];

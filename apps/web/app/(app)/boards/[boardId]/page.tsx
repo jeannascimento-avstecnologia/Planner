@@ -12,9 +12,22 @@ export default async function BoardPage({
 }) {
   const { boardId } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: board } = await supabase.from("boards").select("*").eq("id", boardId).single();
   if (!board) notFound();
+
+  const { data: myMembership } = user
+    ? await supabase
+        .from("memberships")
+        .select("role")
+        .eq("org_id", board.org_id)
+        .eq("user_id", user.id)
+        .maybeSingle()
+    : { data: null };
+  const isOrgAdmin = myMembership?.role === "admin";
 
   const [
     { data: columns },
@@ -26,7 +39,7 @@ export default async function BoardPage({
   ] = await Promise.all([
     supabase.from("columns").select("id, name").eq("board_id", boardId).order("position"),
     supabase.from("cards").select("*").eq("board_id", boardId).order("position"),
-    supabase.from("tags").select("id, name, color").eq("org_id", board.org_id).order("name"),
+    supabase.from("tags").select("id, name, color").eq("board_id", board.id).order("name"),
     supabase.from("card_tags").select("card_id, tag_id").eq("org_id", board.org_id),
     supabase.from("memberships").select("user_id").eq("org_id", board.org_id),
     supabase.from("board_members").select("user_id, role").eq("board_id", boardId),
@@ -56,9 +69,12 @@ export default async function BoardPage({
     description: c.description,
     priority: c.priority,
     due_date: c.due_date,
+    start_date: c.start_date,
     assignee_id: c.assignee_id,
     completed_at: c.completed_at,
     tagIds: tagIdsByCard.get(c.id) ?? [],
+    tiflux_ticket_number: c.tiflux_ticket_number ?? null,
+    tiflux_ticket_id: c.tiflux_ticket_id ?? null,
   }));
 
   const members: ProfileRow[] = (profiles ?? []).map((p) => ({ id: p.id, full_name: p.full_name }));
@@ -80,6 +96,7 @@ export default async function BoardPage({
             org_id: board.org_id,
             icon: board.icon,
             color: board.color,
+            tiflux_enabled: board.tiflux_enabled ?? false,
           }}
           columns={columns ?? []}
           cards={cards}
@@ -87,6 +104,8 @@ export default async function BoardPage({
           members={members}
           boardMembers={bmList}
           profilesById={profilesById}
+          isOrgAdmin={isOrgAdmin}
+          currentUserId={user?.id ?? null}
         />
       </BoardThemeScope>
     </>

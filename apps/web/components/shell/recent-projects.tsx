@@ -25,14 +25,14 @@ export function RecentProjects({ collapsed }: Props) {
   if (collapsed || items.length === 0) return null;
 
   return (
-    <div className="space-y-1 border-t border-aurora-border pt-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-aurora-muted">Recentes</p>
+    <div className="space-y-1 border-t border-aurora-sidebar-border pt-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-aurora-sidebar-muted">Recentes</p>
       <ul className="space-y-0.5">
         {items.map((b) => (
           <li key={b.id}>
             <Link
               href={`/boards/${b.id}`}
-              className="block truncate rounded px-2 py-1 text-sm text-aurora-fg hover:bg-aurora-accent-muted"
+              className="block truncate rounded px-2 py-1 text-sm text-aurora-sidebar-fg hover:bg-white/10"
             >
               {b.name}
             </Link>

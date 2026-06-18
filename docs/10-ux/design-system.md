@@ -12,7 +12,7 @@ Mobile-first, fluido (sub-100ms percebido), progressive disclosure, acessivel (W
 
 ## Componentes
 - Base: shadcn/ui sobre Radix (acessivel, codigo proprio).
-- Animacao: Motion. Icones: Lucide. Toasts: Sonner. Command palette: cmdk. Mobile sheets: vaul.
+- Animacao: CSS tokens (`docs/10-ux/micro-interactions.md`); Motion opcional para entradas de painel. Icones: Lucide. Toasts: Sonner. Command palette: cmdk. Mobile sheets: vaul.
 - Kanban DnD: dnd-kit (nunca react-beautiful-dnd). Whiteboard: tldraw. Charts: Tremor/visx.
 
 ## Interacoes-chave

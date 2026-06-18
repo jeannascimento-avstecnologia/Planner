@@ -1,20 +1,27 @@
 @import "tailwindcss";
 
-/* Aurora — fonte de verdade dos hex em docs/10-ux/color-palette.md.
-   Light = defaults no @theme; dark = override em [data-theme="dark"]. */
+/* Aurora AVS — fonte de verdade dos hex em docs/10-ux/color-palette.md */
 @theme {
-  --color-aurora-bg: #f6f8fc;
+  --color-aurora-bg: #f4f6fb;
   --color-aurora-surface: #ffffff;
   --color-aurora-surface-2: #eef2f9;
   --color-aurora-fg: #1e293b;
   --color-aurora-muted: #64748b;
   --color-aurora-border: #e2e8f0;
-  --color-aurora-accent: #6366f1;
-  --color-aurora-accent-muted: #e0e7ff;
+  --color-aurora-accent: #1d4ed8;
+  --color-aurora-accent-muted: #dbeafe;
   --color-aurora-success: #10b981;
   --color-aurora-warning: #f59e0b;
   --color-aurora-danger: #ef4444;
   --color-aurora-info: #0ea5e9;
+  --color-aurora-sidebar-bg: #0a1145;
+  --color-aurora-sidebar-fg: #f8fafc;
+  --color-aurora-sidebar-muted: #94a3b8;
+  --color-aurora-sidebar-accent: #3b82f6;
+  --color-aurora-sidebar-border: rgba(255, 255, 255, 0.08);
+  --color-aurora-brand-red: #dc2626;
+  --color-aurora-topbar-bg: #b91c1c;
+  --color-aurora-overlay: rgba(6, 10, 46, 0.55);
   --color-board-accent: var(--board-accent, var(--color-aurora-accent));
   --color-board-accent-muted: var(--board-accent-muted, var(--color-aurora-accent-muted));
   --color-board-bg: var(--board-bg, var(--color-aurora-bg));
@@ -24,18 +31,25 @@
 }
 
 [data-theme="dark"] {
-  --color-aurora-bg: #0f141c;
-  --color-aurora-surface: #161d29;
-  --color-aurora-surface-2: #1f2937;
-  --color-aurora-fg: #e5edf7;
+  --color-aurora-bg: #0b1020;
+  --color-aurora-surface: #121a2e;
+  --color-aurora-surface-2: #1a2438;
+  --color-aurora-fg: #e8edf7;
   --color-aurora-muted: #94a3b8;
-  --color-aurora-border: #293445;
-  --color-aurora-accent: #818cf8;
-  --color-aurora-accent-muted: #312e81;
+  --color-aurora-border: #2a3548;
+  --color-aurora-accent: #3b82f6;
+  --color-aurora-accent-muted: #1e3a5f;
   --color-aurora-success: #34d399;
   --color-aurora-warning: #fbbf24;
   --color-aurora-danger: #f87171;
   --color-aurora-info: #38bdf8;
+  --color-aurora-sidebar-bg: #060a2e;
+  --color-aurora-sidebar-fg: #e8edf7;
+  --color-aurora-sidebar-muted: #7c8ba8;
+  --color-aurora-sidebar-accent: #60a5fa;
+  --color-aurora-sidebar-border: rgba(255, 255, 255, 0.06);
+  --color-aurora-overlay: rgba(0, 0, 0, 0.6);
+  --color-aurora-topbar-bg: #991b1b;
 }
 
 html,
@@ -51,12 +65,51 @@ body {
 
 :root {
   color-scheme: light;
+  --motion-duration-fast: 150ms;
+  --motion-duration-normal: 220ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-hover-lift: -2px;
 }
 [data-theme="dark"] {
   color-scheme: dark;
 }
 
+.aurora-sidebar-pattern {
+  background-color: var(--color-aurora-sidebar-bg);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(255, 255, 255, 0.04) 8px,
+    rgba(255, 255, 255, 0.04) 9px
+  );
+}
+
 .board-theme-scope {
   background-color: var(--color-board-bg);
   min-height: 100%;
+}
+
+@keyframes hub-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hub-panel-enter {
+  animation: hub-panel-in var(--motion-duration-normal) var(--motion-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

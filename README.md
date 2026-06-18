@@ -1,4 +1,6 @@
-# NextGen Planner
+# AVS Flow
+
+SaaS B2B de produtividade e gestao de projetos: **grade ou lista** na home de projetos; boards com Kanban, Timeline, Calendario e Tabela; marcadores com exclusao (admin). Nome de producao: **AVS Flow**.
 
 SaaS B2B de produtividade e gestao de projetos: multiplos Kanbans, subtarefas e dependencias, comentarios, anexos (Cloudinary), calendario + iCal, whiteboards nativos, notificacoes inteligentes e dashboard analitico de fluxo. Multi-tenant nativo, mobile-first, offline-first.
 
@@ -40,21 +42,22 @@ supabase db push
 cp .env.supabase.example .env.supabase   # preencher chaves do Dashboard
 npm run supabase:env
 
-# 4. App
-npm run dev
+# 4. App (porta 3001 fixa — ver docs/70-ops/local-dev-start.md)
+npm run dev:local
 ```
 
-Login de teste (apos seed): `admin@nextgen.dev` / `password123` → http://localhost:3000/login
+Login de teste (apos seed): `admin@nextgen.dev` / `password123` → http://localhost:3001/login
 
 ### Auth no Dashboard
 
 Authentication → URL Configuration:
 
-- Site URL: `http://localhost:3000`
-- Redirect: `http://localhost:3000/auth/callback`
+- Site URL: `http://localhost:3001`
+- Redirect: `http://localhost:3001/auth/callback`
 
 ## Scripts
 
+- `npm run dev:local` — sobe o app local (porta 3001, mitiga erros comuns).
 - `npm run dev` / `build` / `lint` / `typecheck` / `test` (via Turborepo).
 - `npm run format` (Prettier).
 - `npm run supabase:env` — gera `apps/web/.env.local` a partir do Supabase **Cloud** (`.env.supabase` ou projeto linkado).
@@ -68,5 +71,7 @@ Authentication → URL Configuration:
 
 ## Documentacao
 
+- [Identidade AVS](docs/10-ux/avs-identity.md)
+- [Subir local (guia confiavel)](docs/70-ops/local-dev-start.md)
 - [Supabase Cloud dev](docs/70-ops/supabase-cloud-dev.md)
 - [ADR-0002 — topologia web/backend](docs/20-architecture/ADR-0002-deployment-topology.md)

@@ -4,7 +4,7 @@
 Shared database / shared schema. Toda tabela de dados de tenant carrega `org_id` (FK -> organizations) com indice e policy RLS de isolamento.
 
 ## Identidade e claims
-- Supabase Auth (email/senha; OAuth no futuro).
+- Supabase Auth (email/senha + Google OAuth). Ver [google-oauth.md](google-oauth.md).
 - Custom Access Token Hook injeta no JWT: `org_ids` (uuid[]) e `roles` por org -> RLS le do token, evitando JOIN recursivo por linha.
 - `profiles` 1:1 com `auth.users`; `memberships(user_id, org_id, role)` define RBAC (admin | viewer).
 

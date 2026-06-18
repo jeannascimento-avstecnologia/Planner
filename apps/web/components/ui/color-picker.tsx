@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { COLOR_PRESETS, DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
+
+const RAINBOW =
+  "conic-gradient(red, #ff0, lime, cyan, blue, magenta, red)";
 
 type Props = {
   name: string;
@@ -11,6 +14,7 @@ type Props = {
 
 export function ColorPicker({ name, defaultValue = DEFAULT_BOARD_COLOR, onChange }: Props) {
   const [value, setValue] = useState(defaultValue);
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   function set(c: string) {
     setValue(c);
@@ -34,13 +38,29 @@ export function ColorPicker({ name, defaultValue = DEFAULT_BOARD_COLOR, onChange
           style={{ backgroundColor: c }}
         />
       ))}
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => set(e.target.value)}
-        aria-label="Cor personalizada"
-        className="h-6 w-6 cursor-pointer rounded border border-aurora-border bg-transparent"
-      />
+      <div className="relative h-7 w-7 shrink-0">
+        <button
+          type="button"
+          aria-label="Cor personalizada"
+          onClick={() => colorInputRef.current?.click()}
+          className="h-7 w-7 rounded-full p-0.5"
+          style={{ background: RAINBOW }}
+        >
+          <span
+            className="block h-full w-full rounded-full border border-white/80"
+            style={{ backgroundColor: value }}
+          />
+        </button>
+        <input
+          ref={colorInputRef}
+          type="color"
+          value={value}
+          onChange={(e) => set(e.target.value)}
+          className="pointer-events-none absolute inset-0 opacity-0"
+          tabIndex={-1}
+          aria-hidden
+        />
+      </div>
     </div>
   );
 }

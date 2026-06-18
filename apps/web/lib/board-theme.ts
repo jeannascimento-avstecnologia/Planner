@@ -4,8 +4,8 @@ export type ThemeMode = "light" | "dark";
 
 /** Bases Aurora (evita referencia circular em color-mix com vars do html). */
 const BASE = {
-  light: { bg: "#f6f8fc", surface: "#ffffff", border: "#e2e8f0" },
-  dark: { bg: "#0f141c", surface: "#161d29", border: "#293445" },
+  light: { bg: "#f4f6fb", surface: "#ffffff", border: "#e2e8f0" },
+  dark: { bg: "#0b1020", surface: "#121a2e", border: "#2a3548" },
 } as const;
 
 const MIX = {

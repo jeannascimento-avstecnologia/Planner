@@ -20,7 +20,7 @@ export async function GET(
       due_date: r.due_date,
       board_name: r.board_name,
     })),
-    "NextGen Planner",
+    "AVS Flow",
   );
 
   return new Response(body, {

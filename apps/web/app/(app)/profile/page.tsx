@@ -20,8 +20,8 @@ export default async function ProfilePage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-aurora-fg">Perfil</h1>
-        <p className="text-sm text-aurora-muted">Gerencie suas informacoes pessoais.</p>
+        <h1 className="text-xl font-semibold text-aurora-sidebar-fg">Perfil</h1>
+        <p className="text-sm text-aurora-sidebar-muted">Gerencie suas informacoes pessoais.</p>
       </header>
 
       <ProfileForm

@@ -1,0 +1,110 @@
+"use client";
+
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { DeadlineTiles, type DeadlineTileItem } from "@/components/home/deadline-tiles";
+import type { BoardMember } from "@/components/board/share-project-panel";
+import { ProjectHubDetail, type UpcomingTask } from "./project-hub-detail";
+import { ProjectSettingsModal } from "./project-settings-modal";
+import type { ProjectBoardRow } from "./types";
+
+type Props = {
+  boards: ProjectBoardRow[];
+  boardMembersByBoardId: Record<string, BoardMember[]>;
+  isOrgAdmin: boolean;
+  currentUserId: string | null;
+  deadlineItems: DeadlineTileItem[];
+  upcomingTasksByBoard: Record<string, UpcomingTask[]>;
+  children: React.ReactNode;
+};
+
+function ProjectsHubLayoutInner({
+  boards,
+  boardMembersByBoardId,
+  isOrgAdmin,
+  currentUserId,
+  deadlineItems,
+  upcomingTasksByBoard,
+  children,
+}: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedBoardId = searchParams.get("board");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const selectedBoard = useMemo(
+    () => boards.find((b) => b.id === selectedBoardId) ?? null,
+    [boards, selectedBoardId],
+  );
+
+  const filteredDeadlines = useMemo(() => {
+    if (!selectedBoardId) return deadlineItems;
+    return deadlineItems.filter((d) => d.board_id === selectedBoardId);
+  }, [deadlineItems, selectedBoardId]);
+
+  const userBoardRole = useMemo(() => {
+    if (!selectedBoardId || !currentUserId) return null;
+    const members = boardMembersByBoardId[selectedBoardId] ?? [];
+    return members.find((m) => m.user_id === currentUserId)?.role ?? null;
+  }, [boardMembersByBoardId, currentUserId, selectedBoardId]);
+
+  function clearSelection() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("board");
+    const q = params.toString();
+    router.push(q ? `/boards?${q}` : "/boards", { scroll: false });
+  }
+
+  return (
+    <>
+      <DeadlineTiles
+        items={filteredDeadlines}
+        subtitle={selectedBoard ? `Projeto: ${selectedBoard.name}` : undefined}
+      />
+      <div className={selectedBoard ? "grid items-start gap-6 lg:grid-cols-2" : "space-y-3"}>
+        <div className="space-y-3">{children}</div>
+        {selectedBoard ? (
+          <ProjectHubDetail
+            board={selectedBoard}
+            members={boardMembersByBoardId[selectedBoard.id] ?? []}
+            upcomingTasks={upcomingTasksByBoard[selectedBoard.id] ?? []}
+            isOrgAdmin={isOrgAdmin}
+            userBoardRole={userBoardRole}
+            onClearSelection={clearSelection}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+        ) : null}
+      </div>
+      {selectedBoard && settingsOpen ? (
+        <ProjectSettingsModal
+          board={selectedBoard}
+          members={boardMembersByBoardId[selectedBoard.id] ?? []}
+          isOrgAdmin={isOrgAdmin}
+          currentUserId={currentUserId}
+          onClose={() => setSettingsOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+export function ProjectsHubLayout(props: Props) {
+  return (
+    <Suspense fallback={<div className="text-sm text-aurora-muted">Carregando...</div>}>
+      <ProjectsHubLayoutInner {...props} />
+    </Suspense>
+  );
+}
+
+export function useProjectHubSelect() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  function selectBoard(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("board", id);
+    router.push(`/boards?${params.toString()}`, { scroll: false });
+  }
+
+  return { selectedBoardId: searchParams.get("board"), selectBoard };
+}
