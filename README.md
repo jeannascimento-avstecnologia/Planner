@@ -74,4 +74,5 @@ Authentication → URL Configuration:
 - [Identidade Agify](docs/10-ux/agify-identity.md)
 - [Subir local (guia confiavel)](docs/70-ops/local-dev-start.md)
 - [Supabase Cloud dev](docs/70-ops/supabase-cloud-dev.md)
+- [**Hospedar na LAN (Linux seguro)**](docs/70-ops/linux-lan-secure-deploy.md)
 - [ADR-0002 — topologia web/backend](docs/20-architecture/ADR-0002-deployment-topology.md)

@@ -54,8 +54,6 @@ $apiUrl = $cloudEnv["SUPABASE_URL"]
 if (-not $apiUrl) { $apiUrl = $cloudEnv["API_URL"] }
 $anon = $cloudEnv["SUPABASE_ANON_KEY"]
 if (-not $anon) { $anon = $cloudEnv["ANON_KEY"] }
-$service = $cloudEnv["SUPABASE_SERVICE_ROLE_KEY"]
-if (-not $service) { $service = $cloudEnv["SERVICE_ROLE_KEY"] }
 
 # --- 2) CLI linkada ---
 if (-not $anon -or -not $apiUrl) {
@@ -65,7 +63,6 @@ if (-not $anon -or -not $apiUrl) {
   if ($cliKeys) {
     if (-not $apiUrl) { $apiUrl = $cliKeys.API_URL }
     if (-not $anon) { $anon = $cliKeys.ANON_KEY }
-    if (-not $service) { $service = $cliKeys.SERVICE_ROLE_KEY }
   }
 }
 
@@ -89,15 +86,15 @@ $envPath = Join-Path $root "apps\web\.env.local"
 $existing = Merge-DotEnvOverride (Read-DotEnvFile $envPath) $overridePath
 $extras = @()
 foreach ($key in ($existing.Keys | Sort-Object)) {
-  if ($key -match "^(NEXT_PUBLIC_SUPABASE_|SUPABASE_SERVICE_ROLE|NEXT_PUBLIC_APP_URL)") { continue }
+  if ($key -match "^(NEXT_PUBLIC_SUPABASE_|NEXT_PUBLIC_APP_URL)") { continue }
   $extras += "$key=$(Format-DotEnvValue $existing[$key])"
 }
 
 $lines = @(
   "# Gerado por scripts/sync-supabase-env.ps1 (Supabase Cloud) - nao commitar"
+  "# SERVICE_ROLE nao e necessaria no host Next.js (fica no Supabase Edge Functions)."
   "NEXT_PUBLIC_SUPABASE_URL=$apiUrl"
   "NEXT_PUBLIC_SUPABASE_ANON_KEY=$anon"
-  "SUPABASE_SERVICE_ROLE_KEY=$service"
   "NEXT_PUBLIC_APP_URL=$appUrl"
 )
 if ($extras.Count -gt 0) {

@@ -16,5 +16,11 @@ export function warnProductionEmailEnv(): void {
 
   if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) {
     console.warn("[env] Producao: NEXT_PUBLIC_APP_URL ausente — links de convite podem falhar.");
+  } else if (
+    process.env.NEXT_PUBLIC_APP_URL.trim().toLowerCase().startsWith("http://")
+  ) {
+    console.warn(
+      "[env] Producao: NEXT_PUBLIC_APP_URL usa HTTP — sessoes e tokens trafegam em texto claro na rede.",
+    );
   }
 }

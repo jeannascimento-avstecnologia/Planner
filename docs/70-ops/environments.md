@@ -47,3 +47,9 @@ npm run dev
 ## Gaps atuais
 
 - pnpm/corepack indisponivel -> npm workspaces.
+
+## Producao LAN (servidor Linux interno)
+
+Runbook completo: [linux-lan-secure-deploy.md](linux-lan-secure-deploy.md).
+
+Templates: `infra/nginx/`, `infra/pm2/`, `infra/env/`.

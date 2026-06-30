@@ -12,6 +12,12 @@ function supabaseOrigins(): string[] {
   }
 }
 
+function appPublicUrlIsHttps(): boolean {
+  const raw = process.env.NEXT_PUBLIC_APP_URL?.trim().toLowerCase();
+  if (!raw) return false;
+  return raw.startsWith("https://");
+}
+
 export function buildContentSecurityPolicy(isDev: boolean): string {
   const connectSrc = [
     "'self'",
@@ -25,7 +31,7 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     // Next.js + ThemeScript inline no head
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com",
+    "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https:",
     "font-src 'self' data:",
     `connect-src ${connectSrc.join(" ")}`,
     "frame-ancestors 'self'",
@@ -34,7 +40,7 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     "object-src 'none'",
   ];
 
-  if (!isDev) {
+  if (!isDev && appPublicUrlIsHttps()) {
     directives.push("upgrade-insecure-requests");
   }
 
@@ -42,7 +48,7 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
 }
 
 export function securityHeaders(isDev: boolean): { key: string; value: string }[] {
-  return [
+  const headers: { key: string; value: string }[] = [
     { key: "Content-Security-Policy", value: buildContentSecurityPolicy(isDev) },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -52,4 +58,13 @@ export function securityHeaders(isDev: boolean): { key: string; value: string }[
       value: "camera=(), microphone=(), geolocation=(), payment=()",
     },
   ];
+
+  if (!isDev && appPublicUrlIsHttps()) {
+    headers.push({
+      key: "Strict-Transport-Security",
+      value: "max-age=31536000; includeSubDomains",
+    });
+  }
+
+  return headers;
 }

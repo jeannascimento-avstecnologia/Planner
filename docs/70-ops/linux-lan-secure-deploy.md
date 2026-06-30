@@ -1,0 +1,311 @@
+# Hospedar o Agify no Linux (LAN segura + internet)
+
+Runbook passo a passo para **Cenário A**: servidor privado na rede interna, backend no **Supabase Cloud**, emails via **Resend**, **sem** expor o app diretamente na internet.
+
+Relacionado: [ADR-0002](../20-architecture/ADR-0002-deployment-topology.md) | [production-email-invites.md](production-email-invites.md) | [supabase-cloud-dev.md](supabase-cloud-dev.md)
+
+---
+
+## O que você vai montar
+
+```
+[PCs da empresa] ──HTTPS──► [nginx :443 TLS] ──► [Next.js 127.0.0.1:3001]
+                                      │
+                                      ├──HTTPS──► Supabase Cloud
+                                      └──HTTPS──► Resend
+```
+
+| Componente | Onde roda | Precisa instalar no Linux? |
+|------------|-----------|----------------------------|
+| Next.js | Servidor LAN | Sim (Node 20+) |
+| nginx + TLS | Servidor LAN | Sim (recomendado) |
+| Supabase | Nuvem | Não |
+| Resend | Nuvem | Não (conta + API key) |
+| Docker | — | Não (Cenário A) |
+
+---
+
+## Parte 0 — Decisões de segurança (leia antes)
+
+1. **Nunca** publique a porta `3001` na internet (sem port-forward no roteador).
+2. Use **HTTPS** na LAN (certificado interno com [mkcert](https://github.com/FiloSottile/mkcert) ou CA da empresa).
+3. Next.js escuta só **`127.0.0.1:3001`**; usuários acessam o **nginx na 443**.
+4. **Não** coloque `SUPABASE_SERVICE_ROLE_KEY` no servidor web — o app Next.js não usa; RLS + anon key bastam.
+5. Arquivo `apps/web/.env.local` com **`chmod 600`**.
+6. Configure **Upstash** para limitar convites por hora (recomendado).
+
+Arquivos de apoio no repositório:
+
+- `infra/nginx/agify-lan.conf.example`
+- `infra/pm2/ecosystem.config.cjs`
+- `infra/env/lan-production.env.example`
+
+---
+
+## Parte 1 — Supabase Cloud (uma vez)
+
+### 1.1 Projeto e schema
+
+No seu PC de desenvolvimento (Windows ou Linux):
+
+```bash
+cd /caminho/do/Planner
+npm install
+npx supabase login
+npx supabase link --project-ref mkpjtvpstdjfmidvruor
+npx supabase db push
+```
+
+### 1.2 Seed (usuário demo)
+
+1. Abra https://supabase.com/dashboard/project/mkpjtvpstdjfmidvruor  
+2. **SQL Editor** → cole o conteúdo de `supabase/seed.sql` → **Run**  
+3. Login demo: `admin@nextgen.dev` / `password123`
+
+### 1.3 Chaves API
+
+Dashboard → **Project Settings** → **API**:
+
+- **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+- **anon public** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Guarde a anon key; **não** copie a `service_role` para o servidor web.
+
+---
+
+## Parte 2 — Resend (convites por email)
+
+1. Crie conta em https://resend.com  
+2. **API Keys** → crie key com *Sending access*  
+3. Produção: **Domains** → verifique seu domínio (SPF/DKIM)  
+4. Staging rápido: `RESEND_FROM=Agify <onboarding@resend.dev>` (emails só para a conta Resend)
+
+---
+
+## Parte 3 — Preparar o servidor Linux
+
+### 3.1 Pacotes base (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install -y curl git nginx ufw
+
+# Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v   # deve ser v20+
+```
+
+### 3.2 Usuário dedicado (recomendado)
+
+```bash
+sudo useradd -r -m -s /bin/bash agify
+sudo mkdir -p /opt/agify
+sudo chown agify:agify /opt/agify
+```
+
+### 3.3 Clonar o projeto
+
+```bash
+sudo -u agify -i
+cd /opt/agify
+git clone https://github.com/jeannascimento-avstecnologia/Planner.git .
+npm install
+```
+
+---
+
+## Parte 4 — TLS na LAN (mkcert)
+
+No **servidor** (ou em máquina admin com acesso ao servidor):
+
+```bash
+# Instalar mkcert (veja https://github.com/FiloSottile/mkcert#installation)
+mkcert -install
+
+# Escolha um hostname interno (exemplo)
+sudo mkdir -p /etc/ssl/agify
+cd /etc/ssl/agify
+sudo mkcert agify.suaempresa.local
+# Gera agify.suaempresa.local.pem e agify.suaempresa.local-key.pem
+
+sudo mv agify.suaempresa.local.pem fullchain.pem
+sudo mv agify.suaempresa.local-key.pem privkey.pem
+sudo chmod 600 privkey.pem
+```
+
+**DNS interno:** aponte `agify.suaempresa.local` para o IP do servidor (DNS da empresa ou arquivo `hosts` nos PCs).
+
+---
+
+## Parte 5 — Variáveis de ambiente
+
+```bash
+cd /opt/agify
+cp infra/env/lan-production.env.example apps/web/.env.local
+nano apps/web/.env.local
+```
+
+Preencha:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://mkpjtvpstdjfmidvruor.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<sua_anon_key>
+NEXT_PUBLIC_APP_URL=https://agify.suaempresa.local
+RESEND_API_KEY=re_...
+RESEND_FROM=Agify <noreply@suaempresa.com>
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+Proteja o arquivo:
+
+```bash
+chmod 600 apps/web/.env.local
+```
+
+---
+
+## Parte 6 — Build do Next.js
+
+```bash
+cd /opt/agify/apps/web
+npm run build
+```
+
+Sempre que mudar `NEXT_PUBLIC_*`, rode `npm run build` de novo.
+
+---
+
+## Parte 7 — PM2 (app só em localhost)
+
+```bash
+sudo npm install -g pm2
+cd /opt/agify
+pm2 start infra/pm2/ecosystem.config.cjs
+pm2 save
+pm2 startup   # execute o comando sudo que o PM2 imprimir
+```
+
+Teste local no servidor:
+
+```bash
+curl -I http://127.0.0.1:3001/login
+```
+
+Deve retornar `200` ou `307` — **não** deve ser acessível de outro PC em `:3001` após o firewall (próximo passo).
+
+---
+
+## Parte 8 — nginx (HTTPS para a LAN)
+
+```bash
+sudo cp /opt/agify/infra/nginx/agify-lan.conf.example /etc/nginx/sites-available/agify
+sudo nano /etc/nginx/sites-available/agify
+# Ajuste server_name e caminhos ssl_certificate*
+
+sudo ln -sf /etc/nginx/sites-available/agify /etc/nginx/sites-enabled/agify
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+---
+
+## Parte 9 — Firewall (não expor riscos)
+
+```bash
+# Padrao: negar entrada
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# SSH (ajuste se usar outra porta)
+sudo ufw allow OpenSSH
+
+# HTTPS apenas na LAN (exemplo: rede 192.168.0.0/16)
+sudo ufw allow from 192.168.0.0/16 to any port 443 proto tcp
+
+# NAO libere 3001 para a rede — Next fica em 127.0.0.1
+sudo ufw enable
+sudo ufw status
+```
+
+**Roteador:** confirme que **não** há port-forward da 3001 nem da 443 para a internet pública, a menos que seja requisito explícito com WAF e política de segurança.
+
+---
+
+## Parte 10 — Supabase Auth (obrigatório)
+
+Dashboard → **Authentication** → **URL Configuration**:
+
+| Campo | Valor |
+|-------|-------|
+| Site URL | `https://agify.suaempresa.local` |
+| Redirect URLs | `https://agify.suaempresa.local/auth/callback` |
+
+Deve ser **idêntico** ao `NEXT_PUBLIC_APP_URL`.
+
+---
+
+## Parte 11 — Validar
+
+De um **outro PC na LAN**:
+
+1. Abra `https://agify.suaempresa.local/login`  
+2. Aceite o certificado interno (mkcert nos PCs ou CA corporativa)  
+3. Login: `admin@nextgen.dev` / `password123`  
+4. Board → **Convidar integrante** → envie email de teste  
+5. Confirme link no email: `https://agify.suaempresa.local/invite?token=...`  
+6. Tente abrir `http://IP-DO-SERVIDOR:3001` de outro PC — deve **falhar** (firewall / bind localhost)
+
+---
+
+## Parte 12 — Atualizar versão (deploy)
+
+```bash
+sudo -u agify -i
+cd /opt/agify
+git pull origin main
+npm install
+cd apps/web
+npm run build
+pm2 restart agify
+```
+
+---
+
+## Troubleshooting
+
+| Sintoma | Causa | Solução |
+|---------|-------|---------|
+| Login loop | Auth URLs ≠ `NEXT_PUBLIC_APP_URL` | Alinhar Dashboard + rebuild |
+| CSS/JS não carrega | CSP / HTTPS misto | `NEXT_PUBLIC_APP_URL` com `https://` |
+| Convite com `localhost` | Env antigo no build | Corrigir env + `npm run build` |
+| Email não envia | Resend / domínio | Ver [production-email-invites.md](production-email-invites.md) |
+| `:3001` aberto na rede | PM2 sem `-H 127.0.0.1` ou UFW | Usar `infra/pm2/ecosystem.config.cjs` |
+| Avatar URL externa não aparece | CSP | Produção permite `https:` em imagens (ver `content-security-policy.ts`) |
+
+---
+
+## Checklist final de segurança
+
+- [ ] HTTPS na LAN (mkcert ou CA interna)
+- [ ] Next.js em `127.0.0.1:3001` apenas
+- [ ] Porta 3001 **não** exposta na LAN/internet
+- [ ] UFW: 443 só da subnet interna
+- [ ] Sem `SUPABASE_SERVICE_ROLE_KEY` no host web
+- [ ] `.env.local` chmod 600
+- [ ] Upstash configurado (convites)
+- [ ] Resend com domínio verificado (produção)
+- [ ] Supabase Auth URLs corretas
+- [ ] Sem port-forward desnecessário no roteador
+
+---
+
+## Referência rápida de arquivos
+
+| Arquivo | Função |
+|---------|--------|
+| `infra/env/lan-production.env.example` | Modelo de `.env.local` |
+| `infra/pm2/ecosystem.config.cjs` | Processo Node em localhost |
+| `infra/nginx/agify-lan.conf.example` | TLS + reverse proxy |
+| `apps/web/lib/content-security-policy.ts` | CSP + HSTS quando HTTPS |

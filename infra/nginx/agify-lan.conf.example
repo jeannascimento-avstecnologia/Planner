@@ -1,0 +1,48 @@
+# Exemplo: nginx como reverse proxy TLS na LAN (Cenário A seguro).
+# Copie para /etc/nginx/sites-available/agify e ajuste server_name + certificados.
+#
+# Pre-requisitos:
+# - Next.js escutando apenas em 127.0.0.1:3001 (PM2)
+# - Certificado TLS (mkcert ou CA interna) em /etc/ssl/agify/
+# - NEXT_PUBLIC_APP_URL=https://agify.suaempresa.local (mesmo host abaixo)
+#
+# Runbook: docs/70-ops/linux-lan-secure-deploy.md
+
+# Redireciona HTTP -> HTTPS (opcional; remova se nao usar porta 80)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name agify.suaempresa.local;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name agify.suaempresa.local;
+
+    # Ajuste os caminhos do certificado (mkcert ou CA interna)
+    ssl_certificate     /etc/ssl/agify/fullchain.pem;
+    ssl_certificate_key /etc/ssl/agify/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    # Nao exponha versao do nginx
+    server_tokens off;
+
+    # Limite de corpo (uploads vao para Cloudinary via API assinada)
+    client_max_body_size 4m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 60s;
+    }
+}
