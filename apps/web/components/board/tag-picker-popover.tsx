@@ -6,6 +6,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import { attachTag, createTag, deleteTag, detachTag } from "@/app/(app)/boards/[boardId]/actions";
 import { inputBoardClassSm, btnBoardPrimarySm, TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { computeFixedPopoverPosition } from "@/lib/popover-position";
 import { AuroraPopover } from "@/components/ui/aurora-popover";
 import { TagChip } from "./badges";
 import type { TagRow } from "./types";
@@ -18,6 +19,9 @@ type Props = {
   tags: TagRow[];
   isOrgAdmin?: boolean;
 };
+
+const TAG_PANEL_W = 256;
+const TAG_PANEL_H = 320;
 
 export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags, isOrgAdmin = false }: Props) {
   const router = useRouter();
@@ -36,7 +40,8 @@ export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags, isOrgAd
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    setPos({ top: rect.bottom + 4, left: rect.left });
+    const next = computeFixedPopoverPosition(rect, TAG_PANEL_W, TAG_PANEL_H);
+    setPos({ top: next.top, left: next.left });
   }, []);
 
   useEffect(() => {
@@ -155,7 +160,7 @@ export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags, isOrgAd
               variant="board"
               testId="tag-picker-popover"
               zIndex={100}
-              style={{ top: pos.top, left: pos.left, width: 256 }}
+              style={{ top: pos.top, left: pos.left, width: TAG_PANEL_W }}
               className="p-2"
               onClick={(e) => e.stopPropagation()}
             >

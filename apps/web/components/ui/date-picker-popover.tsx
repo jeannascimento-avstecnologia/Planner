@@ -14,7 +14,8 @@ import {
   isoToBrazilianDisplay,
   parseBrazilianDate,
 } from "@/lib/parse-date-br";
-import { btnBoardSecondary, btnSecondary, inputBoardClassSm, inputClass } from "@/lib/ui-classes";
+import { computeFixedPopoverPosition } from "@/lib/popover-position";
+import { btnBoardSecondary, btnSecondary, inputBoardClassSm, inputClass, inputOverdueClass } from "@/lib/ui-classes";
 import { AuroraPopover } from "@/components/ui/aurora-popover";
 
 type Props = {
@@ -24,8 +25,10 @@ type Props = {
   clearLabel?: string;
   onChange?: (value: string) => void;
   variant?: "global" | "board";
+  overdue?: boolean;
 };
 
+const PANEL_W = 256;
 const PANEL_H = 280;
 
 export function DatePickerPopover({
@@ -35,6 +38,7 @@ export function DatePickerPopover({
   clearLabel = "Limpar prazo",
   onChange,
   variant = "global",
+  overdue = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(defaultValue);
@@ -64,13 +68,34 @@ export function DatePickerPopover({
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const flip = spaceBelow < PANEL_H && rect.top > PANEL_H;
-    setPos({
-      left: rect.left,
-      top: flip ? rect.top - PANEL_H - 4 : rect.bottom + 4,
-      flip,
-    });
+    const rawLeft = rect.left;
+    const next = computeFixedPopoverPosition(rect, PANEL_W, PANEL_H);
+    // #region agent log
+    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
+      body: JSON.stringify({
+        sessionId: "c90e06",
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "date-picker-popover.tsx:updatePosition",
+        message: "popover position computed",
+        data: {
+          rawLeft,
+          clampedLeft: next.left,
+          top: next.top,
+          flip: next.flipVertical,
+          triggerRight: rect.right,
+          viewportW: window.innerWidth,
+          panelW: PANEL_W,
+          wouldOverflowRight: rawLeft + PANEL_W > window.innerWidth - 8,
+          fitsAfterClamp: next.left + PANEL_W <= window.innerWidth - 8,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    setPos({ top: next.top, left: next.left, flip: next.flipVertical });
   }, []);
 
   useEffect(() => {
@@ -153,7 +178,7 @@ export function DatePickerPopover({
       variant={variant === "board" ? "board" : "app"}
       testId="date-picker-popover"
       zIndex={100}
-      style={{ top: pos.top, left: pos.left, width: 256 }}
+      style={{ top: pos.top, left: pos.left, width: PANEL_W }}
       className="p-3"
       onClick={(e) => e.stopPropagation()}
     >
@@ -225,6 +250,9 @@ export function DatePickerPopover({
     </AuroraPopover>
   ) : null;
 
+  const fieldErrorCls = textError ? "border-aurora-danger ring-1 ring-aurora-danger" : "";
+  const fieldOverdueCls = overdue && !textError ? inputOverdueClass : "";
+
   return (
     <div className="relative flex gap-1">
       <input type="hidden" name={name} value={value} />
@@ -239,8 +267,9 @@ export function DatePickerPopover({
         }}
         onBlur={handleTextBlur}
         onKeyDown={handleTextKeyDown}
-        className={`${inputCls} min-w-0 flex-1 ${textError ? "border-aurora-danger ring-1 ring-aurora-danger" : ""}`}
+        className={`${inputCls} min-w-0 flex-1 ${fieldErrorCls} ${fieldOverdueCls}`}
         aria-label={placeholder}
+        data-overdue={overdue ? "true" : undefined}
       />
       <button
         ref={triggerRef}
@@ -250,7 +279,11 @@ export function DatePickerPopover({
           setOpen((o) => !o);
           if (!open) setTimeout(updatePosition, 0);
         }}
-        className={`flex shrink-0 items-center justify-center rounded-md border ${borderCls} ${surfaceCls} px-2 py-1.5 ${accentMuted30Cls}`}
+        className={`flex shrink-0 items-center justify-center rounded-md border px-2 py-1.5 ${accentMuted30Cls} ${
+          overdue
+            ? `border-2 border-aurora-danger ring-2 ring-aurora-danger/40 ${surfaceCls}`
+            : `${borderCls} ${surfaceCls}`
+        }`}
       >
         <Calendar className={`h-4 w-4 ${accentCls}`} />
       </button>

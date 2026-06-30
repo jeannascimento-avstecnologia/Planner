@@ -128,10 +128,16 @@ export function DeadlineTiles({ items, subtitle }: Props) {
               <li key={c.id}>
                 <Link
                   href={`/boards/${c.board_id}`}
-                  className={`block rounded-lg border bg-aurora-surface-2 px-2 py-1.5 transition hover:border-aurora-accent hover:shadow-sm ${
-                    overdue ? "border-aurora-accent/50" : "border-aurora-border"
+                  className={`block rounded-lg border-2 bg-aurora-surface-2 px-2 py-1.5 transition hover:shadow-sm ${
+                    overdue
+                      ? "border-aurora-danger ring-2 ring-aurora-danger/40 hover:border-aurora-danger"
+                      : "border border-aurora-border hover:border-aurora-accent"
                   }`}
-                  style={{ borderLeft: `3px solid ${tint}` }}
+                  style={
+                    overdue
+                      ? { borderLeft: "3px solid var(--color-aurora-danger)" }
+                      : { borderLeft: `3px solid ${tint}` }
+                  }
                 >
                   <p className="text-[10px] font-medium uppercase text-aurora-muted">{formatDue(c.due_date)}</p>
                   <p className="line-clamp-1 text-xs font-medium text-aurora-fg">{c.title}</p>

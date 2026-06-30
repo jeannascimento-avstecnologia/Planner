@@ -1,5 +1,5 @@
 import type { CardPriority } from "@nextgen/contracts";
-import { todayStartIso } from "@/lib/parse-date-br";
+import { inferStartDateWhenUnset } from "@/lib/parse-date-br";
 import type { TifluxCanceledTicket } from "@/lib/tiflux-canceled-tickets";
 
 export type TagRow = { id: string; name: string; color: string };
@@ -46,9 +46,34 @@ export function resolveCardStage(
   return null;
 }
 
+function startOfTodayLocal(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function dueDateStartLocal(dueDate: string): number {
+  const d = new Date(dueDate);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
 export function isOverdue(dueDate: string | null, completedAt: string | null): boolean {
   if (!dueDate || completedAt) return false;
-  return new Date(dueDate) < new Date();
+  return dueDateStartLocal(dueDate) < startOfTodayLocal();
+}
+
+/** Prazo vencido em card aberto (ignora estagio Concluido). */
+export function isCardOverdue(
+  card: Pick<BoardCard, "due_date" | "completed_at" | "stage_id">,
+  stagesById?: Map<string, StageRow>,
+): boolean {
+  if (card.completed_at) return false;
+  if (stagesById && card.stage_id) {
+    const stage = stagesById.get(card.stage_id);
+    if (stage?.system_key === "concluido") return false;
+  }
+  return isOverdue(card.due_date, card.completed_at);
 }
 
 export function formatDue(dueDate: string | null): string {
@@ -61,10 +86,10 @@ export function formatStart(startDate: string | null): string {
   return new Date(startDate).toLocaleDateString("pt-BR");
 }
 
-/** start_date efetivo para timeline: hoje se due existe e start vazio. */
+/** start_date efetivo para timeline: inferido do prazo quando start vazio. */
 export function effectiveStartDate(card: { start_date: string | null; due_date: string | null }): string | null {
   if (card.start_date) return card.start_date;
-  if (card.due_date) return todayStartIso();
+  if (card.due_date) return inferStartDateWhenUnset(card.due_date);
   return null;
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Clock, FolderPlus, UserPlus } from "lucide-react";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/(app)/notifications/actions";
+import { computeFixedPopoverPosition } from "@/lib/popover-position";
 import { AuroraPopover } from "@/components/ui/aurora-popover";
 
 export type NotificationItem = {
@@ -47,6 +48,9 @@ type Props = {
   variant?: "sidebar" | "topbar";
 };
 
+const NOTIF_PANEL_W = 288;
+const NOTIF_PANEL_H = 360;
+
 export function NotificationBell({ notifications, unreadCount, variant = "sidebar" }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -81,12 +85,8 @@ export function NotificationBell({ notifications, unreadCount, variant = "sideba
     if (!open) {
       const r = btnRef.current?.getBoundingClientRect();
       if (r) {
-        const width = 288;
-        const left =
-          variant === "topbar"
-            ? Math.min(r.right - width, window.innerWidth - width - 8)
-            : Math.min(r.left, window.innerWidth - width - 8);
-        setPos({ top: Math.min(r.bottom + 4, window.innerHeight - 360), left: Math.max(8, left) });
+        const next = computeFixedPopoverPosition(r, NOTIF_PANEL_W, NOTIF_PANEL_H);
+        setPos({ top: next.top, left: next.left });
       }
     }
     setOpen((o) => !o);
@@ -142,7 +142,7 @@ export function NotificationBell({ notifications, unreadCount, variant = "sideba
       <AuroraPopover
         open={open}
         testId="notification-popover"
-        style={{ top: pos.top, left: pos.left, width: 288 }}
+        style={{ top: pos.top, left: pos.left, width: NOTIF_PANEL_W }}
         className="p-2"
         onClick={(e) => e.stopPropagation()}
       >

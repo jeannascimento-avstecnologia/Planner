@@ -44,6 +44,14 @@ export const tileInteractive =
 export const tileBoardInteractive =
   `rounded-lg border border-board-border bg-board-surface shadow-sm ${motionBase} hover:-translate-y-0.5 hover:border-board-accent hover:shadow-md active:translate-y-px active:shadow-sm`;
 
+/** Card com prazo vencido — borda vermelha forte (substitui tileBoardInteractive). */
+export const tileBoardOverdue =
+  `rounded-lg border-2 border-aurora-danger bg-board-surface shadow-sm ring-2 ring-aurora-danger/45 ${motionBase} hover:border-aurora-danger hover:ring-aurora-danger/55 hover:shadow-md active:translate-y-px`;
+
+/** Input/campo de data com prazo vencido. */
+export const inputOverdueClass =
+  "border-2 border-aurora-danger font-semibold text-aurora-danger ring-2 ring-aurora-danger/40 focus:border-aurora-danger focus:ring-aurora-danger/50";
+
 export const chipInteractive =
   `rounded-full border px-2 py-0.5 text-xs ${motionBase} active:scale-[0.98]`;
 

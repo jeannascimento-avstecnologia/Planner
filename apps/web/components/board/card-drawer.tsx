@@ -16,7 +16,7 @@ import { StageSelector } from "./stage-selector";
 import { StageBadge } from "./badges";
 import { TifluxTicketBadges } from "./tiflux-ticket-badges";
 import { CardDrawerReadOnly } from "./card-drawer-readonly";
-import { resolveCardStage, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
+import { resolveCardStage, isCardOverdue, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type Props = {
   card: BoardCard;
@@ -70,6 +70,7 @@ export function CardDrawer({
   const startValue = card.start_date ? card.start_date.slice(0, 10) : "";
   const stagesById = new Map(stages.map((s) => [s.id, s]));
   const stage = resolveCardStage(card, columns, stagesById);
+  const overdue = isCardOverdue(card, stagesById);
   const headerStyle = stage ? stageCardStyle(stage.color) : undefined;
 
   function confirmDelete() {
@@ -163,6 +164,7 @@ export function CardDrawer({
                 defaultValue={dueValue}
                 clearLabel="Limpar prazo"
                 variant="board"
+                overdue={overdue}
               />
             </div>
           </div>

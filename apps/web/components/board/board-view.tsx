@@ -285,6 +285,7 @@ function BoardViewInner({
         <BoardTableView
           cards={filtered}
           columns={columns}
+          stages={stages}
           tags={tags}
           profilesById={profilesById}
           tifluxEnabled={tifluxEnabled}

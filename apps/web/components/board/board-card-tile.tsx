@@ -3,8 +3,8 @@
 import { PriorityBadge, StageBadge, TagChip } from "./badges";
 import { TifluxCardButton } from "./tiflux-card-button";
 import { stageCardStyle } from "@/lib/color-utils";
-import { tileBoardInteractive } from "@/lib/ui-classes";
-import { formatDue, isOverdue, memberLabel, resolveCardStage, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
+import { tileBoardInteractive, tileBoardOverdue } from "@/lib/ui-classes";
+import { formatDue, isCardOverdue, memberLabel, resolveCardStage, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type Props = {
   card: BoardCard;
@@ -31,7 +31,7 @@ export function BoardCardTile({
   onOpenTifluxCreate,
   onOpenTifluxLink,
 }: Props) {
-  const overdue = isOverdue(card.due_date, card.completed_at);
+  const overdue = isCardOverdue(card, stagesById);
   const assignee = card.assignee_id ? profilesById[card.assignee_id] : undefined;
   const stage = resolveCardStage(card, columns, stagesById);
   const cardStyle = stage ? stageCardStyle(stage.color) : undefined;
@@ -55,10 +55,21 @@ export function BoardCardTile({
           openCard();
         }
       }}
-      className={`w-full cursor-pointer p-3 text-left ${tileBoardInteractive} ${
-        overdue ? "border-aurora-danger/60 ring-1 ring-aurora-danger/30" : ""
+      className={`w-full cursor-pointer p-3 text-left ${
+        overdue ? tileBoardOverdue : tileBoardInteractive
       }`}
-      style={cardStyle ? { backgroundColor: cardStyle.backgroundColor, color: cardStyle.color } : undefined}
+      data-overdue={overdue ? "true" : undefined}
+      style={
+        cardStyle
+          ? {
+              backgroundColor: cardStyle.backgroundColor,
+              color: cardStyle.color,
+              ...(overdue ? { borderColor: "var(--color-aurora-danger)" } : {}),
+            }
+          : overdue
+            ? { borderColor: "var(--color-aurora-danger)" }
+            : undefined
+      }
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 flex-1 break-words text-sm leading-snug">{card.title}</p>

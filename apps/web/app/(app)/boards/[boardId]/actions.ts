@@ -24,7 +24,7 @@ import {
   type InviteBoardBatchInput,
 } from "@nextgen/contracts";
 import { lexoPosition } from "@/lib/fractional";
-import { todayStartIso } from "@/lib/parse-date-br";
+import { resolveCardDateRange } from "@/lib/parse-date-br";
 import { TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { getAppUrl } from "@/lib/app-url";
 import type { EmailSendErrorCode } from "@/lib/email";
@@ -127,9 +127,29 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
 
   let startDate = parsed.data.startDate ?? null;
   const dueDate = parsed.data.dueDate ?? null;
-  if (dueDate && !startDate) startDate = todayStartIso();
-
-  if (startDate && dueDate && new Date(startDate) > new Date(dueDate)) {
+  const beforeResolve = { startDate, dueDate };
+  const resolved = resolveCardDateRange(startDate, dueDate);
+  startDate = resolved.start;
+  // #region agent log
+  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
+    body: JSON.stringify({
+      sessionId: "c90e06",
+      location: "actions.ts:createCard",
+      message: "createCard date resolve",
+      data: { beforeResolve, afterResolve: resolved, explicitStart: !!parsed.data.startDate },
+      timestamp: Date.now(),
+      hypothesisId: "A",
+    }),
+  }).catch(() => {});
+  // #endregion
+  if (
+    parsed.data.startDate &&
+    dueDate &&
+    startDate &&
+    new Date(parsed.data.startDate) > new Date(dueDate)
+  ) {
     return { error: "Inicio nao pode ser depois do prazo." };
   }
 
@@ -223,9 +243,24 @@ export async function updateCard(formData: FormData): Promise<void> {
   const nextStart =
     parsed.data.startDate !== undefined ? parsed.data.startDate : existing.start_date;
   const nextDue = parsed.data.dueDate !== undefined ? parsed.data.dueDate : existing.due_date;
-  let resolvedStart = nextStart;
-  if (nextDue && !resolvedStart) resolvedStart = todayStartIso();
-  if (resolvedStart && nextDue && new Date(resolvedStart) > new Date(nextDue)) return;
+  const beforeResolve = { nextStart, nextDue, existingStart: existing.start_date };
+  const resolved = resolveCardDateRange(nextStart, nextDue);
+  const resolvedStart = resolved.start;
+  const startAdjusted = resolvedStart !== nextStart;
+  // #region agent log
+  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
+    body: JSON.stringify({
+      sessionId: "c90e06",
+      location: "actions.ts:updateCard",
+      message: "updateCard date resolve",
+      data: { beforeResolve, afterResolve: resolved, startAdjusted },
+      timestamp: Date.now(),
+      hypothesisId: "A",
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const patch: {
     title?: string;
@@ -239,9 +274,10 @@ export async function updateCard(formData: FormData): Promise<void> {
   if (parsed.data.description !== undefined) patch.description = parsed.data.description;
   if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
   if (parsed.data.dueDate !== undefined) patch.due_date = parsed.data.dueDate;
-  if (parsed.data.startDate !== undefined) patch.start_date = parsed.data.startDate;
-  else if (nextDue && !existing.start_date && parsed.data.dueDate !== undefined) {
-    patch.start_date = todayStartIso();
+  if (parsed.data.startDate !== undefined) {
+    patch.start_date = parsed.data.startDate === null ? null : resolvedStart;
+  } else if (parsed.data.dueDate !== undefined && resolvedStart !== existing.start_date) {
+    patch.start_date = resolvedStart;
   }
   if (parsed.data.assigneeId !== undefined) patch.assignee_id = parsed.data.assigneeId;
 

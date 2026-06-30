@@ -46,3 +46,25 @@ function toDateInputValue(year: number, month: number, day: number): string {
 export function todayStartIso(): string {
   return `${todayIsoDateOnly()}T12:00:00.000Z`;
 }
+
+/** ISO date-only compare (UTC noon timestamps). */
+export function compareIsoDates(a: string, b: string): number {
+  return new Date(a).getTime() - new Date(b).getTime();
+}
+
+/** When due is set but start is empty: today for future due, due itself for past due. */
+export function inferStartDateWhenUnset(dueIso: string): string {
+  return compareIsoDates(dueIso, todayStartIso()) < 0 ? dueIso : todayStartIso();
+}
+
+/** Ensures start <= due; infers start when due exists without start. */
+export function resolveCardDateRange(
+  start: string | null,
+  due: string | null,
+): { start: string | null; due: string | null } {
+  if (!due) return { start, due };
+  let resolvedStart = start;
+  if (!resolvedStart) resolvedStart = inferStartDateWhenUnset(due);
+  if (resolvedStart && compareIsoDates(resolvedStart, due) > 0) resolvedStart = due;
+  return { start: resolvedStart, due };
+}

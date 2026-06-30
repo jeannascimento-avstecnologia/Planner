@@ -6,10 +6,12 @@ import { TifluxCardButton } from "./tiflux-card-button";
 import {
   formatDue,
   formatStart,
+  isCardOverdue,
   memberLabel,
   type BoardCard,
   type ColumnRow,
   type ProfileRow,
+  type StageRow,
   type TagRow,
 } from "./types";
 
@@ -19,6 +21,7 @@ type SortDir = "asc" | "desc";
 type Props = {
   cards: BoardCard[];
   columns: ColumnRow[];
+  stages: StageRow[];
   tags: TagRow[];
   profilesById: Record<string, ProfileRow>;
   tifluxEnabled: boolean;
@@ -31,6 +34,7 @@ type Props = {
 export function BoardTableView({
   cards,
   columns,
+  stages,
   tags,
   profilesById,
   tifluxEnabled,
@@ -46,6 +50,8 @@ export function BoardTableView({
     const m = new Map(columns.map((c) => [c.id, c.name]));
     return (id: string) => m.get(id) ?? "?";
   }, [columns]);
+
+  const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
 
   const sorted = useMemo(() => {
     const list = [...cards];
@@ -101,10 +107,14 @@ export function BoardTableView({
               </td>
             </tr>
           ) : (
-            sorted.map((c) => (
+            sorted.map((c) => {
+              const overdue = isCardOverdue(c, stagesById);
+              return (
               <tr
                 key={c.id}
-                className="cursor-pointer border-b border-board-border/60 hover:bg-board-accent-muted/30"
+                className={`cursor-pointer border-b border-board-border/60 hover:bg-board-accent-muted/30 ${
+                  overdue ? "border-l-4 border-l-aurora-danger" : ""
+                }`}
                 onClick={() => onSelectCard(c.id)}
               >
                 <td className="px-3 py-2 font-medium text-aurora-fg">{c.title}</td>
@@ -125,7 +135,9 @@ export function BoardTableView({
                   <PriorityBadge priority={c.priority} />
                 </td>
                 <td className="px-3 py-2 text-aurora-muted">{formatStart(c.start_date) || "—"}</td>
-                <td className="px-3 py-2 text-aurora-muted">{formatDue(c.due_date) || "—"}</td>
+                <td className={`px-3 py-2 ${overdue ? "font-semibold text-aurora-danger" : "text-aurora-muted"}`}>
+                  {formatDue(c.due_date) || "—"}
+                </td>
                 <td className="px-3 py-2 text-aurora-muted">
                   {c.assignee_id ? memberLabel(profilesById[c.assignee_id]) : "—"}
                 </td>
@@ -138,7 +150,8 @@ export function BoardTableView({
                   </div>
                 </td>
               </tr>
-            ))
+            );
+            })
           )}
         </tbody>
       </table>
