@@ -127,23 +127,8 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
 
   let startDate = parsed.data.startDate ?? null;
   const dueDate = parsed.data.dueDate ?? null;
-  const beforeResolve = { startDate, dueDate };
   const resolved = resolveCardDateRange(startDate, dueDate);
   startDate = resolved.start;
-  // #region agent log
-  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
-    body: JSON.stringify({
-      sessionId: "c90e06",
-      location: "actions.ts:createCard",
-      message: "createCard date resolve",
-      data: { beforeResolve, afterResolve: resolved, explicitStart: !!parsed.data.startDate },
-      timestamp: Date.now(),
-      hypothesisId: "A",
-    }),
-  }).catch(() => {});
-  // #endregion
   if (
     parsed.data.startDate &&
     dueDate &&
@@ -243,24 +228,8 @@ export async function updateCard(formData: FormData): Promise<void> {
   const nextStart =
     parsed.data.startDate !== undefined ? parsed.data.startDate : existing.start_date;
   const nextDue = parsed.data.dueDate !== undefined ? parsed.data.dueDate : existing.due_date;
-  const beforeResolve = { nextStart, nextDue, existingStart: existing.start_date };
   const resolved = resolveCardDateRange(nextStart, nextDue);
   const resolvedStart = resolved.start;
-  const startAdjusted = resolvedStart !== nextStart;
-  // #region agent log
-  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
-    body: JSON.stringify({
-      sessionId: "c90e06",
-      location: "actions.ts:updateCard",
-      message: "updateCard date resolve",
-      data: { beforeResolve, afterResolve: resolved, startAdjusted },
-      timestamp: Date.now(),
-      hypothesisId: "A",
-    }),
-  }).catch(() => {});
-  // #endregion
 
   const patch: {
     title?: string;

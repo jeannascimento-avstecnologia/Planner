@@ -19,6 +19,7 @@ apps/web/.env.local.override
 
 # logs
 *.log
+debug-*.log
 npm-debug.log*
 
 # test / coverage

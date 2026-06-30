@@ -36,43 +36,7 @@ export function ProfileForm({
         setError(null);
         fd.set("avatarUrl", avatarUrl);
         startTransition(async () => {
-          let host: string | null = null;
-          try {
-            host = avatarUrl ? new URL(avatarUrl).host : null;
-          } catch {
-            host = "invalid-url";
-          }
-          // #region agent log
-          fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
-            body: JSON.stringify({
-              sessionId: "c90e06",
-              runId: "pre-fix",
-              hypothesisId: "C",
-              location: "profile-form.tsx:submit",
-              message: "submitting profile",
-              data: { host, avatarUrlLen: avatarUrl.length },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
           const res = await updateProfile(fd);
-          // #region agent log
-          fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
-            body: JSON.stringify({
-              sessionId: "c90e06",
-              runId: "pre-fix",
-              hypothesisId: "C",
-              location: "profile-form.tsx:submitResult",
-              message: "updateProfile result",
-              data: { ok: res.ok, error: "error" in res ? res.error : null },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
           if (res.ok) {
             setStatus("ok");
             router.refresh();

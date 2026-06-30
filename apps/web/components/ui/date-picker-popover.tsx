@@ -68,33 +68,7 @@ export function DatePickerPopover({
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const rawLeft = rect.left;
     const next = computeFixedPopoverPosition(rect, PANEL_W, PANEL_H);
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
-      body: JSON.stringify({
-        sessionId: "c90e06",
-        runId: "pre-fix",
-        hypothesisId: "A",
-        location: "date-picker-popover.tsx:updatePosition",
-        message: "popover position computed",
-        data: {
-          rawLeft,
-          clampedLeft: next.left,
-          top: next.top,
-          flip: next.flipVertical,
-          triggerRight: rect.right,
-          viewportW: window.innerWidth,
-          panelW: PANEL_W,
-          wouldOverflowRight: rawLeft + PANEL_W > window.innerWidth - 8,
-          fitsAfterClamp: next.left + PANEL_W <= window.innerWidth - 8,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     setPos({ top: next.top, left: next.left, flip: next.flipVertical });
   }, []);
 

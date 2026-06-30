@@ -49,6 +49,11 @@ export function CardDrawer({
   onOpenTifluxLink,
   onClose,
 }: Props) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   if (readOnly) {
     return (
       <CardDrawerReadOnly
@@ -62,10 +67,7 @@ export function CardDrawer({
       />
     );
   }
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const dueValue = card.due_date ? card.due_date.slice(0, 10) : "";
   const startValue = card.start_date ? card.start_date.slice(0, 10) : "";
   const stagesById = new Map(stages.map((s) => [s.id, s]));

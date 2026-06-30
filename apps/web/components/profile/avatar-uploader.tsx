@@ -19,41 +19,6 @@ export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) 
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imgLoadFailed, setImgLoadFailed] = useState(false);
-
-  function logAvatarEvent(message: string, hypothesisId: string, extra: Record<string, unknown> = {}) {
-    let host: string | null = null;
-    try {
-      host = value ? new URL(value).host : null;
-    } catch {
-      host = "invalid-url";
-    }
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
-      body: JSON.stringify({
-        sessionId: "c90e06",
-        runId: "pre-fix",
-        hypothesisId,
-        location: "avatar-uploader.tsx",
-        message,
-        data: { host, hasCloudName: !!cloudName, valueLen: value.length, imgLoadFailed, ...extra },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }
-
-  function handleImgLoad() {
-    setImgLoadFailed(false);
-    logAvatarEvent("avatar img loaded", "A");
-  }
-
-  function handleImgError() {
-    setImgLoadFailed(true);
-    logAvatarEvent("avatar img error (broken/CSP/hotlink)", "A");
-  }
 
   const initials = (fullName || "?")
     .split(" ")
@@ -110,8 +75,6 @@ export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) 
           src={value}
           alt="Avatar"
           className="h-16 w-16 rounded-full object-cover"
-          onLoad={handleImgLoad}
-          onError={handleImgError}
         />
       ) : (
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-aurora-accent-muted text-lg font-semibold text-aurora-accent">
@@ -146,31 +109,7 @@ export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) 
         ) : (
           <input
             value={value}
-            onChange={(e) => {
-              const next = e.target.value;
-              onChange(next);
-              let host: string | null = null;
-              try {
-                host = next ? new URL(next).host : null;
-              } catch {
-                host = "invalid-url";
-              }
-              // #region agent log
-              fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
-                body: JSON.stringify({
-                  sessionId: "c90e06",
-                  runId: "pre-fix",
-                  hypothesisId: "B",
-                  location: "avatar-uploader.tsx:urlInput",
-                  message: "avatar url typed",
-                  data: { host, valueLen: next.length },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion
-            }}
+            onChange={(e) => onChange(e.target.value)}
             placeholder="https://.../avatar.jpg"
             className={inputClassSm}
           />
