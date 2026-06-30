@@ -13,7 +13,7 @@ export function ThemeScript() {
 
 type Theme = "light" | "dark";
 
-export function ThemeToggle({ variant = "sidebar" }: { variant?: "sidebar" | "topbar" }) {
+export function ThemeToggle({ variant = "sidebar" }: { variant?: "sidebar" | "topbar" | "auth" }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
@@ -36,6 +36,7 @@ export function ThemeToggle({ variant = "sidebar" }: { variant?: "sidebar" | "to
   const label = theme === "dark" ? "Tema claro" : "Tema escuro";
 
   const isTopbar = variant === "topbar";
+  const isAuth = variant === "auth";
 
   return (
     <button
@@ -44,12 +45,14 @@ export function ThemeToggle({ variant = "sidebar" }: { variant?: "sidebar" | "to
       title={label}
       aria-label={label}
       className={
-        isTopbar
-          ? "flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-white/90 text-aurora-fg dark:text-gray-900"
-          : "flex items-center justify-center rounded-lg p-1.5 text-aurora-sidebar-muted transition hover:bg-white/10 hover:text-aurora-sidebar-fg"
+        isAuth
+          ? "flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-aurora-sidebar-fg shadow-sm backdrop-blur-sm transition hover:bg-white/20 hover:text-white"
+          : isTopbar
+            ? "flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-white/90 text-aurora-fg dark:text-gray-900"
+            : "flex items-center justify-center rounded-lg p-1.5 text-aurora-sidebar-muted transition hover:bg-white/10 hover:text-aurora-sidebar-fg"
       }
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={isAuth ? "h-5 w-5" : "h-4 w-4"} />
     </button>
   );
 }

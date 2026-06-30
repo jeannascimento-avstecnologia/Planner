@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { requestPasswordReset, type AuthState } from "../auth-actions";
-import { inputClass, btnPrimary, linkClass } from "@/lib/ui-classes";
+import { authInputClass, btnPrimary, authLinkClass } from "@/lib/ui-classes";
 
 const initialState: AuthState = {};
 
@@ -12,14 +12,14 @@ export default function ForgotPasswordPage() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <p className="text-base font-bold text-white mb-4">
+      <p className="mb-4 text-sm text-aurora-muted">
         Informe seu email e enviaremos um link para redefinir a senha.
       </p>
       <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium text-white">
+        <label htmlFor="email" className="text-sm font-medium">
           Email
         </label>
-        <input id="email" name="email" type="email" required autoComplete="email" className={inputClass} />
+        <input id="email" name="email" type="email" required autoComplete="email" className={authInputClass} />
       </div>
 
       {state.error ? <p className="text-sm text-red-600 font-bold">{state.error}</p> : null}
@@ -29,8 +29,8 @@ export default function ForgotPasswordPage() {
         {pending ? "Enviando..." : "Enviar link"}
       </button>
 
-      <p className="text-center text-base font-bold text-white mt-4">
-        <Link href="/login" className={linkClass}>
+      <p className="mt-4 text-center text-sm text-aurora-muted">
+        <Link href="/login" className={authLinkClass}>
           Voltar ao login
         </Link>
       </p>

@@ -28,6 +28,13 @@ export const signUpInput = z.object({
 });
 export type SignUpInput = z.infer<typeof signUpInput>;
 
+export const inviteSignUpInput = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(72),
+  fullName: z.string().min(1).max(120),
+});
+export type InviteSignUpInput = z.infer<typeof inviteSignUpInput>;
+
 export const forgotPasswordInput = z.object({
   email: z.string().email(),
 });
@@ -141,6 +148,13 @@ export const createColumnInput = z.object({
 });
 export type CreateColumnInput = z.infer<typeof createColumnInput>;
 
+export const updateColumnInput = z.object({
+  columnId: uuid,
+  boardId: uuid,
+  name: z.string().min(1).max(80),
+});
+export type UpdateColumnInput = z.infer<typeof updateColumnInput>;
+
 export const createCardInput = z.object({
   boardId: uuid,
   columnId: uuid,
@@ -164,6 +178,12 @@ export const updateCardInput = z.object({
   assigneeId: uuid.nullable().optional(),
 });
 export type UpdateCardInput = z.infer<typeof updateCardInput>;
+
+export const deleteCardInput = z.object({
+  cardId: uuid,
+  boardId: uuid,
+});
+export type DeleteCardInput = z.infer<typeof deleteCardInput>;
 
 export const createTagInput = z.object({
   boardId: uuid,
@@ -199,12 +219,32 @@ export const inviteBoardInput = z.object({
 });
 export type InviteBoardInput = z.infer<typeof inviteBoardInput>;
 
+export const inviteBoardBatchInput = z.object({
+  boardId: uuid,
+  invites: z
+    .array(
+      z.object({
+        email: z.string().email(),
+        role: boardMemberRole.default("viewer"),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+export type InviteBoardBatchInput = z.infer<typeof inviteBoardBatchInput>;
+
 export const updateBoardMemberRoleInput = z.object({
   boardId: uuid,
   userId: uuid,
   role: boardMemberRole,
 });
 export type UpdateBoardMemberRoleInput = z.infer<typeof updateBoardMemberRoleInput>;
+
+export const removeBoardMemberInput = z.object({
+  boardId: uuid,
+  userId: uuid,
+});
+export type RemoveBoardMemberInput = z.infer<typeof removeBoardMemberInput>;
 
 export const createIcalTokenInput = z.object({
   boardId: uuid.optional(),
@@ -222,3 +262,40 @@ export const updateProfileInput = z.object({
   avatarUrl: z.string().url().nullable().optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileInput>;
+
+// --- Stages ---
+export const createStageInput = z.object({
+  boardId: uuid,
+  name: z.string().min(1).max(40),
+  color: hexColor,
+});
+export type CreateStageInput = z.infer<typeof createStageInput>;
+
+export const updateStageInput = z.object({
+  stageId: uuid,
+  boardId: uuid,
+  name: z.string().min(1).max(40).optional(),
+  color: hexColor.optional(),
+  position: z.coerce.number().int().min(0).optional(),
+});
+export type UpdateStageInput = z.infer<typeof updateStageInput>;
+
+export const deleteStageInput = z.object({
+  stageId: uuid,
+  boardId: uuid,
+});
+export type DeleteStageInput = z.infer<typeof deleteStageInput>;
+
+export const setCardStageInput = z.object({
+  cardId: uuid,
+  boardId: uuid,
+  stageId: uuid.nullable(),
+});
+export type SetCardStageInput = z.infer<typeof setCardStageInput>;
+
+export const setColumnDefaultStageInput = z.object({
+  columnId: uuid,
+  boardId: uuid,
+  stageId: uuid.nullable(),
+});
+export type SetColumnDefaultStageInput = z.infer<typeof setColumnDefaultStageInput>;

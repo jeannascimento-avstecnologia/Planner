@@ -1,4 +1,4 @@
-# Sobe o frontend local de forma confiavel (porta 3001 fixa).
+# Sobe Supabase local + Next.js (porta 3001). Um comando: npm run dev:local
 # Runbook: docs/70-ops/local-dev-start.md
 
 $ErrorActionPreference = "Stop"
@@ -9,12 +9,20 @@ $envLocal = Join-Path $web ".env.local"
 
 Set-Location $root
 
+. (Join-Path $PSScriptRoot "dev-path.ps1")
+Initialize-DevPath
+
 function Stop-PortListeners([int]$ListenPort) {
   Get-NetTCPConnection -LocalPort $ListenPort -State Listen -ErrorAction SilentlyContinue |
-    ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    ForEach-Object {
+      $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
+      if ($proc -and $proc.Name -match "^(node|next|nginx)$") {
+        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+      }
+    }
 }
 
-Write-Host "==> Limpando portas 3000-3002..." -ForegroundColor Cyan
+Write-Host "==> Limpando portas dev 3000-3002..." -ForegroundColor Cyan
 3000, 3001, 3002 | ForEach-Object { Stop-PortListeners $_ }
 Start-Sleep -Seconds 1
 
@@ -25,16 +33,20 @@ if ((Test-Path $dotNext) -and -not (Test-Path $manifest)) {
   Remove-Item -Path $dotNext -Recurse -Force
 }
 
+. (Join-Path $PSScriptRoot "ensure-supabase-local.ps1")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 if (-not (Test-Path $envLocal)) {
-  Write-Host "==> .env.local ausente - gerando via supabase:env..." -ForegroundColor Yellow
-  npm run supabase:env
+  Write-Host "ERRO: .env.local nao foi gerado." -ForegroundColor Red
+  exit 1
 }
 
 $content = Get-Content $envLocal -Raw
-if ($content -notmatch "NEXT_PUBLIC_SUPABASE_URL=https://") {
-  Write-Host "ERRO: apps/web/.env.local sem NEXT_PUBLIC_SUPABASE_URL." -ForegroundColor Red
-  Write-Host "Rode: npm run supabase:env"
-  Write-Host "Runbook: docs/70-ops/supabase-cloud-dev.md"
+$isLocal = $content -match "NEXT_PUBLIC_SUPABASE_URL=http://127\.0\.0\.1:54321"
+$isCloud = $content -match "NEXT_PUBLIC_SUPABASE_URL=https://"
+
+if (-not $isLocal -and -not $isCloud) {
+  Write-Host "ERRO: .env.local sem NEXT_PUBLIC_SUPABASE_URL valido." -ForegroundColor Red
   exit 1
 }
 
@@ -46,6 +58,12 @@ if ($content -notmatch "NEXT_PUBLIC_APP_URL=http://localhost:$port") {
 
 Write-Host "==> Subindo Next.js em http://localhost:$port ..." -ForegroundColor Green
 Write-Host "    Login: http://localhost:$port/login"
+if ($isLocal) {
+  Write-Host "    Supabase Studio: http://127.0.0.1:54323"
+  Write-Host "    Credenciais: admin@nextgen.dev / password123"
+} else {
+  Write-Host "    Modo Cloud - confira seed em supabase/seed.sql se login falhar"
+}
 Write-Host "    Pare com Ctrl+C"
 Write-Host ""
 

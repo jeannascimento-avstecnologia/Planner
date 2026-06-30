@@ -1,27 +1,96 @@
 @import "tailwindcss";
 
-/* Aurora AVS — fonte de verdade dos hex em docs/10-ux/color-palette.md */
+/* Aurora Agify — fonte de verdade dos hex em docs/10-ux/color-palette.md */
 @theme {
-  --color-aurora-bg: #f4f6fb;
+  --color-aurora-bg: #f4f7fc;
   --color-aurora-surface: #ffffff;
-  --color-aurora-surface-2: #eef2f9;
-  --color-aurora-fg: #1e293b;
+  --color-aurora-surface-2: #eef2fa;
+  --color-aurora-fg: #0f172a;
   --color-aurora-muted: #64748b;
   --color-aurora-border: #e2e8f0;
-  --color-aurora-accent: #1d4ed8;
+  --color-aurora-accent: #2563eb;
   --color-aurora-accent-muted: #dbeafe;
   --color-aurora-success: #10b981;
   --color-aurora-warning: #f59e0b;
   --color-aurora-danger: #ef4444;
   --color-aurora-info: #0ea5e9;
-  --color-aurora-sidebar-bg: #0a1145;
+  --color-aurora-brand: #7c3aed;
+  --color-aurora-brand-muted: #ede9fe;
+  --color-aurora-sidebar-bg: #0a0f1f;
   --color-aurora-sidebar-fg: #f8fafc;
   --color-aurora-sidebar-muted: #94a3b8;
-  --color-aurora-sidebar-accent: #3b82f6;
+  --color-aurora-sidebar-accent: #60a5fa;
   --color-aurora-sidebar-border: rgba(255, 255, 255, 0.08);
-  --color-aurora-brand-red: #dc2626;
-  --color-aurora-topbar-bg: #b91c1c;
+  --color-aurora-topbar-bg: #0f172a;
   --color-aurora-overlay: rgba(6, 10, 46, 0.55);
+  --color-agify-gradient-from: #38bdf8;
+  --color-agify-gradient-mid: #3b82f6;
+  --color-agify-gradient-to: #8b5cf6;
+  --background-image-agify-brand: linear-gradient(
+    180deg,
+    var(--color-agify-gradient-from) 0%,
+    var(--color-agify-gradient-mid) 45%,
+    var(--color-agify-gradient-to) 100%
+  );
+  --background-image-agify-brand-horizontal: linear-gradient(
+    90deg,
+    var(--color-agify-gradient-from) 0%,
+    var(--color-agify-gradient-mid) 50%,
+    var(--color-agify-gradient-to) 100%
+  );
+  --color-agify-auth-from: #7c3aed;
+  --color-agify-auth-mid: #5b21b6;
+  --color-agify-auth-to: #2563eb;
+  --color-agify-auth-end: #38bdf8;
+  --background-image-agify-auth-gradient: linear-gradient(
+    180deg,
+    var(--color-agify-auth-from) 0%,
+    var(--color-agify-auth-mid) 35%,
+    var(--color-agify-auth-to) 70%,
+    var(--color-agify-auth-end) 100%
+  );
+  --background-image-agify-cta: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+  --background-image-agify-sidebar: linear-gradient(
+    180deg,
+    #3b0764 0%,
+    #4c1d95 24%,
+    #312e81 50%,
+    #1e3a8a 76%,
+    #172554 100%
+  );
+  /* Tile duplicado (0%=100%) para loop seamless na sidebar */
+  --background-image-agify-sidebar-flow: linear-gradient(
+    180deg,
+    #3b0764 0%,
+    #4c1d95 6.25%,
+    #312e81 12.5%,
+    #1e3a8a 18.75%,
+    #172554 25%,
+    #0a0f1f 31.25%,
+    #172554 37.5%,
+    #1e3a8a 43.75%,
+    #312e81 46.875%,
+    #3b0764 50%,
+    #4c1d95 56.25%,
+    #312e81 62.5%,
+    #1e3a8a 68.75%,
+    #172554 75%,
+    #0a0f1f 81.25%,
+    #172554 87.5%,
+    #1e3a8a 93.75%,
+    #312e81 96.875%,
+    #3b0764 100%
+  );
+  --color-agify-shell-bg: #0a0f1f;
+  --color-agify-auth-card-bg: #f0f4ff;
+  --color-agify-auth-card-border: #a5b4fc;
+  --color-agify-auth-card-fg: #0f172a;
+  --color-agify-auth-card-muted: #64748b;
+  --color-agify-auth-field-bg: #ffffff;
+  --color-agify-auth-field-border: #e2e8f0;
+  --color-agify-auth-field-accent: #2563eb;
+  --color-agify-auth-field-accent-muted: #dbeafe;
+  --color-agify-auth-link: #7c3aed;
   --color-board-accent: var(--board-accent, var(--color-aurora-accent));
   --color-board-accent-muted: var(--board-accent-muted, var(--color-aurora-accent-muted));
   --color-board-bg: var(--board-bg, var(--color-aurora-bg));
@@ -31,25 +100,66 @@
 }
 
 [data-theme="dark"] {
-  --color-aurora-bg: #0b1020;
-  --color-aurora-surface: #121a2e;
-  --color-aurora-surface-2: #1a2438;
-  --color-aurora-fg: #e8edf7;
-  --color-aurora-muted: #94a3b8;
-  --color-aurora-border: #2a3548;
-  --color-aurora-accent: #3b82f6;
-  --color-aurora-accent-muted: #1e3a5f;
+  --color-aurora-bg: #0a0818;
+  --color-aurora-surface: #13102a;
+  --color-aurora-surface-2: #1b1738;
+  --color-aurora-fg: #eef0ff;
+  --color-aurora-muted: #a5aecf;
+  --color-aurora-border: #322e55;
+  --color-aurora-accent: #60a5fa;
+  --color-aurora-accent-muted: #1e2855;
   --color-aurora-success: #34d399;
   --color-aurora-warning: #fbbf24;
   --color-aurora-danger: #f87171;
-  --color-aurora-info: #38bdf8;
-  --color-aurora-sidebar-bg: #060a2e;
-  --color-aurora-sidebar-fg: #e8edf7;
-  --color-aurora-sidebar-muted: #7c8ba8;
-  --color-aurora-sidebar-accent: #60a5fa;
-  --color-aurora-sidebar-border: rgba(255, 255, 255, 0.06);
+  --color-aurora-info: #67c8f8;
+  --color-aurora-brand: #a78bfa;
+  --color-aurora-brand-muted: #2a1f5c;
+  --color-aurora-sidebar-bg: #060a14;
+  --color-aurora-sidebar-fg: #eef0ff;
+  --color-aurora-sidebar-muted: #a5aecf;
+  --color-aurora-sidebar-accent: #818cf8;
+  --color-aurora-sidebar-border: rgba(255, 255, 255, 0.08);
   --color-aurora-overlay: rgba(0, 0, 0, 0.6);
-  --color-aurora-topbar-bg: #991b1b;
+  --color-aurora-topbar-bg: #0f0d1c;
+  --color-agify-shell-bg: #0a0818;
+  /* Auth card: Agify Night (isolado do resto da pagina auth = navy pattern) */
+  --color-agify-auth-card-bg: #13102a;
+  --color-agify-auth-card-border: #322e55;
+  --color-agify-auth-card-fg: #eef0ff;
+  --color-agify-auth-card-muted: #a5aecf;
+  --color-agify-auth-field-bg: #1b1738;
+  --color-agify-auth-field-border: #322e55;
+  --color-agify-auth-field-accent: #60a5fa;
+  --color-agify-auth-field-accent-muted: #1e2855;
+  --color-agify-auth-link: #a78bfa;
+  --background-image-agify-sidebar: linear-gradient(
+    180deg,
+    #2e1065 0%,
+    #3b0764 22%,
+    #1e1b4b 46%,
+    #1e3a8a 74%,
+    #0a0818 100%
+  );
+  --background-image-agify-sidebar-flow: linear-gradient(
+    180deg,
+    #2e1065 0%,
+    #3b0764 6.25%,
+    #1e1b4b 12.5%,
+    #1e3a8a 18.75%,
+    #0a0818 25%,
+    #1e3a8a 31.25%,
+    #1e1b4b 37.5%,
+    #3b0764 43.75%,
+    #2e1065 50%,
+    #3b0764 56.25%,
+    #1e1b4b 62.5%,
+    #1e3a8a 68.75%,
+    #0a0818 75%,
+    #1e3a8a 81.25%,
+    #1e1b4b 87.5%,
+    #3b0764 93.75%,
+    #2e1065 100%
+  );
 }
 
 html,
@@ -67,7 +177,10 @@ body {
   color-scheme: light;
   --motion-duration-fast: 150ms;
   --motion-duration-normal: 220ms;
+  --motion-duration-modal: 240ms;
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --motion-hover-lift: -2px;
 }
 [data-theme="dark"] {
@@ -80,9 +193,109 @@ body {
     -45deg,
     transparent,
     transparent 8px,
-    rgba(255, 255, 255, 0.04) 8px,
-    rgba(255, 255, 255, 0.04) 9px
+    rgba(139, 92, 246, 0.04) 8px,
+    rgba(139, 92, 246, 0.04) 9px
   );
+}
+
+.aurora-sidebar-gradient {
+  background-color: var(--color-aurora-sidebar-bg);
+  background-image: var(--background-image-agify-sidebar);
+}
+
+/* Fluxo roxo→azul→navy (loop seamless) — sidebar app */
+.aurora-sidebar-gradient--flow {
+  background-image: var(--background-image-agify-sidebar-flow);
+  background-size: 100% 200%;
+  background-repeat: no-repeat;
+  animation: agify-sidebar-flow 18s linear infinite;
+}
+
+@keyframes agify-sidebar-flow {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    /* 1 tile = metade do gradiente duplicado; fim = início visual */
+    background-position: 0% 100%;
+  }
+}
+
+/* Mobile: animação só com drawer aberto; desktop (md+) sempre anima */
+@media (max-width: 767px) {
+  .aurora-sidebar-gradient--flow:not([data-mobile-open="true"]) {
+    animation: none;
+    background-size: auto;
+    background-image: var(--background-image-agify-sidebar);
+  }
+}
+
+.aurora-topbar-solid {
+  background-color: var(--color-aurora-topbar-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bg-agify-shell-solid {
+  background-color: var(--color-agify-shell-bg);
+}
+
+.btn-agify-gradient {
+  background-image: var(--background-image-agify-cta);
+  color: #fff;
+}
+
+.bg-agify-brand {
+  background-image: var(--background-image-agify-brand);
+}
+
+.agify-selection-active {
+  background-image: var(--background-image-agify-brand-horizontal);
+  color: #fff;
+  border-color: transparent;
+}
+
+.bg-agify-auth-gradient {
+  background-color: var(--color-agify-auth-mid);
+  background-image: var(--background-image-agify-auth-gradient);
+}
+
+/* Card login: light = lavanda; dark = Agify Night (tokens --color-agify-auth-*) */
+.auth-card {
+  background-color: var(--color-agify-auth-card-bg);
+  color: var(--color-agify-auth-card-fg);
+  border-color: var(--color-agify-auth-card-border);
+  box-shadow:
+    0 0 0 1px rgba(165, 180, 252, 0.35),
+    0 20px 40px -12px rgba(6, 10, 46, 0.45);
+}
+
+[data-theme="dark"] .auth-card {
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, 0.2),
+    0 24px 48px -12px rgba(0, 0, 0, 0.65);
+}
+
+.auth-tagline {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  color: var(--color-aurora-sidebar-fg);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+}
+
+@media (min-width: 640px) {
+  .auth-tagline {
+    font-size: 1.25rem;
+  }
+}
+
+.auth-card .text-aurora-muted {
+  color: var(--color-agify-auth-card-muted);
+}
+
+.bg-agify-auth-card {
+  background-color: var(--color-agify-auth-card-bg);
 }
 
 .board-theme-scope {
@@ -105,11 +318,130 @@ body {
   animation: hub-panel-in var(--motion-duration-normal) var(--motion-ease-out);
 }
 
+/* ---------- Overlays e modais Aurora ---------- */
+.aurora-overlay {
+  background: var(--color-aurora-overlay);
+  backdrop-filter: blur(4px);
+}
+
+@keyframes aurora-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.aurora-overlay-enter {
+  animation: aurora-overlay-in var(--motion-duration-fast) var(--motion-ease-out);
+}
+
+.aurora-modal-panel {
+  border-radius: var(--radius-aurora);
+  box-shadow:
+    0 0 0 1px rgba(165, 180, 252, 0.2),
+    0 24px 48px -12px rgba(6, 10, 46, 0.35);
+}
+
+[data-theme="dark"] .aurora-modal-panel {
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, 0.12),
+    0 24px 48px -12px rgba(0, 0, 0, 0.55);
+}
+
+.aurora-modal-panel--board {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-board-accent) 25%, transparent),
+    0 24px 48px -12px rgba(6, 10, 46, 0.35);
+}
+
+.aurora-modal-hairline {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(56, 189, 248, 0.4) 0%,
+    rgba(139, 92, 246, 0.45) 50%,
+    rgba(124, 58, 237, 0.4) 100%
+  );
+}
+
+@keyframes aurora-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.aurora-modal-enter {
+  animation: aurora-modal-in var(--motion-duration-modal) var(--motion-ease-enter);
+}
+
+@keyframes aurora-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.aurora-drawer-enter {
+  animation: aurora-drawer-in var(--motion-duration-normal) var(--motion-ease-enter);
+}
+
+@keyframes aurora-success-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.aurora-success-pulse {
+  animation: aurora-success-pulse 400ms var(--motion-ease-out) 1;
+}
+
+@keyframes aurora-badge-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.aurora-badge-pop {
+  animation: aurora-badge-pop var(--motion-duration-fast) var(--motion-ease-out);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .aurora-sidebar-gradient--flow {
+    animation: none;
+    background-size: auto;
+    background-image: var(--background-image-agify-sidebar);
+  }
+
+  .aurora-overlay {
+    backdrop-filter: none;
   }
 }

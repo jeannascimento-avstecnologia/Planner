@@ -1,4 +1,4 @@
-import type { CreateTifluxTicketInput } from "@nextgen/contracts";
+﻿import type { CreateTifluxTicketInput } from "@nextgen/contracts";
 
 export type TifluxTicketResult = {
   ticketId: string;
@@ -22,12 +22,13 @@ async function tifluxFetch(path: string, token: string, init?: RequestInit): Pro
   const url = `${baseUrl()}${path}`;
   const method = (init?.method ?? "GET").toUpperCase();
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
+  const hasBody = init?.body != null && init.body !== "";
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     Accept: "application/json",
   };
-  // GET/HEAD: sem Content-Type. POST FormData: boundary automatico. POST JSON: application/json.
-  if (method !== "GET" && method !== "HEAD" && !isFormData) {
+  // GET/HEAD: sem Content-Type. Sem body: sem Content-Type. FormData: boundary automatico.
+  if (method !== "GET" && method !== "HEAD" && hasBody && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
   const res = await fetch(url, {
@@ -38,17 +39,19 @@ async function tifluxFetch(path: string, token: string, init?: RequestInit): Pro
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    let msg =
-      body && typeof body === "object" && "message" in body
-        ? String((body as { message: unknown }).message)
-        : `Tiflux HTTP ${res.status}`;
-    if (body && typeof body === "object" && "detail" in body) {
-      const detail = (body as { detail: unknown }).detail;
-      if (detail && typeof detail === "object") {
-        const parts = Object.entries(detail as Record<string, unknown>).flatMap(([field, errs]) =>
-          Array.isArray(errs) ? errs.map((e) => `${field}: ${String(e)}`) : [`${field}: ${String(errs)}`],
-        );
-        if (parts.length) msg = parts.join("; ");
+    let msg = `Tiflux HTTP ${res.status}`;
+    if (body && typeof body === "object") {
+      const b = body as Record<string, unknown>;
+      if ("error" in b) msg = String(b.error);
+      else if ("message" in b) msg = String(b.message);
+      if ("detail" in b) {
+        const detail = b.detail;
+        if (detail && typeof detail === "object") {
+          const parts = Object.entries(detail as Record<string, unknown>).flatMap(([field, errs]) =>
+            Array.isArray(errs) ? errs.map((e) => `${field}: ${String(e)}`) : [`${field}: ${String(errs)}`],
+          );
+          if (parts.length) msg = parts.join("; ");
+        }
       }
     }
     throw new Error(msg);
@@ -127,7 +130,7 @@ export async function listTifluxServicesCatalogItems(
     .filter((o) => o.value);
 }
 
-/** /users nao aceita filtro por nome — busca paginada + filtro client-side. */
+/** /users nao aceita filtro por nome â€” busca paginada + filtro client-side. */
 export async function searchTifluxUsers(token: string, query?: string): Promise<TifluxOption[]> {
   const body = await tifluxFetch(`/users${encode({ active: true, ...page(1, 200) })}`, token);
   let list = extractList(body);
@@ -164,7 +167,7 @@ export async function searchTifluxRequestors(
     .filter((o) => o.value);
 }
 
-/** /tickets nao aceita filtro por title — filtro client-side apos desk_ids. */
+/** /tickets nao aceita filtro por title â€” filtro client-side apos desk_ids. */
 export async function searchTifluxParentTickets(
   token: string,
   deskId: number,

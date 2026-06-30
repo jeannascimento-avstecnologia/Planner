@@ -34,7 +34,7 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
   }, [open]);
 
   const topbarIconBtn =
-    "flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-white/90";
+    "flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition hover:bg-white/90";
   const active = pathname === "/profile" || pathname === "/profile/password";
 
   return (
@@ -51,9 +51,9 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
         ) : profileInitials(fullName) ? (
-          <span className="text-xs font-semibold text-aurora-fg">{profileInitials(fullName)}</span>
+          <span className="text-xs font-semibold">{profileInitials(fullName)}</span>
         ) : (
-          <User className="h-4 w-4 text-aurora-fg" />
+          <User className="h-4 w-4" />
         )}
       </button>
 

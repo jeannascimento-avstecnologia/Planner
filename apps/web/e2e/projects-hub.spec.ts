@@ -4,6 +4,7 @@ import { loginAsStandard } from "./helpers";
 test.describe("Projects hub", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsStandard(page);
+    await page.goto("/projects");
   });
 
   test("selecionar projeto abre painel de detalhe", async ({ page }) => {

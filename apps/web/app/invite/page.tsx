@@ -1,7 +1,62 @@
-import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { acceptInvite } from "@/app/(app)/boards/[boardId]/actions";
-import { btnPrimary } from "@/lib/ui-classes";
+import { redirect } from "next/navigation";
+import { acceptBoardInviteByToken } from "@/lib/accept-board-invite";
+import { createClient } from "@/lib/supabase/server";
+import { resolveBoardInvitation } from "@/lib/resolve-board-invitation";
+import { normalizeAuthEmail } from "@/lib/normalize-auth-email";
+import { authBtnSecondary, authLinkClass, btnPrimary } from "@/lib/ui-classes";
+import { AuthLayoutShell } from "@/components/auth/auth-layout-shell";
+import { SignOutButton } from "@/components/shell/sign-out-button";
+
+function mapInviteError(message: string): string {
+  if (message.includes("not authenticated")) {
+    return "Faca login com o email convidado para aceitar o convite.";
+  }
+  if (message.includes("email mismatch")) {
+    return "__invite_session_error__";
+  }
+  if (message.includes("invalid or expired")) {
+    return "Convite invalido ou expirado. Peca um novo convite.";
+  }
+  return "Nao foi possivel aceitar o convite.";
+}
+
+type InviteCardProps = {
+  title: string;
+  children: ReactNode;
+};
+
+function InviteCard({ title, children }: InviteCardProps) {
+  return (
+    <AuthLayoutShell>
+      <div className="space-y-4 text-center">
+        <h1 className="text-lg font-semibold">{title}</h1>
+        {children}
+      </div>
+    </AuthLayoutShell>
+  );
+}
+
+function InviteSessionError({ inviteNext }: { inviteNext: string }) {
+  return (
+    <InviteCard title="Ops...">
+      <p className="text-sm text-aurora-muted">
+        Parece que ocorreu um erro — voce nao deveria estar vendo esta tela.
+      </p>
+      <div className="flex flex-col gap-2">
+        <Link href="/boards" className={`inline-block w-full ${btnPrimary}`}>
+          Voltar ao inicio
+        </Link>
+        <SignOutButton
+          loginNext={inviteNext}
+          className={`w-full ${authBtnSecondary}`}
+          label="Logar com outra conta"
+        />
+      </div>
+    </InviteCard>
+  );
+}
 
 export default async function InvitePage({
   searchParams,
@@ -11,28 +66,85 @@ export default async function InvitePage({
   const { token } = await searchParams;
   if (!token) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-aurora-muted">Convite invalido.</p>
-      </main>
+      <InviteCard title="Aceitar convite">
+        <p className="text-sm text-aurora-muted">Convite invalido.</p>
+      </InviteCard>
     );
   }
 
-  const result = await acceptInvite(token);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const inviteNext = `/invite?token=${encodeURIComponent(token)}`;
+  const resolved = await resolveBoardInvitation(token);
+  const sessionEmail = user?.email ? normalizeAuthEmail(user.email) : "";
+  const inviteEmail = resolved?.email ? normalizeAuthEmail(resolved.email) : "";
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(inviteNext)}`);
+  }
+
+  if (resolved?.status === "accepted" && resolved.boardId) {
+    const { data: existingMember } = await supabase
+      .from("board_members")
+      .select("board_id")
+      .eq("board_id", resolved.boardId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingMember) {
+      redirect(`/boards/${resolved.boardId}`);
+    }
+
+    return (
+      <InviteCard title="Aceitar convite">
+        <p className="text-sm text-aurora-muted">
+          Este convite ja foi utilizado. Entre com a conta que aceitou o convite ou peca um novo convite.
+        </p>
+        <SignOutButton loginNext={inviteNext} className={`w-full ${btnPrimary}`} label="Entrar com outra conta" />
+      </InviteCard>
+    );
+  }
+
+  if (resolved?.status === "expired" || resolved?.status === "not_found" || !resolved) {
+    return (
+      <InviteCard title="Aceitar convite">
+        <p className="text-sm text-aurora-muted">Convite invalido ou expirado. Peca um novo convite.</p>
+        <SignOutButton loginNext={inviteNext} className={`w-full ${btnPrimary}`} label="Entrar com outra conta" />
+      </InviteCard>
+    );
+  }
+
+  if (sessionEmail && inviteEmail && sessionEmail !== inviteEmail) {
+    return <InviteSessionError inviteNext={inviteNext} />;
+  }
+
+  const result = await acceptBoardInviteByToken(token);
+
   if (result.boardId) {
     redirect(`/boards/${result.boardId}`);
   }
 
+  const errorText = mapInviteError(result.error ?? "Nao foi possivel aceitar o convite.");
+
+  if (errorText === "__invite_session_error__") {
+    return <InviteSessionError inviteNext={inviteNext} />;
+  }
+
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="max-w-sm rounded-2xl border border-aurora-border bg-aurora-surface p-8 text-center">
-        <h1 className="mb-2 text-lg font-semibold">Aceitar convite</h1>
-        <p className="mb-4 text-sm text-aurora-muted">
-          {result.error ?? "Faca login com o email convidado e tente novamente."}
-        </p>
-        <Link href="/login" className={btnPrimary + " inline-block"}>
-          Ir para login
-        </Link>
+    <InviteCard title="Aceitar convite">
+      <p className="text-sm text-aurora-muted">{errorText}</p>
+      <div className="flex flex-col gap-2">
+        <SignOutButton loginNext={inviteNext} className={`w-full ${btnPrimary}`} label="Entrar com outra conta" />
+        <SignOutButton
+          redirectTo={`/signup?next=${encodeURIComponent(inviteNext)}`}
+          className={authLinkClass + " text-sm"}
+          label="Criar conta com email convidado"
+          pendingLabel="Abrindo cadastro..."
+        />
       </div>
-    </main>
+    </InviteCard>
   );
 }

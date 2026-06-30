@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/server";
 import { buildIcsFeed } from "@/lib/ical";
 
@@ -20,7 +21,7 @@ export async function GET(
       due_date: r.due_date,
       board_name: r.board_name,
     })),
-    "AVS Flow",
+    PRODUCT_NAME,
   );
 
   return new Response(body, {

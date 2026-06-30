@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
 import { linkTifluxTicket } from "@/app/(app)/boards/[boardId]/actions";
+import { AuroraModal } from "@/components/ui/aurora-modal";
 import { btnBoardPrimary } from "@/lib/ui-classes";
 import { TifluxCombobox, type TifluxOption } from "./tiflux-combobox";
 import type { BoardCard } from "./types";
@@ -62,111 +61,94 @@ export function TifluxLinkTicketModal({ boardId, card, onClose }: Props) {
     });
   }
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-      data-testid="tiflux-link-modal"
+  return (
+    <AuroraModal
+      onClose={onClose}
+      title="Associar a um ticket"
+      subtitle={card.title}
+      variant="board"
+      size="md"
+      testId="tiflux-link-modal"
+      zIndex={60}
+      bodyClassName="max-h-[70vh] overflow-y-auto px-5 py-4"
     >
-      <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-board-border bg-board-surface p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-labelledby="tiflux-link-title"
-      >
-        <header className="mb-4 flex items-start justify-between gap-2">
-          <div>
-            <h2 id="tiflux-link-title" className="text-lg font-semibold text-aurora-fg">
-              Associar a um ticket
-            </h2>
-            <p className="mt-1 text-sm text-aurora-muted">{card.title}</p>
+      {success ? (
+        <div className="space-y-4">
+          <div className="aurora-success-pulse rounded-lg border border-aurora-success/40 bg-aurora-success/10 p-4 text-center">
+            <p className="text-sm text-aurora-muted">Ticket vinculado</p>
+            <p className="mt-1 text-2xl font-bold text-aurora-fg">#{success}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-aurora-muted hover:text-aurora-fg">
-            <X className="h-5 w-5" />
+          <button type="button" onClick={onClose} className={`w-full ${btnBoardPrimary}`}>
+            Fechar
           </button>
-        </header>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-aurora-muted">Empresa</label>
+            <TifluxCombobox boardId={boardId} kind="client" value={client} onChange={setClient} placeholder="Pesquisar empresa..." />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-aurora-muted">Mesa</label>
+            <TifluxCombobox boardId={boardId} kind="desk" value={desk} onChange={selectDesk} placeholder="Pesquisar mesa..." />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-aurora-muted">Ticket</label>
+            <TifluxCombobox
+              boardId={boardId}
+              kind="parent_ticket"
+              deskId={deskId}
+              value={ticket}
+              onChange={setTicket}
+              disabled={!deskId}
+              disabledHint="Selecione a mesa primeiro"
+              placeholder="Pesquisar ticket..."
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-aurora-muted">Ticket pai (opcional)</label>
+            <TifluxCombobox
+              boardId={boardId}
+              kind="parent_ticket"
+              deskId={deskId}
+              value={parentTicket}
+              onChange={setParentTicket}
+              disabled={!deskId}
+              disabledHint="Selecione a mesa primeiro"
+              placeholder="Ticket pai..."
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-aurora-muted">Ticket filho (opcional)</label>
+            <TifluxCombobox
+              boardId={boardId}
+              kind="parent_ticket"
+              deskId={deskId}
+              value={childTicket}
+              onChange={setChildTicket}
+              disabled={!deskId}
+              disabledHint="Selecione a mesa primeiro"
+              placeholder="Ticket filho..."
+            />
+          </div>
 
-        {success ? (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-aurora-success/40 bg-aurora-success/10 p-4 text-center">
-              <p className="text-sm text-aurora-muted">Ticket vinculado</p>
-              <p className="mt-1 text-2xl font-bold text-aurora-fg">#{success}</p>
-            </div>
-            <button type="button" onClick={onClose} className={`w-full ${btnBoardPrimary}`}>
-              Fechar
+          {error ? <p className="text-sm text-aurora-danger">{error}</p> : null}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={pending}
+              className="rounded-md border border-board-border px-3 py-1.5 text-sm text-aurora-fg hover:bg-board-accent-muted/40"
+            >
+              Cancelar
+            </button>
+            <button type="button" onClick={submit} disabled={pending} className={btnBoardPrimary}>
+              {pending ? "Salvando..." : "Vincular"}
             </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-aurora-muted">Empresa</label>
-              <TifluxCombobox boardId={boardId} kind="client" value={client} onChange={setClient} placeholder="Pesquisar empresa..." />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-aurora-muted">Mesa</label>
-              <TifluxCombobox boardId={boardId} kind="desk" value={desk} onChange={selectDesk} placeholder="Pesquisar mesa..." />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-aurora-muted">Ticket</label>
-              <TifluxCombobox
-                boardId={boardId}
-                kind="parent_ticket"
-                deskId={deskId}
-                value={ticket}
-                onChange={setTicket}
-                disabled={!deskId}
-                disabledHint="Selecione a mesa primeiro"
-                placeholder="Pesquisar ticket..."
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-aurora-muted">Ticket pai (opcional)</label>
-              <TifluxCombobox
-                boardId={boardId}
-                kind="parent_ticket"
-                deskId={deskId}
-                value={parentTicket}
-                onChange={setParentTicket}
-                disabled={!deskId}
-                disabledHint="Selecione a mesa primeiro"
-                placeholder="Ticket pai..."
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-aurora-muted">Ticket filho (opcional)</label>
-              <TifluxCombobox
-                boardId={boardId}
-                kind="parent_ticket"
-                deskId={deskId}
-                value={childTicket}
-                onChange={setChildTicket}
-                disabled={!deskId}
-                disabledHint="Selecione a mesa primeiro"
-                placeholder="Ticket filho..."
-              />
-            </div>
-
-            {error ? <p className="text-sm text-aurora-danger">{error}</p> : null}
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={pending}
-                className="rounded-md border border-board-border px-3 py-1.5 text-sm text-aurora-fg hover:bg-board-accent-muted/40"
-              >
-                Cancelar
-              </button>
-              <button type="button" onClick={submit} disabled={pending} className={btnBoardPrimary}>
-                {pending ? "Salvando..." : "Vincular"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>,
-    document.body,
+        </div>
+      )}
+    </AuroraModal>
   );
 }

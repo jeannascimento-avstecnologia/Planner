@@ -4,7 +4,7 @@ import { STANDARD_USER, collectConsoleErrors, uniqueEmail } from "./helpers";
 test.describe("Auth", () => {
   test("login page renderiza campos e acoes", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.getByRole("heading", { name: /AVS Flow/i })).toBeVisible();
+    await expect(page.getByAltText("Agify")).toBeVisible();
     await expect(page.getByRole("button", { name: "Continuar com Google" })).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Senha")).toBeVisible();

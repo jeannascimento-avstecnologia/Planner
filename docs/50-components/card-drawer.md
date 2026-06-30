@@ -11,6 +11,16 @@ Painel lateral para editar card: titulo, descricao, prioridade, prazo, responsav
 ## Prazo
 - `DatePickerPopover` substitui `<input type="date">`.
 
+## Responsavel
+- Select lista **membros da org + integrantes do board** (`board_members`), ordenados por nome.
+- Convidados que aceitaram convite (sem `memberships` na org) aparecem como opcao de responsavel.
+- Loader: `lib/board-assignees.ts` + `boards/[boardId]/page.tsx`.
+
+## Modo visualizador (`viewer`)
+- Prop `readOnly` quando `!canEditBoardUI` (ver `lib/board-member-roles.ts`).
+- Titulo **Ver card**; campos somente leitura (texto + badges); sem Salvar/Excluir.
+- Componente: `card-drawer-readonly.tsx` (invocado por `CardDrawer`).
+
 ## Criterios de aceite
 - Abre ao clicar no card no Kanban.
 - Salvar persiste via server action `updateCard` + `card_events`.

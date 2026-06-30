@@ -7,13 +7,21 @@ import { inputBoardClassSm } from "@/lib/ui-classes";
 
 export type TifluxOption = { value: string; label: string; email?: string };
 
-type Kind = "client" | "desk" | "priority" | "services_catalog_item" | "requestor" | "user" | "parent_ticket";
+type Kind =
+  | "client"
+  | "desk"
+  | "priority"
+  | "services_catalog_item"
+  | "requestor"
+  | "user"
+  | "parent_ticket";
 
 type BaseProps = {
   boardId: string;
   kind: Kind;
   deskId?: number;
   clientId?: number;
+  ticketNumber?: number;
   placeholder?: string;
   disabled?: boolean;
   disabledHint?: string;
@@ -34,7 +42,7 @@ type MultiProps = BaseProps & {
 type Props = SingleProps | MultiProps;
 
 export function TifluxCombobox(props: Props) {
-  const { boardId, kind, deskId, clientId, placeholder, disabled, disabledHint } = props;
+  const { boardId, kind, deskId, clientId, ticketNumber, placeholder, disabled, disabledHint } = props;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<TifluxOption[]>([]);
@@ -45,7 +53,14 @@ export function TifluxCombobox(props: Props) {
   const runSearch = useCallback(
     (q: string) => {
       startTransition(async () => {
-        const res = await searchTifluxOptions({ boardId, kind, query: q || undefined, deskId, clientId });
+        const res = await searchTifluxOptions({
+          boardId,
+          kind,
+          query: q || undefined,
+          deskId,
+          clientId,
+          ticketNumber,
+        });
         if ("error" in res) {
           setError(res.error);
           setOptions([]);
@@ -55,7 +70,7 @@ export function TifluxCombobox(props: Props) {
         }
       });
     },
-    [boardId, kind, deskId, clientId],
+    [boardId, kind, deskId, clientId, ticketNumber],
   );
 
   useEffect(() => {

@@ -20,17 +20,25 @@ function TopbarTitleInner() {
   if (isBoardDetail) {
     const mode = parseBoardViewMode(searchParams.get("view"));
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-aurora-topbar-bg md:text-sm">
+      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
         {VIEW_LABELS[mode]}
       </span>
     );
   }
 
   if (pathname === "/boards") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+        Home
+      </span>
+    );
+  }
+
+  if (pathname === "/projects") {
     const layout = searchParams.get("layout");
     const label = layout === "list" ? "Lista" : "Projetos";
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-aurora-topbar-bg md:text-sm">
+      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
         {label}
       </span>
     );
@@ -38,7 +46,7 @@ function TopbarTitleInner() {
 
   if (pathname === "/calendar") {
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-aurora-topbar-bg md:text-sm">
+      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
         Calendario
       </span>
     );

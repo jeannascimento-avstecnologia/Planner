@@ -25,6 +25,21 @@ insert into auth.users (
   '', '', '', '', '', '', '', ''
 ) on conflict (id) do nothing;
 
+insert into auth.identities (
+  id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at
+) values (
+  '11111111-1111-1111-1111-111111111112',
+  '11111111-1111-1111-1111-111111111111',
+  '11111111-1111-1111-1111-111111111111',
+  'email',
+  jsonb_build_object(
+    'sub', '11111111-1111-1111-1111-111111111111',
+    'email', 'admin@nextgen.dev',
+    'email_verified', true
+  ),
+  now(), now(), now()
+) on conflict do nothing;
+
 -- org + membership (seed roda como superuser, ignora RLS)
 insert into public.organizations (id, name, slug)
 values ('22222222-2222-2222-2222-222222222222', 'Acme Inc', 'acme')
@@ -43,6 +58,44 @@ values ('33333333-3333-3333-3333-333333333333',
 on conflict (id) do update set
   tiflux_enabled = excluded.tiflux_enabled,
   integrations = excluded.integrations;
+
+-- Viewer demo: viewer@nextgen.dev / password123 (board-only no Roadmap)
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data, is_sso_user, is_anonymous,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  email_change_token_current, phone_change, phone_change_token, reauthentication_token
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '66666666-6666-6666-6666-666666666666',
+  'authenticated', 'authenticated', 'viewer@nextgen.dev',
+  crypt('password123', gen_salt('bf')),
+  now(), now(), now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"full_name":"Viewer Demo"}'::jsonb,
+  false, false,
+  '', '', '', '', '', '', '', ''
+) on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at
+) values (
+  '66666666-6666-6666-6666-666666666667',
+  '66666666-6666-6666-6666-666666666666',
+  '66666666-6666-6666-6666-666666666666',
+  'email',
+  jsonb_build_object(
+    'sub', '66666666-6666-6666-6666-666666666666',
+    'email', 'viewer@nextgen.dev',
+    'email_verified', true
+  ),
+  now(), now(), now()
+) on conflict do nothing;
+
+insert into public.board_members (board_id, user_id, role)
+values ('33333333-3333-3333-3333-333333333333', '66666666-6666-6666-6666-666666666666', 'viewer')
+on conflict (board_id, user_id) do update set role = excluded.role;
 
 insert into public.columns (id, board_id, org_id, name, position) values
   ('44444444-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'To Do', 'a0'),

@@ -15,18 +15,17 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
 
   test("sidebar inicia recolhida e expande via seta", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(page.getByAltText("AVS Tecnologia")).toBeHidden();
-    await expect(page.getByAltText("AVS", { exact: true })).toBeVisible();
+    await expect(page.getByAltText("Agify")).toBeVisible();
     await page.getByRole("button", { name: "Expandir" }).click();
-    await expect(page.getByAltText("AVS Tecnologia")).toBeVisible();
     await expect(page.getByRole("button", { name: "Recolher" })).toBeVisible();
+    await expect(page.getByAltText("Agify")).toBeVisible();
   });
 
-  test("top bar mostra marca AVS Flow central", async ({ page }) => {
-    const topbar = page.locator("header.bg-aurora-topbar-bg");
+  test("top bar mostra marca Agify central", async ({ page }) => {
+    const topbar = page.locator("header.aurora-topbar-solid");
     await expect(topbar).toBeVisible();
-    await expect(topbar.getByText("AVS Flow", { exact: true })).toBeVisible();
-    await expect(topbar.locator("span.rounded-full").filter({ hasText: "Projetos" })).toBeVisible();
+    await expect(topbar.getByAltText("Agify")).toBeVisible();
+    await expect(topbar.locator("span.rounded-full").filter({ hasText: "Home" })).toBeVisible();
   });
 
   test("sino na top bar tem fundo branco", async ({ page }) => {
@@ -35,6 +34,10 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
 
   test("top bar nao usa textura listrada", async ({ page }) => {
     await expect(page.locator("header.aurora-topbar-pattern")).toHaveCount(0);
+  });
+
+  test("sidebar usa gradiente leve roxo-azul", async ({ page }) => {
+    await expect(page.locator("aside.aurora-sidebar-gradient")).toBeVisible();
   });
 
   test("sidebar home primeiro depois calendario e projetos", async ({ page }) => {
@@ -47,21 +50,20 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
 
   test("logo colapsada expande sidebar ao clicar", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(page.getByAltText("AVS", { exact: true })).toBeVisible();
-    await page.locator("aside button[title='AVS Flow']").click();
-    await expect(page.getByAltText("AVS Tecnologia")).toBeVisible();
+    await expect(page.getByAltText("Agify")).toBeVisible();
+    await page.getByRole("button", { name: "Expandir menu" }).click();
+    await expect(page.getByRole("button", { name: "Recolher" })).toBeVisible();
   });
 
-  test("logo sidebar tem fundo branco", async ({ page }) => {
+  test("logo sidebar visivel na sidebar", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    const logoWrap = page.locator("aside button[title='AVS Flow'] span.bg-white");
-    await expect(logoWrap).toBeVisible();
+    await expect(page.locator("aside").getByAltText("Agify")).toBeVisible();
   });
 
   test("top bar no board mostra pill com modo Kanban", async ({ page }) => {
     await openSeedBoard(page);
     await expect(
-      page.locator("header.bg-aurora-topbar-bg").locator("span.rounded-full").filter({ hasText: "Kanban" }),
+      page.locator("header.aurora-topbar-solid").locator("span.rounded-full").filter({ hasText: "Kanban" }),
     ).toBeVisible();
   });
 
@@ -91,7 +93,7 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
   });
 
   test("sino de notificacoes na top bar lista prazos", async ({ page }) => {
-    const topbar = page.locator("header.bg-aurora-topbar-bg");
+    const topbar = page.locator("header.aurora-topbar-solid");
     const bell = topbar.getByRole("button", { name: "Notificacoes" });
     await expect(bell).toBeVisible();
     await bell.click();
@@ -102,11 +104,12 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
     await openSeedBoard(page);
     await page.getByRole("button", { name: "Compartilhar" }).click();
     await expect(page.getByRole("heading", { name: /Compartilhar/ })).toBeVisible();
+    await expect(page.locator(".aurora-overlay")).toBeVisible();
     await expect(page.getByRole("button", { name: "Copiar link do projeto" })).toBeVisible();
   });
 
   test("home: card de projeto mostra icone e cor customizada", async ({ page }) => {
-    const tile = projectTile(page, /Roadmap/).getByTestId("project-tile-select");
+    const tile = projectTile(page, /Roadmap/).getByRole("link");
     await expect(tile.locator("svg")).toBeVisible();
     await expect(tile).toHaveAttribute("style", /border-left/i);
   });
@@ -228,9 +231,9 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
     await expect(page.locator("aside").first().locator(".board-theme-scope")).toHaveCount(0);
     await expect(page.locator(".board-theme-scope")).toBeVisible();
   });
-  test("perfil usa fundo navy texturado", async ({ page }) => {
+  test("perfil usa fundo solido aurora-bg", async ({ page }) => {
     await page.goto("/profile");
-    await expect(page.locator(".aurora-sidebar-pattern").first()).toBeVisible();
+    await expect(page.locator(".bg-aurora-bg").first()).toBeVisible();
   });
 
   test("datepicker aceita data digitada DD.MM.AAAA", async ({ page }) => {
@@ -266,10 +269,13 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
   });
 });
 
-test.describe("Auth AVS layout", () => {
-  test("login com fundo navy texturado", async ({ page }) => {
+test.describe("Auth Agify layout", () => {
+  test("login com fundo navy e card surface", async ({ page }) => {
     await page.goto("/login");
     await expect(page.locator("main.aurora-sidebar-pattern")).toBeVisible();
-    await expect(page.getByRole("heading", { name: /AVS Flow/i })).toBeVisible();
+    await expect(page.locator("main.aurora-sidebar-pattern > .auth-card")).toBeVisible();
+    await expect(page.getByAltText("Agify")).toBeVisible();
+    await expect(page.locator(".bg-black")).toHaveCount(0);
+    await expect(page.getByText("ou", { exact: true })).toBeVisible();
   });
 });

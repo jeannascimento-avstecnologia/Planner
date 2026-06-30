@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await supabase.rpc("sync_deadline_notifications");
   const { data: notifs } = await supabase
     .from("notifications")
-    .select("id, type, title, body, entity_type, entity_id, read_at, created_at")
+    .select("id, type, title, body, entity_type, entity_id, board_id, read_at, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -24,6 +24,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .select("avatar_url, full_name")
     .eq("id", user.id)
     .single();
+
+  const { data: accessibleBoards } = await supabase.from("boards").select("id");
+  const accessibleBoardIds = (accessibleBoards ?? []).map((b) => b.id);
 
   const notifications: NotificationItem[] = (notifs ?? []) as NotificationItem[];
   const unreadCount = notifications.filter((n) => !n.read_at).length;
@@ -35,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       fullName={profile?.full_name ?? ""}
       notifications={notifications}
       unreadCount={unreadCount}
+      accessibleBoardIds={accessibleBoardIds}
     >
       {children}
     </AppShell>

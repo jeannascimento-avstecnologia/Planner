@@ -12,6 +12,8 @@ import {
   type OrgCardHit,
 } from "@/app/(app)/calendar/actions";
 import { btnPrimary, btnSecondary, inputClassSm } from "@/lib/ui-classes";
+import { AuroraModal } from "@/components/ui/aurora-modal";
+import { appToast } from "@/lib/toast";
 import { formatDateLabel, toDateInputValue } from "@/lib/calendar-grid";
 import type { CalendarEvent } from "@/app/(app)/calendar/calendar-client";
 
@@ -59,6 +61,7 @@ export function DeadlineAgendaModal({ date, orgId, boards, columns, dayEvents, o
       const res = await assignDueDate(hit.id, hit.board_id, dateIso);
       if (!res.ok) setError(res.error ?? "Erro");
       else {
+        appToast.success("Prazo vinculado ao card");
         router.refresh();
         onClose();
       }
@@ -74,6 +77,7 @@ export function DeadlineAgendaModal({ date, orgId, boards, columns, dayEvents, o
       const res = await createDeadlineCard(b, col, title, dateIso);
       if (!res.ok) setError(res.error ?? "Erro");
       else {
+        appToast.success("Prazo criado");
         router.refresh();
         onClose();
       }
@@ -81,14 +85,19 @@ export function DeadlineAgendaModal({ date, orgId, boards, columns, dayEvents, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-aurora-surface p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="mb-1 text-lg font-semibold text-aurora-fg">Agenda — {dateLabel}</h2>
-        <p className="mb-4 text-sm text-aurora-muted">Vincular card existente ou criar novo prazo.</p>
-
+    <AuroraModal
+      onClose={onClose}
+      title={`Agenda — ${dateLabel}`}
+      subtitle="Vincular card existente ou criar novo prazo."
+      size="md"
+      testId="deadline-agenda-modal"
+      bodyClassName="flex max-h-[70vh] flex-col overflow-y-auto px-6 py-4"
+      footer={
+        <button type="button" onClick={onClose} className={`w-full ${btnSecondary}`}>
+          Fechar
+        </button>
+      }
+    >
         {dayEvents.length > 0 ? (
           <ul className="mb-4 space-y-1 rounded-lg border border-aurora-border p-2 text-sm">
             {dayEvents.map((e) => (
@@ -187,10 +196,6 @@ export function DeadlineAgendaModal({ date, orgId, boards, columns, dayEvents, o
           </form>
         )}
 
-        <button type="button" onClick={onClose} className={`mt-4 w-full ${btnSecondary}`}>
-          Fechar
-        </button>
-      </div>
-    </div>
+    </AuroraModal>
   );
 }

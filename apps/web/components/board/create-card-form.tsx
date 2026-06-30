@@ -33,7 +33,7 @@ export function CreateCardForm({ boardId, columnId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-2 space-y-2">
+    <form onSubmit={handleSubmit} className="mt-2 space-y-2" data-testid="create-card-form">
       <input type="hidden" name="boardId" value={boardId} />
       <input type="hidden" name="columnId" value={columnId} />
       <input

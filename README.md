@@ -1,6 +1,6 @@
-# AVS Flow
+# Agify
 
-SaaS B2B de produtividade e gestao de projetos: **grade ou lista** na home de projetos; boards com Kanban, Timeline, Calendario e Tabela; marcadores com exclusao (admin). Nome de producao: **AVS Flow**.
+SaaS B2B de produtividade e gestao de projetos (**Agify**, Prosperfy): grade ou lista na home; boards com Kanban, Timeline, Calendario e Tabela; marcadores com exclusao (admin).
 
 SaaS B2B de produtividade e gestao de projetos: multiplos Kanbans, subtarefas e dependencias, comentarios, anexos (Cloudinary), calendario + iCal, whiteboards nativos, notificacoes inteligentes e dashboard analitico de fluxo. Multi-tenant nativo, mobile-first, offline-first.
 
@@ -46,7 +46,7 @@ npm run supabase:env
 npm run dev:local
 ```
 
-Login de teste (apos seed): `admin@nextgen.dev` / `password123` → http://localhost:3001/login
+Login de teste (apos `npm run dev:local`): `admin@nextgen.dev` / `password123` → http://localhost:3001/login
 
 ### Auth no Dashboard
 
@@ -71,7 +71,7 @@ Authentication → URL Configuration:
 
 ## Documentacao
 
-- [Identidade AVS](docs/10-ux/avs-identity.md)
+- [Identidade Agify](docs/10-ux/agify-identity.md)
 - [Subir local (guia confiavel)](docs/70-ops/local-dev-start.md)
 - [Supabase Cloud dev](docs/70-ops/supabase-cloud-dev.md)
 - [ADR-0002 — topologia web/backend](docs/20-architecture/ADR-0002-deployment-topology.md)

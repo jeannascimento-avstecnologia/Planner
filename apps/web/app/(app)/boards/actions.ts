@@ -21,6 +21,7 @@ export async function createOrganization(formData: FormData): Promise<void> {
   const supabase = await createClient();
   await supabase.rpc("create_organization", { p_name: name, p_slug: slugify(name) });
   revalidatePath("/boards");
+  revalidatePath("/projects");
 }
 
 export async function createBoard(formData: FormData): Promise<void> {
@@ -51,6 +52,7 @@ export async function createBoard(formData: FormData): Promise<void> {
     created_by: user.id,
   });
   revalidatePath("/boards");
+  revalidatePath("/projects");
 }
 
 export async function updateBoardAppearance(formData: FormData): Promise<void> {
@@ -68,6 +70,7 @@ export async function updateBoardAppearance(formData: FormData): Promise<void> {
     .eq("id", parsed.data.boardId);
 
   revalidatePath("/boards");
+  revalidatePath("/projects");
   revalidatePath(`/boards/${parsed.data.boardId}`);
 }
 
@@ -99,6 +102,7 @@ export async function updateBoardSettings(formData: FormData): Promise<BoardSett
   if (error) return { error: "Nao foi possivel salvar as configuracoes." };
 
   revalidatePath("/boards");
+  revalidatePath("/projects");
   revalidatePath(`/boards/${parsed.data.boardId}`);
   return { ok: true };
 }
@@ -108,9 +112,32 @@ export async function deleteBoard(formData: FormData): Promise<BoardSettingsResu
   if (!parsed.success) return { error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado." };
+
+  const { data: board } = await supabase
+    .from("boards")
+    .select("org_id")
+    .eq("id", parsed.data.boardId)
+    .maybeSingle();
+  if (!board) return { error: "Projeto nao encontrado." };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", board.org_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (membership?.role !== "admin") {
+    return { error: "Sem permissao para excluir este projeto." };
+  }
+
   const { error } = await supabase.from("boards").delete().eq("id", parsed.data.boardId);
   if (error) return { error: "Nao foi possivel excluir o projeto." };
 
   revalidatePath("/boards");
+  revalidatePath("/projects");
   return { ok: true };
 }

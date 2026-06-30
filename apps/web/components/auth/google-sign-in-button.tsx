@@ -2,7 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 import { signInWithGoogle } from "@/app/(auth)/auth-actions";
-import { btnSecondary } from "@/lib/ui-classes";
+import { authBtnSecondary } from "@/lib/ui-classes";
 
 function GoogleIcon() {
   return (
@@ -33,7 +33,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className={`flex w-full items-center justify-center gap-2 ${btnSecondary}`}
+      className={`flex w-full items-center justify-center gap-2 ${authBtnSecondary}`}
     >
       <GoogleIcon />
       {pending ? "Redirecionando..." : "Continuar com Google"}
@@ -41,9 +41,10 @@ function SubmitButton() {
   );
 }
 
-export function GoogleSignInButton() {
+export function GoogleSignInButton({ next = "" }: { next?: string }) {
   return (
     <form action={signInWithGoogle}>
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <SubmitButton />
     </form>
   );
@@ -53,10 +54,10 @@ export function AuthOAuthDivider() {
   return (
     <div className="relative my-4">
       <div className="absolute inset-0 flex items-center">
-        <div className="w-full border-t border-aurora-border" />
+        <div className="w-full border-t border-agify-auth-field-border" />
       </div>
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-aurora-surface px-2 text-aurora-muted">ou</span>
+        <span className="bg-agify-auth-card px-2 text-agify-auth-card-muted">ou</span>
       </div>
     </div>
   );

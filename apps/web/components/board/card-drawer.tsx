@@ -1,20 +1,33 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import type { CardPriority } from "@nextgen/contracts";
-import { updateCard } from "@/app/(app)/boards/[boardId]/actions";
-import { inputBoardClassSm, btnBoardPrimarySm } from "@/lib/ui-classes";
+import { deleteCard, updateCard } from "@/app/(app)/boards/[boardId]/actions";
+import { inputBoardClassSm, btnBoardPrimarySm, btnBoardSecondary, btnDanger } from "@/lib/ui-classes";
+import { appToast } from "@/lib/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { AuroraDrawer } from "@/components/ui/aurora-drawer";
+import { stageCardStyle } from "@/lib/color-utils";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
 import { TagPickerPopover } from "./tag-picker-popover";
-import type { BoardCard, ProfileRow, TagRow } from "./types";
+import { StageSelector } from "./stage-selector";
+import { StageBadge } from "./badges";
+import { TifluxTicketBadges } from "./tiflux-ticket-badges";
+import { CardDrawerReadOnly } from "./card-drawer-readonly";
+import { resolveCardStage, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type Props = {
   card: BoardCard;
   boardId: string;
   orgId: string;
+  columns: ColumnRow[];
+  stages: StageRow[];
   tags: TagRow[];
   members: ProfileRow[];
   isOrgAdmin?: boolean;
+  readOnly?: boolean;
   tifluxEnabled?: boolean;
   onOpenTifluxCreate?: (cardId: string) => void;
   onOpenTifluxLink?: (cardId: string) => void;
@@ -25,34 +38,94 @@ export function CardDrawer({
   card,
   boardId,
   orgId,
+  columns,
+  stages,
   tags,
   members,
   isOrgAdmin = false,
+  readOnly = false,
   tifluxEnabled = false,
   onOpenTifluxCreate,
   onOpenTifluxLink,
   onClose,
 }: Props) {
+  if (readOnly) {
+    return (
+      <CardDrawerReadOnly
+        card={card}
+        columns={columns}
+        stages={stages}
+        tags={tags}
+        members={members}
+        tifluxEnabled={tifluxEnabled}
+        onClose={onClose}
+      />
+    );
+  }
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const dueValue = card.due_date ? card.due_date.slice(0, 10) : "";
   const startValue = card.start_date ? card.start_date.slice(0, 10) : "";
+  const stagesById = new Map(stages.map((s) => [s.id, s]));
+  const stage = resolveCardStage(card, columns, stagesById);
+  const headerStyle = stage ? stageCardStyle(stage.color) : undefined;
+
+  function confirmDelete() {
+    setDeleteError(null);
+    const fd = new FormData();
+    fd.set("cardId", card.id);
+    fd.set("boardId", boardId);
+    startTransition(async () => {
+      const result = await deleteCard(fd);
+      if ("error" in result) {
+        setDeleteError(result.error);
+        return;
+      }
+      setDeleteOpen(false);
+      onClose();
+      router.refresh();
+    });
+  }
+
+  const cardFormId = `card-edit-${card.id}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <aside
-        className="flex h-full w-full max-w-md flex-col bg-board-surface shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center justify-between border-b border-board-border px-4 py-3">
-          <h2 className="text-sm font-semibold text-aurora-fg">Editar card</h2>
-          <button type="button" onClick={onClose} className="text-aurora-muted hover:text-aurora-fg">
+    <AuroraDrawer onClose={onClose} showHeader={false} testId="card-drawer">
+      <header
+          className="flex items-center justify-between border-b border-board-border px-4 py-3"
+          style={headerStyle ? { backgroundColor: headerStyle.backgroundColor, color: headerStyle.color } : undefined}
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold">Editar card</h2>
+            {stage ? <StageBadge name={stage.name} color={stage.color} /> : null}
+          </div>
+          <button type="button" onClick={onClose} className="opacity-70 hover:opacity-100">
             Fechar
           </button>
         </header>
 
+        <div className="border-b border-board-border px-4 py-3">
+          <StageSelector
+            boardId={boardId}
+            cardId={card.id}
+            currentStageId={card.stage_id}
+            stages={stages}
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
         <form
-          action={(fd) => startTransition(() => updateCard(fd))}
-          className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
+          id={cardFormId}
+          action={(fd) =>
+            startTransition(async () => {
+              await updateCard(fd);
+              appToast.success("Card salvo");
+              router.refresh();
+            })
+          }
+          className="flex flex-col gap-3 p-4 pb-2"
         >
           <input type="hidden" name="cardId" value={card.id} />
           <input type="hidden" name="boardId" value={boardId} />
@@ -131,17 +204,25 @@ export function CardDrawer({
               isOrgAdmin={isOrgAdmin}
             />
           </div>
+        </form>
 
+        <div className="flex flex-col gap-3 px-4 pb-4">
           {tifluxEnabled ? (
             <div>
               <p className="mb-1 text-xs font-medium text-aurora-muted">Tiflux</p>
               {card.tiflux_ticket_number ? (
-                <span
-                  className="inline-flex items-center rounded bg-aurora-accent px-2 py-1 text-xs font-medium text-white"
-                  title={`Chamado Tiflux #${card.tiflux_ticket_number}`}
-                >
-                  Chamado #{card.tiflux_ticket_number}
-                </span>
+                <div className="flex flex-col items-start gap-2">
+                  <TifluxTicketBadges ticketNumber={card.tiflux_ticket_number} />
+                  <a
+                    href={`https://suporte.avstecnologia.cloud/v/tickets/${card.tiflux_ticket_id ?? card.tiflux_ticket_number}/appointments`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1.5 ${btnBoardSecondary}`}
+                    data-testid="tiflux-show-appointments"
+                  >
+                    Mostrar apontamentos
+                  </a>
+                </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -164,12 +245,42 @@ export function CardDrawer({
               )}
             </div>
           ) : null}
+        </div>
+        </div>
 
-          <button type="submit" disabled={pending} className={btnBoardPrimarySm}>
+        <div className="flex flex-col gap-2 border-t border-board-border px-4 py-3">
+          <button
+            type="submit"
+            form={cardFormId}
+            data-testid="card-save"
+            disabled={pending}
+            className={btnBoardPrimarySm}
+          >
             {pending ? "Salvando..." : "Salvar"}
           </button>
-        </form>
-      </aside>
-    </div>
+          <button
+            type="button"
+            data-testid="delete-card"
+            onClick={() => setDeleteOpen(true)}
+            disabled={pending}
+            className={`inline-flex items-center justify-center gap-1.5 ${btnDanger}`}
+          >
+            <Trash2 className="h-4 w-4" />
+            Excluir card
+          </button>
+          {deleteError ? <p className="text-xs text-aurora-danger">{deleteError}</p> : null}
+        </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Excluir card"
+        message={`Tem certeza que deseja excluir "${card.title}"? Esta acao nao pode ser desfeita.`}
+        confirmLabel="Excluir"
+        pending={pending}
+        variant="board"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteOpen(false)}
+      />
+    </AuroraDrawer>
   );
 }

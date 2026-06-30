@@ -11,6 +11,7 @@ const RANGE_AFTER = 56;
 type Props = {
   cards: BoardCard[];
   tifluxEnabled: boolean;
+  readOnlyTiflux?: boolean;
   onSelectCard: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
   onOpenTifluxLink: (id: string) => void;
@@ -34,7 +35,14 @@ function parseRange(card: BoardCard): { start: number; end: number } | null {
   return null;
 }
 
-export function BoardTimelineView({ cards, tifluxEnabled, onSelectCard, onOpenTifluxCreate, onOpenTifluxLink }: Props) {
+export function BoardTimelineView({
+  cards,
+  tifluxEnabled,
+  readOnlyTiflux = false,
+  onSelectCard,
+  onOpenTifluxCreate,
+  onOpenTifluxLink,
+}: Props) {
   const today = dayStart(new Date());
   const windowStart = today - RANGE_BEFORE * MS_DAY;
   const windowEnd = today + RANGE_AFTER * MS_DAY;
@@ -93,6 +101,7 @@ export function BoardTimelineView({ cards, tifluxEnabled, onSelectCard, onOpenTi
                 <TifluxCardButton
                   card={c}
                   tifluxEnabled={tifluxEnabled}
+                  readOnly={readOnlyTiflux}
                   onOpenTifluxCreate={onOpenTifluxCreate}
                   onOpenTifluxLink={onOpenTifluxLink}
                   compact
@@ -128,8 +137,9 @@ export function BoardTimelineView({ cards, tifluxEnabled, onSelectCard, onOpenTi
                     <TifluxCardButton
                       card={card}
                       tifluxEnabled={tifluxEnabled}
+                      readOnly={readOnlyTiflux}
                       onOpenTifluxCreate={onOpenTifluxCreate}
-                  onOpenTifluxLink={onOpenTifluxLink}
+                      onOpenTifluxLink={onOpenTifluxLink}
                       compact
                     />
                   </span>

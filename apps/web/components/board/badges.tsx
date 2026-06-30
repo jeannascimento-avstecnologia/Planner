@@ -1,4 +1,5 @@
 import type { CardPriority } from "@nextgen/contracts";
+import { stageBadgeStyle } from "@/lib/color-utils";
 import { priorityClass, TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import type { TagRow } from "./types";
 
@@ -23,6 +24,19 @@ export function TagChip({ tag }: { tag: TagRow }) {
       title={tag.name}
     >
       {tag.name}
+    </span>
+  );
+}
+
+export function StageBadge({ name, color }: { name: string; color: string }) {
+  const { backgroundColor, color: textColor } = stageBadgeStyle(color);
+  return (
+    <span
+      className="inline-block max-w-full truncate whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
+      style={{ backgroundColor, color: textColor }}
+      title={name}
+    >
+      {name}
     </span>
   );
 }

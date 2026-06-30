@@ -1,3 +1,5 @@
+import { PRODUCT_NAME } from "@/lib/brand";
+
 export interface IcalCard {
   id: string;
   title: string;
@@ -20,7 +22,7 @@ export function buildIcsFeed(cards: IcalCard[], calendarName: string): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//AVS Flow//PT",
+    `PRODID:-//${PRODUCT_NAME}//PT`,
     `X-WR-CALNAME:${escapeIcal(calendarName)}`,
     "CALSCALE:GREGORIAN",
   ];

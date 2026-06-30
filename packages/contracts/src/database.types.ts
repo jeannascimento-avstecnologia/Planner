@@ -43,9 +43,15 @@ export type Database = {
         Relationships: [];
       };
       columns: {
-        Row: { id: string; board_id: string; org_id: string; name: string; position: string; wip_limit: number | null; created_at: string; updated_at: string };
-        Insert: { id?: string; board_id: string; org_id: string; name: string; position: string; wip_limit?: number | null; created_at?: string; updated_at?: string };
-        Update: { id?: string; board_id?: string; org_id?: string; name?: string; position?: string; wip_limit?: number | null; created_at?: string; updated_at?: string };
+        Row: { id: string; board_id: string; org_id: string; name: string; position: string; wip_limit: number | null; default_stage_id: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; board_id: string; org_id: string; name: string; position: string; wip_limit?: number | null; default_stage_id?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; board_id?: string; org_id?: string; name?: string; position?: string; wip_limit?: number | null; default_stage_id?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      stages: {
+        Row: { id: string; org_id: string; board_id: string; name: string; color: string; position: number; is_system: boolean; system_key: string | null; created_at: string };
+        Insert: { id?: string; org_id: string; board_id: string; name: string; color: string; position?: number; is_system?: boolean; system_key?: string | null; created_at?: string };
+        Update: { id?: string; org_id?: string; board_id?: string; name?: string; color?: string; position?: number; is_system?: boolean; system_key?: string | null; created_at?: string };
         Relationships: [];
       };
       cards: {
@@ -53,21 +59,27 @@ export type Database = {
           id: string; board_id: string; column_id: string; org_id: string; parent_id: string | null;
           title: string; description: string | null; priority: Database["public"]["Enums"]["card_priority"];
           due_date: string | null; start_date: string | null; position: string; assignee_id: string | null; completed_at: string | null;
+          stage_id: string | null;
           tiflux_ticket_number: string | null; tiflux_ticket_id: string | null; tiflux_payload: Json | null; tiflux_created_at: string | null;
+          tiflux_canceled_tickets: Json;
           created_by: string | null; created_at: string; updated_at: string;
         };
         Insert: {
           id?: string; board_id: string; column_id: string; org_id: string; parent_id?: string | null;
           title: string; description?: string | null; priority?: Database["public"]["Enums"]["card_priority"];
           due_date?: string | null; start_date?: string | null; position: string; assignee_id?: string | null; completed_at?: string | null;
+          stage_id?: string | null;
           tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
+          tiflux_canceled_tickets?: Json;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Update: {
           id?: string; board_id?: string; column_id?: string; org_id?: string; parent_id?: string | null;
           title?: string; description?: string | null; priority?: Database["public"]["Enums"]["card_priority"];
           due_date?: string | null; start_date?: string | null; position?: string; assignee_id?: string | null; completed_at?: string | null;
+          stage_id?: string | null;
           tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
+          tiflux_canceled_tickets?: Json;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Relationships: [];
@@ -148,16 +160,19 @@ export type Database = {
         Row: {
           id: string; org_id: string; user_id: string; type: string; title: string;
           body: string | null; entity_type: string | null; entity_id: string | null;
+          board_id: string | null;
           read_at: string | null; created_at: string;
         };
         Insert: {
           id?: string; org_id: string; user_id: string; type: string; title: string;
           body?: string | null; entity_type?: string | null; entity_id?: string | null;
+          board_id?: string | null;
           read_at?: string | null; created_at?: string;
         };
         Update: {
           id?: string; org_id?: string; user_id?: string; type?: string; title?: string;
           body?: string | null; entity_type?: string | null; entity_id?: string | null;
+          board_id?: string | null;
           read_at?: string | null; created_at?: string;
         };
         Relationships: [];
@@ -172,6 +187,14 @@ export type Database = {
       accept_board_invitation: {
         Args: { p_token: string };
         Returns: string;
+      };
+      peek_board_invitation: {
+        Args: { p_token: string };
+        Returns: { email: string; board_name: string }[];
+      };
+      resolve_board_invitation: {
+        Args: { p_token: string };
+        Returns: { status: string; board_id: string | null; email: string | null }[];
       };
       get_ical_feed_cards: {
         Args: { p_token: string };

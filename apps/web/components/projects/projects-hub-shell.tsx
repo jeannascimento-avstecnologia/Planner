@@ -13,9 +13,11 @@ type Props = {
   boardMembersByBoardId: Record<string, BoardMember[]>;
   isOrgAdmin: boolean;
   currentUserId: string | null;
-  deadlineItems: DeadlineTileItem[];
   upcomingTasksByBoard: Record<string, UpcomingTask[]>;
   children: React.ReactNode;
+  showDeadlines?: boolean;
+  deadlineItems?: DeadlineTileItem[];
+  basePath?: string;
 };
 
 function ProjectsHubLayoutInner({
@@ -23,9 +25,11 @@ function ProjectsHubLayoutInner({
   boardMembersByBoardId,
   isOrgAdmin,
   currentUserId,
-  deadlineItems,
   upcomingTasksByBoard,
   children,
+  showDeadlines = false,
+  deadlineItems = [],
+  basePath = "/projects",
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,9 +42,10 @@ function ProjectsHubLayoutInner({
   );
 
   const filteredDeadlines = useMemo(() => {
+    if (!showDeadlines) return [];
     if (!selectedBoardId) return deadlineItems;
     return deadlineItems.filter((d) => d.board_id === selectedBoardId);
-  }, [deadlineItems, selectedBoardId]);
+  }, [deadlineItems, selectedBoardId, showDeadlines]);
 
   const userBoardRole = useMemo(() => {
     if (!selectedBoardId || !currentUserId) return null;
@@ -52,15 +57,17 @@ function ProjectsHubLayoutInner({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("board");
     const q = params.toString();
-    router.push(q ? `/boards?${q}` : "/boards", { scroll: false });
+    router.push(q ? `${basePath}?${q}` : basePath, { scroll: false });
   }
 
   return (
     <>
-      <DeadlineTiles
-        items={filteredDeadlines}
-        subtitle={selectedBoard ? `Projeto: ${selectedBoard.name}` : undefined}
-      />
+      {showDeadlines ? (
+        <DeadlineTiles
+          items={filteredDeadlines}
+          subtitle={selectedBoard ? `Projeto: ${selectedBoard.name}` : undefined}
+        />
+      ) : null}
       <div className={selectedBoard ? "grid items-start gap-6 lg:grid-cols-2" : "space-y-3"}>
         <div className="space-y-3">{children}</div>
         {selectedBoard ? (
@@ -96,14 +103,14 @@ export function ProjectsHubLayout(props: Props) {
   );
 }
 
-export function useProjectHubSelect() {
+export function useProjectHubSelect(basePath = "/projects") {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   function selectBoard(id: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("board", id);
-    router.push(`/boards?${params.toString()}`, { scroll: false });
+    router.push(`${basePath}?${params.toString()}`, { scroll: false });
   }
 
   return { selectedBoardId: searchParams.get("board"), selectBoard };

@@ -1,7 +1,16 @@
 import type { CardPriority } from "@nextgen/contracts";
 import { todayStartIso } from "@/lib/parse-date-br";
+import type { TifluxCanceledTicket } from "@/lib/tiflux-canceled-tickets";
 
 export type TagRow = { id: string; name: string; color: string };
+export type StageRow = {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+  is_system: boolean;
+  system_key: string | null;
+};
 export type ProfileRow = { id: string; full_name: string | null };
 export type BoardCard = {
   id: string;
@@ -13,12 +22,29 @@ export type BoardCard = {
   start_date: string | null;
   assignee_id: string | null;
   completed_at: string | null;
+  stage_id: string | null;
   tagIds: string[];
   tiflux_ticket_number: string | null;
   tiflux_ticket_id: string | null;
+  tiflux_canceled_tickets: TifluxCanceledTicket[];
 };
 
-export type ColumnRow = { id: string; name: string };
+export type ColumnRow = { id: string; name: string; default_stage_id?: string | null };
+
+export function resolveCardStage(
+  card: BoardCard,
+  columns: ColumnRow[],
+  stagesById: Map<string, StageRow>,
+): StageRow | null {
+  if (card.stage_id && stagesById.has(card.stage_id)) {
+    return stagesById.get(card.stage_id)!;
+  }
+  const col = columns.find((c) => c.id === card.column_id);
+  if (col?.default_stage_id && stagesById.has(col.default_stage_id)) {
+    return stagesById.get(col.default_stage_id)!;
+  }
+  return null;
+}
 
 export function isOverdue(dueDate: string | null, completedAt: string | null): boolean {
   if (!dueDate || completedAt) return false;
@@ -58,29 +84,29 @@ export function memberLabel(p: ProfileRow | undefined): string {
 export type CardFilters = {
   text: string;
   tagIds: string[];
+  stageIds: string[];
   assignees: string[]; // ids de membros + "none"
   duePreset: number | null; // proximos N dias
   dueExact: string | null; // YYYY-MM-DD
-  tifluxTicket: string | null; // null = off, "linked" | "unlinked", ou numero do ticket
 };
 
 export const EMPTY_FILTERS: CardFilters = {
   text: "",
   tagIds: [],
+  stageIds: [],
   assignees: [],
   duePreset: null,
   dueExact: null,
-  tifluxTicket: null,
 };
 
 export function hasActiveFilters(f: CardFilters): boolean {
   return (
     f.text.trim() !== "" ||
     f.tagIds.length > 0 ||
+    f.stageIds.length > 0 ||
     f.assignees.length > 0 ||
     f.duePreset !== null ||
-    f.dueExact !== null ||
-    f.tifluxTicket !== null
+    f.dueExact !== null
   );
 }
 
@@ -94,12 +120,22 @@ function dueWithinNextDays(due: string, days: number): boolean {
   return d >= start && d <= end;
 }
 
-export function matchesFilters(card: BoardCard, f: CardFilters): boolean {
+export function matchesFilters(
+  card: BoardCard,
+  f: CardFilters,
+  ctx?: { columns: ColumnRow[]; stagesById: Map<string, StageRow> },
+): boolean {
   if (f.text.trim() && !card.title.toLowerCase().includes(f.text.trim().toLowerCase())) {
     return false;
   }
   if (f.tagIds.length > 0 && !f.tagIds.some((t) => card.tagIds.includes(t))) {
     return false;
+  }
+  if (f.stageIds.length > 0 && ctx) {
+    const effective = resolveCardStage(card, ctx.columns, ctx.stagesById);
+    const matchNone = f.stageIds.includes("none") && effective === null;
+    const matchStage = effective !== null && f.stageIds.includes(effective.id);
+    if (!matchNone && !matchStage) return false;
   }
   if (f.assignees.length > 0) {
     const matchAssignee = card.assignee_id
@@ -112,11 +148,6 @@ export function matchesFilters(card: BoardCard, f: CardFilters): boolean {
   }
   if (f.dueExact) {
     if (!card.due_date || card.due_date.slice(0, 10) !== f.dueExact) return false;
-  }
-  if (f.tifluxTicket === "linked" && !card.tiflux_ticket_number) return false;
-  if (f.tifluxTicket === "unlinked" && card.tiflux_ticket_number) return false;
-  if (f.tifluxTicket && f.tifluxTicket !== "linked" && f.tifluxTicket !== "unlinked") {
-    if (card.tiflux_ticket_number !== f.tifluxTicket) return false;
   }
   return true;
 }

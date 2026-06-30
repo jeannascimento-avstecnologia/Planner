@@ -1,14 +1,19 @@
 "use client";
 
-import { PriorityBadge, TagChip } from "./badges";
+import { PriorityBadge, StageBadge, TagChip } from "./badges";
 import { TifluxCardButton } from "./tiflux-card-button";
-import { formatDue, isOverdue, memberLabel, type BoardCard, type ProfileRow, type TagRow } from "./types";
+import { stageCardStyle } from "@/lib/color-utils";
+import { tileBoardInteractive } from "@/lib/ui-classes";
+import { formatDue, isOverdue, memberLabel, resolveCardStage, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type Props = {
   card: BoardCard;
+  columns: ColumnRow[];
+  stagesById: Map<string, StageRow>;
   tags: TagRow[];
   profilesById: Record<string, ProfileRow>;
   tifluxEnabled: boolean;
+  readOnlyTiflux?: boolean;
   onSelect: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
   onOpenTifluxLink: (id: string) => void;
@@ -16,39 +21,61 @@ type Props = {
 
 export function BoardCardTile({
   card,
+  columns,
+  stagesById,
   tags,
   profilesById,
   tifluxEnabled,
+  readOnlyTiflux = false,
   onSelect,
   onOpenTifluxCreate,
   onOpenTifluxLink,
 }: Props) {
   const overdue = isOverdue(card.due_date, card.completed_at);
   const assignee = card.assignee_id ? profilesById[card.assignee_id] : undefined;
+  const stage = resolveCardStage(card, columns, stagesById);
+  const cardStyle = stage ? stageCardStyle(stage.color) : undefined;
+
+  function openCard() {
+    onSelect(card.id);
+  }
 
   return (
     <div
-      className={`w-full rounded-lg border bg-board-surface p-3 text-left shadow-sm transition hover:border-board-accent ${
-        overdue ? "border-aurora-danger/60 ring-1 ring-aurora-danger/30" : "border-board-border"
+      role="button"
+      tabIndex={0}
+      data-testid={`board-card-${card.id}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        openCard();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openCard();
+        }
+      }}
+      className={`w-full cursor-pointer p-3 text-left ${tileBoardInteractive} ${
+        overdue ? "border-aurora-danger/60 ring-1 ring-aurora-danger/30" : ""
       }`}
+      style={cardStyle ? { backgroundColor: cardStyle.backgroundColor, color: cardStyle.color } : undefined}
     >
       <div className="flex items-start justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => onSelect(card.id)}
-          className="min-w-0 flex-1 text-left"
-        >
-          <p className="break-words text-sm leading-snug text-aurora-fg">{card.title}</p>
-        </button>
-        <TifluxCardButton
-          card={card}
-          tifluxEnabled={tifluxEnabled}
-          onOpenTifluxCreate={onOpenTifluxCreate}
-          onOpenTifluxLink={onOpenTifluxLink}
-        />
+        <p className="min-w-0 flex-1 break-words text-sm leading-snug">{card.title}</p>
+        <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <TifluxCardButton
+            card={card}
+            tifluxEnabled={tifluxEnabled}
+            readOnly={readOnlyTiflux}
+            compact
+            onOpenTifluxCreate={onOpenTifluxCreate}
+            onOpenTifluxLink={onOpenTifluxLink}
+          />
+        </span>
       </div>
-      <button type="button" onClick={() => onSelect(card.id)} className="mt-2 w-full text-left">
+      <div className="mt-2 w-full">
         <div className="flex flex-wrap items-center gap-1">
+          {stage ? <StageBadge name={stage.name} color={stage.color} /> : null}
           <PriorityBadge priority={card.priority} />
           {card.due_date ? (
             <span className={`text-xs ${overdue ? "font-semibold text-aurora-danger" : "text-aurora-muted"}`}>
@@ -63,7 +90,7 @@ export function BoardCardTile({
             return t ? <TagChip key={tid} tag={t} /> : null;
           })}
         </div>
-      </button>
+      </div>
     </div>
   );
 }

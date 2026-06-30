@@ -14,13 +14,21 @@ type Props = {
   boardMembersByBoardId: Record<string, BoardMember[]>;
   isOrgAdmin: boolean;
   hubMode?: boolean;
+  hubBasePath?: string;
   currentUserId?: string | null;
 };
 
-function ProjectsViewsInner({ boards, boardMembersByBoardId, isOrgAdmin, hubMode = true, currentUserId }: Props) {
+function ProjectsViewsInner({
+  boards,
+  boardMembersByBoardId,
+  isOrgAdmin,
+  hubMode = true,
+  hubBasePath = "/projects",
+  currentUserId,
+}: Props) {
   const searchParams = useSearchParams();
   const layout = parseProjectsLayout(searchParams.get("layout"));
-  const { selectedBoardId, selectBoard } = useProjectHubSelect();
+  const { selectedBoardId, selectBoard } = useProjectHubSelect(hubBasePath);
 
   const viewProps = {
     boards,

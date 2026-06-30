@@ -1,14 +1,15 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Share2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { UserPlus, Settings } from "lucide-react";
 import { btnBoardSecondary } from "@/lib/ui-classes";
 import { CardDrawer } from "./card-drawer";
 import { CardFilterBar } from "./card-filter-bar";
-import { canManageBoardMembers } from "@/lib/board-member-roles";
-import { ShareBoardModal } from "./share-board-modal";
+import { canEditBoardUI, canManageBoardMembers, canWriteBoard } from "@/lib/board-member-roles";
+import { BoardAccessModal } from "./board-access-modal";
+import { InviteMembersModal } from "./invite-members-modal";
 import { BoardAppearanceEditor } from "./board-appearance-editor";
 import { BoardIcon } from "./board-icon";
 import { BoardKanbanView } from "./board-kanban-view";
@@ -16,9 +17,10 @@ import { BoardCalendarView } from "./board-calendar-view";
 import { BoardTableView } from "./board-table-view";
 import { BoardTimelineView } from "./board-timeline-view";
 import { BoardViewSwitcher } from "./board-view-switcher";
+import { StageManagerModal } from "./stage-manager-modal";
 import { TifluxLinkTicketModal } from "./tiflux-link-ticket-modal";
 import { TifluxTicketModal } from "./tiflux-ticket-modal";
-import type { BoardMember } from "./share-project-panel";
+import type { BoardMember } from "./board-member";
 import {
   EMPTY_FILTERS,
   matchesFilters,
@@ -28,6 +30,7 @@ import {
   type CardFilters,
   type ColumnRow,
   type ProfileRow,
+  type StageRow,
   type TagRow,
 } from "./types";
 
@@ -42,6 +45,7 @@ type Props = {
   };
   columns: ColumnRow[];
   cards: BoardCard[];
+  stages: StageRow[];
   tags: TagRow[];
   members: ProfileRow[];
   boardMembers: BoardMember[];
@@ -54,6 +58,7 @@ function BoardViewInner({
   board,
   columns,
   cards,
+  stages,
   tags,
   members,
   boardMembers,
@@ -61,17 +66,76 @@ function BoardViewInner({
   isOrgAdmin,
   currentUserId,
 }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const viewMode = parseBoardViewMode(searchParams.get("view"));
+  const urlCardOpened = useRef(false);
+
+  const safeCards = useMemo(
+    () =>
+      cards.map((c) => ({
+        ...c,
+        tiflux_canceled_tickets: c.tiflux_canceled_tickets ?? [],
+      })),
+    [cards],
+  );
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [tifluxCreateCardId, setTifluxCreateCardId] = useState<string | null>(null);
   const [tifluxLinkCardId, setTifluxLinkCardId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
+  const [stagesOpen, setStagesOpen] = useState(false);
   const [filters, setFilters] = useState<CardFilters>(EMPTY_FILTERS);
   const [groupByAssignee, setGroupByAssignee] = useState(false);
 
-  const filtered = useMemo(() => cards.filter((c) => matchesFilters(c, filters)), [cards, filters]);
+  useEffect(() => {
+    if (searchParams.has("stageColor")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("stageColor");
+      const qs = params.toString();
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
+    }
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (urlCardOpened.current) return;
+    const cardId = searchParams.get("cardId");
+    if (!cardId) return;
+    if (safeCards.some((c) => c.id === cardId)) {
+      setSelectedCardId(cardId);
+      urlCardOpened.current = true;
+    }
+  }, [safeCards, searchParams]);
+
+  const selectCard = useCallback(
+    (id: string) => {
+      setSelectedCardId(id);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("stageColor");
+      params.set("cardId", id);
+      const qs = params.toString();
+      window.history.replaceState(null, "", `${pathname}?${qs}`);
+    },
+    [pathname, searchParams],
+  );
+
+  const closeCard = useCallback(() => {
+    setSelectedCardId(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("cardId");
+    params.delete("stageColor");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
+
+  const filtered = useMemo(
+    () => safeCards.filter((c) => matchesFilters(c, filters, { columns, stagesById })),
+    [safeCards, filters, columns, stagesById],
+  );
 
   const cardsByColumn = useMemo(() => {
     const map = new Map<string, BoardCard[]>();
@@ -96,24 +160,22 @@ function BoardViewInner({
     return lanes;
   }, [filtered, groupByAssignee, members]);
 
-  const selectedCard = cards.find((c) => c.id === selectedCardId) ?? null;
-  const tifluxCreateCard = cards.find((c) => c.id === tifluxCreateCardId) ?? null;
-  const tifluxLinkCard = cards.find((c) => c.id === tifluxLinkCardId) ?? null;
-  const tifluxEnabled = board.tiflux_enabled;
-
-  const linkedTicketOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const opts: { value: string; label: string }[] = [];
-    for (const c of cards) {
-      const n = c.tiflux_ticket_number;
-      if (!n || seen.has(n)) continue;
-      seen.add(n);
-      opts.push({ value: n, label: `#${n}${c.title ? ` — ${c.title}` : ""}` });
-    }
-    return opts.sort((a, b) => Number(a.value) - Number(b.value));
-  }, [cards]);
   const userBoardRole = boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
   const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
+  const canEditBoard = canEditBoardUI(isOrgAdmin, userBoardRole);
+
+  const canRenameColumns = useMemo(() => {
+    if (!canEditBoard) return false;
+    const boardRole = boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
+    return canWriteBoard(isOrgAdmin, boardRole);
+  }, [boardMembers, currentUserId, isOrgAdmin, canEditBoard]);
+
+  const selectedCard = safeCards.find((c) => c.id === selectedCardId) ?? null;
+  const tifluxLinkCard = safeCards.find((c) => c.id === tifluxLinkCardId) ?? null;
+  const tifluxEnabled = board.tiflux_enabled;
+  const openTifluxCreate = canEditBoard ? setTifluxCreateCardId : undefined;
+  const openTifluxLink = canEditBoard ? setTifluxLinkCardId : undefined;
+  const tifluxCreateCard = safeCards.find((c) => c.id === tifluxCreateCardId) ?? null;
 
   return (
     <div className="space-y-4">
@@ -121,7 +183,7 @@ function BoardViewInner({
         <div className="flex items-center gap-2">
           <BoardIcon icon={board.icon} color={board.color} size="sm" />
           <div className="flex items-center gap-2 text-sm text-aurora-muted">
-            <Link href="/boards" className="hover:text-board-accent">
+            <Link href="/projects" className="hover:text-board-accent">
               Projetos
             </Link>
             <span>/</span>
@@ -129,25 +191,41 @@ function BoardViewInner({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <BoardAppearanceEditor boardId={board.id} icon={board.icon} color={board.color} />
-          <button
-            type="button"
-            onClick={() => setShareOpen(true)}
-            className={`inline-flex items-center gap-1.5 ${btnBoardSecondary}`}
-          >
-            <Share2 className="h-4 w-4" /> Compartilhar
-          </button>
+          {canEditBoard ? (
+            <BoardAppearanceEditor boardId={board.id} icon={board.icon} color={board.color} />
+          ) : null}
+          {canManageMembers ? (
+            <button
+              type="button"
+              onClick={() => setAccessOpen(true)}
+              aria-label="Gerenciar acesso"
+              data-testid="board-access-button"
+              className={`inline-flex items-center gap-1.5 ${btnBoardSecondary}`}
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          ) : null}
+          {canManageMembers ? (
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className={`inline-flex items-center gap-1.5 ${btnBoardSecondary}`}
+            >
+              <UserPlus className="h-4 w-4" /> Convidar um integrante
+            </button>
+          ) : null}
         </div>
       </div>
 
       <CardFilterBar
         boardId={board.id}
+        orgId={board.org_id}
         tags={tags}
+        stages={stages}
         members={members}
         value={filters}
         isOrgAdmin={isOrgAdmin}
-        tifluxEnabled={tifluxEnabled}
-        linkedTickets={linkedTicketOptions}
+        onManageStages={canEditBoard ? () => setStagesOpen(true) : undefined}
         onChange={setFilters}
         onClear={() => setFilters(EMPTY_FILTERS)}
       />
@@ -165,15 +243,19 @@ function BoardViewInner({
         <BoardKanbanView
           boardId={board.id}
           columns={columns}
+          stagesById={stagesById}
           cardsByColumn={cardsByColumn}
           swimlanes={swimlanes}
           groupByAssignee={groupByAssignee}
           tags={tags}
           profilesById={profilesById}
           tifluxEnabled={tifluxEnabled}
-          onSelectCard={setSelectedCardId}
-          onOpenTifluxCreate={setTifluxCreateCardId}
-          onOpenTifluxLink={setTifluxLinkCardId}
+          canEditBoard={canEditBoard}
+          canRenameColumns={canRenameColumns}
+          onSelectCard={selectCard}
+          onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
+          onOpenTifluxLink={openTifluxLink ?? (() => {})}
+          readOnlyTiflux={!canEditBoard}
         />
       ) : null}
 
@@ -181,9 +263,10 @@ function BoardViewInner({
         <BoardTimelineView
           cards={filtered}
           tifluxEnabled={tifluxEnabled}
-          onSelectCard={setSelectedCardId}
-          onOpenTifluxCreate={setTifluxCreateCardId}
-          onOpenTifluxLink={setTifluxLinkCardId}
+          onSelectCard={selectCard}
+          onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
+          onOpenTifluxLink={openTifluxLink ?? (() => {})}
+          readOnlyTiflux={!canEditBoard}
         />
       ) : null}
 
@@ -191,9 +274,10 @@ function BoardViewInner({
         <BoardCalendarView
           cards={filtered}
           tifluxEnabled={tifluxEnabled}
-          onSelectCard={setSelectedCardId}
-          onOpenTifluxCreate={setTifluxCreateCardId}
-          onOpenTifluxLink={setTifluxLinkCardId}
+          onSelectCard={selectCard}
+          onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
+          onOpenTifluxLink={openTifluxLink ?? (() => {})}
+          readOnlyTiflux={!canEditBoard}
         />
       ) : null}
 
@@ -204,9 +288,10 @@ function BoardViewInner({
           tags={tags}
           profilesById={profilesById}
           tifluxEnabled={tifluxEnabled}
-          onSelectCard={setSelectedCardId}
-          onOpenTifluxCreate={setTifluxCreateCardId}
-          onOpenTifluxLink={setTifluxLinkCardId}
+          onSelectCard={selectCard}
+          onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
+          onOpenTifluxLink={openTifluxLink ?? (() => {})}
+          readOnlyTiflux={!canEditBoard}
         />
       ) : null}
 
@@ -215,17 +300,20 @@ function BoardViewInner({
           card={selectedCard}
           boardId={board.id}
           orgId={board.org_id}
+          columns={columns}
+          stages={stages}
           tags={tags}
           members={members}
           isOrgAdmin={isOrgAdmin}
+          readOnly={!canEditBoard}
           tifluxEnabled={tifluxEnabled}
-          onOpenTifluxCreate={setTifluxCreateCardId}
-          onOpenTifluxLink={setTifluxLinkCardId}
-          onClose={() => setSelectedCardId(null)}
+          onOpenTifluxCreate={openTifluxCreate}
+          onOpenTifluxLink={openTifluxLink}
+          onClose={closeCard}
         />
       ) : null}
 
-      {tifluxCreateCard ? (
+      {canEditBoard && tifluxCreateCard ? (
         <TifluxTicketModal
           boardId={board.id}
           card={tifluxCreateCard}
@@ -233,7 +321,7 @@ function BoardViewInner({
         />
       ) : null}
 
-      {tifluxLinkCard ? (
+      {canEditBoard && tifluxLinkCard ? (
         <TifluxLinkTicketModal
           boardId={board.id}
           card={tifluxLinkCard}
@@ -241,13 +329,27 @@ function BoardViewInner({
         />
       ) : null}
 
+      {canEditBoard && stagesOpen ? (
+        <StageManagerModal boardId={board.id} stages={stages} onClose={() => setStagesOpen(false)} />
+      ) : null}
+
       {shareOpen ? (
-        <ShareBoardModal
+        <InviteMembersModal
+          boardId={board.id}
+          boardName={board.name}
+          canManageMembers={canManageMembers}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
+
+      {accessOpen ? (
+        <BoardAccessModal
           boardId={board.id}
           boardName={board.name}
           members={boardMembers}
           canManageMembers={canManageMembers}
-          onClose={() => setShareOpen(false)}
+          currentUserId={currentUserId}
+          onClose={() => setAccessOpen(false)}
         />
       ) : null}
     </div>

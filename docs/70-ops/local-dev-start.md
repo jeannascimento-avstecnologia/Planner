@@ -1,8 +1,6 @@
 # Subir o Planner local (guia que sempre funciona)
 
-Runbook curto para desenvolvimento diário. Backend = **Supabase Cloud** (sem Docker). Frontend = **Next.js na porta 3001**.
-
-Ver também: [supabase-cloud-dev.md](supabase-cloud-dev.md) (setup inicial do Cloud).
+Runbook curto para desenvolvimento diário. **Um comando** sobe Supabase local (Docker) + Next.js na porta **3001**.
 
 ---
 
@@ -14,16 +12,23 @@ Na raiz do repo:
 npm run dev:local
 ```
 
-Isso executa [`scripts/start-dev.ps1`](../../scripts/start-dev.ps1), que:
+**Pré-requisito:** Docker Desktop rodando.
 
-1. Libera as portas 3000–3002 (mata dev servers antigos)
-2. Remove cache `.next` se estiver corrompido
-3. Valida `apps/web/.env.local` (gera via `supabase:env` se faltar)
-4. Sobe `next dev -p 3001`
+O script [`scripts/start-dev.ps1`](../../scripts/start-dev.ps1):
+
+1. Sobe **Supabase local** (`supabase start`) — repara volume PG se necessário
+2. Garante seed (`admin@nextgen.dev` / `password123`)
+3. Gera `apps/web/.env.local` apontando para `http://127.0.0.1:54321`
+4. Sobe Next.js em http://localhost:3001
 
 Abra: **http://localhost:3001/login**
 
-Login seed (após `seed.sql` no Cloud): `admin@nextgen.dev` / `password123`
+| Campo | Valor |
+|-------|-------|
+| Email | `admin@nextgen.dev` |
+| Senha | `password123` |
+
+Studio local: http://127.0.0.1:54323
 
 ---
 
@@ -39,6 +44,16 @@ npx next dev -p 3001
 **Use sempre a porta 3001** — alinha com `NEXT_PUBLIC_APP_URL` e com as Auth URLs do Supabase Dashboard.
 
 ---
+
+## Docker com UI aberta mas Engine parado
+
+Se `docker ps` falhar com `dockerDesktopLinuxEngine`:
+
+1. Docker Desktop -> aguarde **Engine running** (verde)
+2. **Troubleshoot -> Restart**
+3. `docker ps` deve listar containers sem erro
+
+O script tenta iniciar o Docker Desktop automaticamente e, se falhar, usa **Supabase Cloud** com seed.
 
 ## Auth URLs no Supabase (obrigatório 1x)
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   formatDateLabel,
@@ -16,6 +15,7 @@ import {
   parseBrazilianDate,
 } from "@/lib/parse-date-br";
 import { btnBoardSecondary, btnSecondary, inputBoardClassSm, inputClass } from "@/lib/ui-classes";
+import { AuroraPopover } from "@/components/ui/aurora-popover";
 
 type Props = {
   name: string;
@@ -148,13 +148,16 @@ export function DatePickerPopover({
   }
 
   const panel = open ? (
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-label="Calendario"
-      className={`fixed z-[100] w-64 rounded-lg border ${borderCls} ${surfaceCls} p-3 shadow-lg`}
-      style={{ top: pos.top, left: pos.left }}
+    <AuroraPopover
+      open
+      variant={variant === "board" ? "board" : "app"}
+      testId="date-picker-popover"
+      zIndex={100}
+      style={{ top: pos.top, left: pos.left, width: 256 }}
+      className="p-3"
+      onClick={(e) => e.stopPropagation()}
     >
+      <div ref={panelRef} role="dialog" aria-label="Calendario">
       <div className="mb-2 flex items-center justify-between">
         <button
           type="button"
@@ -218,7 +221,8 @@ export function DatePickerPopover({
           {clearLabel}
         </button>
       ) : null}
-    </div>
+      </div>
+    </AuroraPopover>
   ) : null;
 
   return (
@@ -250,7 +254,7 @@ export function DatePickerPopover({
       >
         <Calendar className={`h-4 w-4 ${accentCls}`} />
       </button>
-      {typeof document !== "undefined" && panel ? createPortal(panel, document.body) : null}
+      {panel}
     </div>
   );
 }

@@ -9,12 +9,20 @@ import type { BoardCard } from "./types";
 type Props = {
   cards: BoardCard[];
   tifluxEnabled: boolean;
+  readOnlyTiflux?: boolean;
   onSelectCard: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
   onOpenTifluxLink: (id: string) => void;
 };
 
-export function BoardCalendarView({ cards, tifluxEnabled, onSelectCard, onOpenTifluxCreate, onOpenTifluxLink }: Props) {
+export function BoardCalendarView({
+  cards,
+  tifluxEnabled,
+  readOnlyTiflux = false,
+  onSelectCard,
+  onOpenTifluxCreate,
+  onOpenTifluxLink,
+}: Props) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -96,6 +104,7 @@ export function BoardCalendarView({ cards, tifluxEnabled, onSelectCard, onOpenTi
                     <TifluxCardButton
                       card={c}
                       tifluxEnabled={tifluxEnabled}
+                      readOnly={readOnlyTiflux}
                       onOpenTifluxCreate={onOpenTifluxCreate}
                       onOpenTifluxLink={onOpenTifluxLink}
                       compact

@@ -15,7 +15,26 @@ export async function updateProfile(formData: FormData): Promise<UpdateProfileRe
     locale: formData.get("locale") || undefined,
     avatarUrl: String(formData.get("avatarUrl") ?? "") || null,
   });
-  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+  if (!parsed.success) {
+    // #region agent log
+    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c90e06" },
+      body: JSON.stringify({
+        sessionId: "c90e06",
+        runId: "pre-fix",
+        hypothesisId: "D",
+        location: "profile/actions.ts:updateProfile",
+        message: "validation failed",
+        data: {
+          issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), code: i.code })),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    return { ok: false, error: "Dados invalidos." };
+  }
 
   const supabase = await createClient();
   const {

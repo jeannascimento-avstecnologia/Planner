@@ -1,6 +1,6 @@
 "use client";
 
-import { createPortal } from "react-dom";
+import { AuroraModal } from "./aurora-modal";
 
 type Props = {
   open: boolean;
@@ -10,6 +10,7 @@ type Props = {
   onConfirm: () => void;
   onCancel: () => void;
   pending?: boolean;
+  variant?: "app" | "board";
 };
 
 export function ConfirmDialog({
@@ -20,21 +21,22 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   pending = false,
+  variant = "app",
 }: Props) {
-  if (!open || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
-      <div
-        role="alertdialog"
-        aria-labelledby="confirm-title"
-        className="hub-panel-enter w-full max-w-sm rounded-xl border border-aurora-border bg-aurora-surface p-5 shadow-xl"
-      >
-        <h2 id="confirm-title" className="text-base font-semibold text-aurora-fg">
-          {title}
-        </h2>
-        <p className="mt-2 text-sm text-aurora-muted">{message}</p>
-        <div className="mt-4 flex justify-end gap-2">
+  return (
+    <AuroraModal
+      open={open}
+      onClose={onCancel}
+      title={title}
+      variant={variant}
+      size="sm"
+      role="alertdialog"
+      showClose={false}
+      showHairline={variant === "app"}
+      zIndex={200}
+      bodyClassName="px-5 py-4"
+      footer={
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
@@ -52,8 +54,9 @@ export function ConfirmDialog({
             {pending ? "Aguarde..." : confirmLabel}
           </button>
         </div>
-      </div>
-    </div>,
-    document.body,
+      }
+    >
+      <p className="text-sm text-aurora-muted">{message}</p>
+    </AuroraModal>
   );
 }

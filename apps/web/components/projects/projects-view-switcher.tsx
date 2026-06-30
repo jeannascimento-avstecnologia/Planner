@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LayoutGrid, List } from "lucide-react";
+import { viewSwitcherActiveClass, viewSwitcherMotion } from "@/lib/ui-classes";
 
 export type ProjectsLayout = "grid" | "list";
 
@@ -34,9 +35,9 @@ export function ProjectsViewSwitcher({ value }: Props) {
             key={id}
             type="button"
             onClick={() => setLayout(id)}
-            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition ${
+            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium ${viewSwitcherMotion} ${
               on
-                ? "border-aurora-accent bg-aurora-accent text-white"
+                ? viewSwitcherActiveClass
                 : "border-aurora-border text-aurora-muted hover:bg-aurora-surface-2 hover:text-aurora-fg"
             }`}
           >

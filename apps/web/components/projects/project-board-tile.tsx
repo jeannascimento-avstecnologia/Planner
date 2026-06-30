@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Settings } from "lucide-react";
 import { BoardIcon } from "@/components/board/board-icon";
+import { canEditBoardUI } from "@/lib/board-member-roles";
 import { DEFAULT_BOARD_COLOR, tileInteractive, tileSelected } from "@/lib/ui-classes";
 import type { BoardMember } from "@/components/board/share-project-panel";
 import { ProjectSettingsModal } from "./project-settings-modal";
@@ -32,6 +33,8 @@ export function ProjectBoardTile({
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const tint = board.color || DEFAULT_BOARD_COLOR;
+  const userBoardRole = members.find((m) => m.user_id === currentUserId)?.role ?? null;
+  const canEdit = canEditBoardUI(isOrgAdmin, userBoardRole);
 
   const openBoard = (e: React.MouseEvent) => {
     if (hubMode && onSelect) {
@@ -76,18 +79,20 @@ export function ProjectBoardTile({
               {nameContent}
             </Link>
           )}
-          <button
-            type="button"
-            aria-label="Configuracoes do projeto"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setSettingsOpen(true);
-            }}
-            className="rounded-md p-1 text-aurora-muted opacity-0 transition hover:bg-aurora-surface-2 hover:text-aurora-fg group-hover:opacity-100"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
+          {canEdit ? (
+            <button
+              type="button"
+              aria-label="Configuracoes do projeto"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSettingsOpen(true);
+              }}
+              className="rounded-md p-1 text-aurora-muted opacity-0 transition hover:bg-aurora-surface-2 hover:text-aurora-fg group-hover:opacity-100"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
         {settingsOpen ? (
           <ProjectSettingsModal
@@ -148,19 +153,21 @@ export function ProjectBoardTile({
             {tileBody}
           </Link>
         )}
-        <button
-          type="button"
-          aria-label="Configuracoes do projeto"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setSettingsOpen(true);
-          }}
-          className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-aurora-muted opacity-0 transition hover:bg-aurora-surface-2 hover:text-aurora-fg group-hover:opacity-100 focus-visible:opacity-100"
-          data-testid="project-settings"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            aria-label="Configuracoes do projeto"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSettingsOpen(true);
+            }}
+            className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-aurora-muted opacity-0 transition hover:bg-aurora-surface-2 hover:text-aurora-fg group-hover:opacity-100 focus-visible:opacity-100"
+            data-testid="project-settings"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
       {settingsOpen ? (
         <ProjectSettingsModal

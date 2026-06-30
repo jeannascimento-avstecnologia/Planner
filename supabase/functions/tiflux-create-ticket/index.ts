@@ -44,6 +44,16 @@ Deno.serve(async (req) => {
       .single();
     if (!board?.tiflux_enabled) throw new Error("Projeto sem Tiflux.");
 
+    // Garante que o card pertence ao board acessivel (RLS) antes do update via service role.
+    // Sem isso, um usuario autenticado poderia sobrescrever campos tiflux_* de cards de outro tenant.
+    const { data: ownedCard } = await supabase
+      .from("cards")
+      .select("id")
+      .eq("id", body.cardId)
+      .eq("board_id", body.boardId)
+      .single();
+    if (!ownedCard) throw new Error("Card nao encontrado.");
+
     const res = await fetch(`${baseUrl.replace(/\/$/, "")}/tickets`, {
       method: "POST",
       headers: {
@@ -91,7 +101,8 @@ Deno.serve(async (req) => {
         tiflux_payload: apiBody,
         tiflux_created_at: new Date().toISOString(),
       })
-      .eq("id", body.cardId);
+      .eq("id", body.cardId)
+      .eq("board_id", body.boardId);
 
     return new Response(JSON.stringify({ ticketId, ticketNumber }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

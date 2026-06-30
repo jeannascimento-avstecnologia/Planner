@@ -22,6 +22,7 @@ type Props = {
   tags: TagRow[];
   profilesById: Record<string, ProfileRow>;
   tifluxEnabled: boolean;
+  readOnlyTiflux?: boolean;
   onSelectCard: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
   onOpenTifluxLink: (id: string) => void;
@@ -33,6 +34,7 @@ export function BoardTableView({
   tags,
   profilesById,
   tifluxEnabled,
+  readOnlyTiflux = false,
   onSelectCard,
   onOpenTifluxCreate,
   onOpenTifluxLink,
@@ -111,6 +113,7 @@ export function BoardTableView({
                     <TifluxCardButton
                       card={c}
                       tifluxEnabled={tifluxEnabled}
+                      readOnly={readOnlyTiflux}
                       onOpenTifluxCreate={onOpenTifluxCreate}
                       onOpenTifluxLink={onOpenTifluxLink}
                       compact

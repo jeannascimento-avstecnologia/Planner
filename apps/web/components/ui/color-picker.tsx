@@ -7,7 +7,7 @@ const RAINBOW =
   "conic-gradient(red, #ff0, lime, cyan, blue, magenta, red)";
 
 type Props = {
-  name: string;
+  name?: string;
   defaultValue?: string;
   onChange?: (value: string) => void;
 };
@@ -23,7 +23,7 @@ export function ColorPicker({ name, defaultValue = DEFAULT_BOARD_COLOR, onChange
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <input type="hidden" name={name} value={value} />
+      {name ? <input type="hidden" name={name} value={value} /> : null}
       {COLOR_PRESETS.map((c) => (
         <button
           key={c}

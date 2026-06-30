@@ -2,17 +2,22 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/lib/query-provider";
 import { ThemeScript } from "@/components/shell/theme-provider";
+import { AuroraToaster } from "@/components/ui/sonner";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "AVS Flow",
+  title: PRODUCT_NAME,
   description: "Gestao de projetos multi-tenant, mobile-first.",
+  icons: {
+    icon: "/favicon.png",
+  },
   manifest: undefined,
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0a1145",
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeScript />
       </head>
       <body>
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          {children}
+          <AuroraToaster />
+        </QueryProvider>
       </body>
     </html>
   );

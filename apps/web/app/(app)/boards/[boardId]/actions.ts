@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { acceptBoardInviteByToken } from "@/lib/accept-board-invite";
 import { createClient } from "@/lib/supabase/server";
 import {
   attachTagInput,
@@ -9,18 +10,28 @@ import {
   createTagInput,
   createTifluxTicketInput,
   deleteTagInput,
+  deleteCardInput,
   detachTagInput,
   inviteBoardInput,
+  inviteBoardBatchInput,
   linkTifluxTicketInput,
   tifluxSearchInput,
   updateBoardMemberRoleInput,
+  removeBoardMemberInput,
   updateCardInput,
+  updateColumnInput,
   type Json,
+  type InviteBoardBatchInput,
 } from "@nextgen/contracts";
 import { lexoPosition } from "@/lib/fractional";
 import { todayStartIso } from "@/lib/parse-date-br";
 import { TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
+import { getAppUrl } from "@/lib/app-url";
+import type { EmailSendErrorCode } from "@/lib/email";
+import { inviteEmailFailureMessage } from "@/lib/invite-email-messages";
+import { checkInviteBatchRateLimit } from "@/lib/invite-rate-limit";
 import { makeSecureToken } from "@/lib/tokens";
+import { sendBoardInviteEmail } from "@/lib/notifications/board-invite";
 import {
   createTifluxTicket as callTifluxApi,
   getTifluxTicketByNumber,
@@ -76,6 +87,25 @@ export async function createColumn(formData: FormData): Promise<void> {
     name: parsed.data.name,
     position: lexoPosition(),
   });
+  revalidatePath(`/boards/${parsed.data.boardId}`);
+}
+
+export async function updateColumn(formData: FormData): Promise<void> {
+  const parsed = updateColumnInput.safeParse({
+    boardId: formData.get("boardId"),
+    columnId: formData.get("columnId"),
+    name: formData.get("name"),
+  });
+  if (!parsed.success) return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("columns")
+    .update({ name: parsed.data.name })
+    .eq("id", parsed.data.columnId)
+    .eq("board_id", parsed.data.boardId);
+  if (error) return;
+
   revalidatePath(`/boards/${parsed.data.boardId}`);
 }
 
@@ -253,6 +283,32 @@ export async function updateCard(formData: FormData): Promise<void> {
   revalidatePath("/calendar");
 }
 
+export type DeleteCardResult = { ok: true } | { error: string };
+
+export async function deleteCard(formData: FormData): Promise<DeleteCardResult> {
+  const parsed = deleteCardInput.safeParse({
+    cardId: formData.get("cardId"),
+    boardId: formData.get("boardId"),
+  });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const { data: card } = await supabase
+    .from("cards")
+    .select("id")
+    .eq("id", parsed.data.cardId)
+    .eq("board_id", parsed.data.boardId)
+    .single();
+  if (!card) return { error: "Card nao encontrado." };
+
+  const { error } = await supabase.from("cards").delete().eq("id", parsed.data.cardId);
+  if (error) return { error: "Nao foi possivel excluir o card." };
+
+  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidatePath("/calendar");
+  return { ok: true };
+}
+
 export type CreateTagResult = { ok: true; tagId: string } | { error: string };
 
 export async function createTag(formData: FormData): Promise<CreateTagResult> {
@@ -348,6 +404,19 @@ export async function deleteTag(formData: FormData): Promise<DeleteTagResult> {
 
 export type InviteResult = { ok: true; inviteUrl?: string; added?: boolean } | { ok: false; error: string };
 
+export type InviteBatchItemResult = {
+  email: string;
+  ok: boolean;
+  error?: string;
+  inviteUrl?: string;
+  emailSent?: boolean;
+  emailErrorCode?: EmailSendErrorCode;
+};
+
+export type InviteBatchResult =
+  | { ok: true; results: InviteBatchItemResult[] }
+  | { ok: false; error: string };
+
 async function assertCanManageBoardMembers(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boardId: string,
@@ -420,8 +489,100 @@ export async function inviteToBoard(formData: FormData): Promise<InviteResult> {
     return { ok: false, error: error.message };
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = await getAppUrl();
   return { ok: true, inviteUrl: `${appUrl}/invite?token=${token}` };
+}
+
+export async function inviteToBoardBatch(input: InviteBoardBatchInput): Promise<InviteBatchResult> {
+  const parsed = inviteBoardBatchInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const access = await assertCanManageBoardMembers(supabase, parsed.data.boardId, user.id);
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const rate = await checkInviteBatchRateLimit(user.id, parsed.data.invites.length);
+  if (!rate.allowed) {
+    return { ok: false, error: "Limite de convites por hora atingido. Tente novamente mais tarde." };
+  }
+
+  const { data: board } = await supabase
+    .from("boards")
+    .select("org_id, name")
+    .eq("id", parsed.data.boardId)
+    .single();
+  if (!board) return { ok: false, error: "Projeto nao encontrado." };
+
+  const { data: inviterProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const inviterName = inviterProfile?.full_name?.trim() || user.email || "Um membro da equipe";
+  const appUrl = await getAppUrl();
+  const seen = new Set<string>();
+  const results: InviteBatchItemResult[] = [];
+
+  for (const invite of parsed.data.invites) {
+    const email = invite.email.trim().toLowerCase();
+    if (seen.has(email)) {
+      results.push({ email, ok: false, error: "Email duplicado na lista." });
+      continue;
+    }
+    seen.add(email);
+
+    const { token, hash } = makeSecureToken();
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 7);
+    const inviteUrl = `${appUrl}/invite?token=${token}`;
+
+    const { error } = await supabase.from("invitations").insert({
+      org_id: board.org_id,
+      board_id: parsed.data.boardId,
+      email,
+      role: invite.role,
+      token_hash: hash,
+      expires_at: expires.toISOString(),
+      created_by: user.id,
+    });
+
+    if (error) {
+      results.push({ email, ok: false, error: error.message });
+      continue;
+    }
+
+    const emailResult = await sendBoardInviteEmail({
+      to: email,
+      boardName: board.name,
+      inviterName,
+      role: invite.role,
+      inviteUrl,
+      appUrl,
+      expiresAt: expires,
+    });
+
+    const emailSent = emailResult.ok;
+    results.push({
+      email,
+      ok: true,
+      inviteUrl,
+      emailSent,
+      emailErrorCode: emailSent ? undefined : emailResult.code,
+      error: emailSent ? undefined : inviteEmailFailureMessage(emailResult.code),
+    });
+  }
+
+  revalidatePath("/boards");
+  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidatePath("/projects");
+
+  return { ok: true, results };
 }
 
 export type UpdateMemberRoleResult = { ok: true } | { ok: false; error: string };
@@ -456,12 +617,48 @@ export async function updateBoardMemberRole(formData: FormData): Promise<UpdateM
   return { ok: true };
 }
 
-export async function acceptInvite(token: string): Promise<{ boardId?: string; error?: string }> {
+export type RemoveBoardMemberResult = { ok: true } | { ok: false; error: string };
+
+export async function removeBoardMember(formData: FormData): Promise<RemoveBoardMemberResult> {
+  const parsed = removeBoardMemberInput.safeParse({
+    boardId: formData.get("boardId"),
+    userId: formData.get("userId"),
+  });
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("accept_board_invitation", { p_token: token });
-  if (error) return { error: error.message };
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
+  if (parsed.data.userId === user.id) {
+    return { ok: false, error: "Voce nao pode remover seu proprio acesso." };
+  }
+
+  const access = await assertCanManageBoardMembers(supabase, parsed.data.boardId, user.id);
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const { error } = await supabase
+    .from("board_members")
+    .delete()
+    .eq("board_id", parsed.data.boardId)
+    .eq("user_id", parsed.data.userId);
+
+  if (error) return { ok: false, error: "Nao foi possivel remover o membro." };
+
   revalidatePath("/boards");
-  return { boardId: data as string };
+  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidatePath("/projects");
+  return { ok: true };
+}
+
+export async function acceptInvite(token: string): Promise<{ boardId?: string; error?: string }> {
+  const result = await acceptBoardInviteByToken(token);
+  if (result.boardId) {
+    revalidatePath("/boards");
+  }
+  return result;
 }
 
 export async function createIcalFeedToken(boardId?: string): Promise<{ url?: string; error?: string }> {
@@ -500,6 +697,7 @@ export async function searchTifluxOptions(input: {
   query?: string;
   deskId?: number;
   clientId?: number;
+  ticketNumber?: number;
 }): Promise<TifluxSearchActionResult> {
   const parsed = tifluxSearchInput.safeParse(input);
   if (!parsed.success) return { error: "Parametros invalidos." };

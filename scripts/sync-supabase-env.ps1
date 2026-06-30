@@ -6,18 +6,11 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-function Read-DotEnvFile([string]$Path) {
-  $vars = @{}
-  if (-not (Test-Path $Path)) { return $vars }
-  Get-Content $Path -Encoding UTF8 | ForEach-Object {
-    $line = $_.Trim()
-    if ($line -eq "" -or $line.StartsWith("#")) { return }
-    if ($line -match "^([^#=]+)=(.*)$") {
-      $vars[$Matches[1].Trim()] = $Matches[2].Trim().Trim('"')
-    }
-  }
-  return $vars
-}
+. (Join-Path $PSScriptRoot "dev-path.ps1")
+Initialize-DevPath
+
+. (Join-Path $PSScriptRoot "dotenv-utils.ps1")
+$overridePath = Join-Path $root "apps\web\.env.local.override"
 
 function Get-LinkedProjectRef {
   $refPath = Join-Path $root "supabase\.temp\project-ref"
@@ -93,14 +86,25 @@ $appUrl = $cloudEnv["NEXT_PUBLIC_APP_URL"]
 if (-not $appUrl) { $appUrl = "http://localhost:3001" }
 
 $envPath = Join-Path $root "apps\web\.env.local"
-$content = @"
-# Gerado por scripts/sync-supabase-env.ps1 (Supabase Cloud) - nao commitar
-NEXT_PUBLIC_SUPABASE_URL=$apiUrl
-NEXT_PUBLIC_SUPABASE_ANON_KEY=$anon
-SUPABASE_SERVICE_ROLE_KEY=$service
-NEXT_PUBLIC_APP_URL=$appUrl
-"@
+$existing = Merge-DotEnvOverride (Read-DotEnvFile $envPath) $overridePath
+$extras = @()
+foreach ($key in ($existing.Keys | Sort-Object)) {
+  if ($key -match "^(NEXT_PUBLIC_SUPABASE_|SUPABASE_SERVICE_ROLE|NEXT_PUBLIC_APP_URL)") { continue }
+  $extras += "$key=$(Format-DotEnvValue $existing[$key])"
+}
 
-Set-Content -Path $envPath -Value $content -Encoding UTF8
+$lines = @(
+  "# Gerado por scripts/sync-supabase-env.ps1 (Supabase Cloud) - nao commitar"
+  "NEXT_PUBLIC_SUPABASE_URL=$apiUrl"
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY=$anon"
+  "SUPABASE_SERVICE_ROLE_KEY=$service"
+  "NEXT_PUBLIC_APP_URL=$appUrl"
+)
+if ($extras.Count -gt 0) {
+  $lines += ""
+  $lines += $extras
+}
+
+Set-Content -Path $envPath -Value ($lines -join "`n") -Encoding UTF8
 Write-Host "OK: $envPath atualizado (Supabase Cloud: $apiUrl)." -ForegroundColor Green
 Write-Host "Reinicie npm run dev se estiver rodando."

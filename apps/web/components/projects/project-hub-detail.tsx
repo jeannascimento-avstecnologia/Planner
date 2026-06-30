@@ -5,7 +5,7 @@ import { ArrowLeftRight, ExternalLink, Settings } from "lucide-react";
 import { BoardIcon } from "@/components/board/board-icon";
 import { ShareProjectPanel, type BoardMember } from "@/components/board/share-project-panel";
 import { formatDue } from "@/components/board/types";
-import { canManageBoardMembers } from "@/lib/board-member-roles";
+import { canEditBoardUI, canManageBoardMembers } from "@/lib/board-member-roles";
 import { btnPrimary, btnSecondary, DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import type { ProjectBoardRow } from "./types";
 
@@ -35,6 +35,7 @@ export function ProjectHubDetail({
   onOpenSettings,
 }: Props) {
   const canManage = canManageBoardMembers(isOrgAdmin, userBoardRole);
+  const canEdit = canEditBoardUI(isOrgAdmin, userBoardRole);
   const tint = board.color || DEFAULT_BOARD_COLOR;
 
   return (
@@ -47,15 +48,17 @@ export function ProjectHubDetail({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-lg font-semibold text-aurora-fg">{board.name}</h3>
-            <button
-              type="button"
-              aria-label="Configuracoes do projeto"
-              data-testid="project-hub-settings"
-              onClick={onOpenSettings}
-              className="rounded-md p-1.5 text-aurora-muted transition hover:bg-aurora-surface-2 hover:text-aurora-fg"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
+            {canEdit ? (
+              <button
+                type="button"
+                aria-label="Configuracoes do projeto"
+                data-testid="project-hub-settings"
+                onClick={onOpenSettings}
+                className="rounded-md p-1.5 text-aurora-muted transition hover:bg-aurora-surface-2 hover:text-aurora-fg"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
           <p className="mt-0.5 line-clamp-2 text-sm text-aurora-muted">
             {board.description || "Sem descricao"}

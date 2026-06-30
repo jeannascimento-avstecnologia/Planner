@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@nextgen/contracts";
 
-const PROTECTED_PREFIXES = ["/boards"];
+const PROTECTED_PREFIXES = ["/boards", "/projects", "/calendar", "/profile"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -28,12 +28,24 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  // Apos db reset, cookies antigos geram refresh_token_not_found e quebram novo login.
+  let sessionUser = user;
+  if (
+    authError &&
+    (authError.code === "refresh_token_not_found" ||
+      authError.message?.includes("Refresh Token"))
+  ) {
+    await supabase.auth.signOut();
+    sessionUser = null;
+  }
 
   const path = request.nextUrl.pathname;
   const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p));
 
-  if (!user && isProtected) {
+  if (!sessionUser && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);

@@ -11,15 +11,29 @@ type Props = {
   fullName?: string;
   notifications: NotificationItem[];
   unreadCount: number;
+  accessibleBoardIds: string[];
   children: React.ReactNode;
 };
 
-export function AppShell({ userEmail, avatarUrl, fullName, notifications, unreadCount, children }: Props) {
+export function AppShell({
+  userEmail,
+  avatarUrl,
+  fullName,
+  notifications,
+  unreadCount,
+  accessibleBoardIds,
+  children,
+}: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen">
-      <AppSidebar userEmail={userEmail} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <AppSidebar
+        userEmail={userEmail}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+        accessibleBoardIds={accessibleBoardIds}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppTopbar
           notifications={notifications}

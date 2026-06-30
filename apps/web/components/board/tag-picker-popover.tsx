@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, X } from "lucide-react";
 import { attachTag, createTag, deleteTag, detachTag } from "@/app/(app)/boards/[boardId]/actions";
 import { inputBoardClassSm, btnBoardPrimarySm, TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { AuroraPopover } from "@/components/ui/aurora-popover";
 import { TagChip } from "./badges";
 import type { TagRow } from "./types";
 
@@ -149,15 +149,17 @@ export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags, isOrgAd
             <Plus className="h-4 w-4" />
           </button>
 
-          {open && typeof document !== "undefined"
-            ? createPortal(
-                <div
-                  ref={panelRef}
-                  role="dialog"
-                  aria-label="Marcadores"
-                  className="fixed z-[100] w-64 rounded-lg border border-board-border bg-board-surface p-2 shadow-lg"
-                  style={{ top: pos.top, left: pos.left }}
-                >
+          {open ? (
+            <AuroraPopover
+              open
+              variant="board"
+              testId="tag-picker-popover"
+              zIndex={100}
+              style={{ top: pos.top, left: pos.left, width: 256 }}
+              className="p-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div ref={panelRef} role="dialog" aria-label="Marcadores">
                   <p className="mb-2 text-xs font-medium text-aurora-muted">Marcadores</p>
                   <ul className="max-h-36 space-y-1 overflow-y-auto">
                     {tags.length === 0 ? (
@@ -227,10 +229,9 @@ export function TagPickerPopover({ cardId, boardId, orgId, tagIds, tags, isOrgAd
                     </button>
                   </div>
                   {error ? <p className="mt-1 text-xs text-aurora-danger">{error}</p> : null}
-                </div>,
-                document.body,
-              )
-            : null}
+              </div>
+            </AuroraPopover>
+          ) : null}
         </div>
       </div>
 

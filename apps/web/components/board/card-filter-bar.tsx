@@ -2,23 +2,25 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X } from "lucide-react";
-import { deleteTag } from "@/app/(app)/boards/[boardId]/actions";
+import { Search, X, Plus } from "lucide-react";
+import { deleteTag, createTag } from "@/app/(app)/boards/[boardId]/actions";
+import { createStage, deleteStage } from "@/app/(app)/boards/[boardId]/stages/actions";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { inputBoardClassSm } from "@/lib/ui-classes";
-import { TifluxTicketFilterCombobox, type LinkedTicketOption } from "./tiflux-ticket-filter-combobox";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { inputBoardClassSm, btnBoardPrimarySm, TAG_DEFAULT_COLORS, chipInteractiveBoard } from "@/lib/ui-classes";
 import { tagColor } from "./badges";
-import { hasActiveFilters, memberLabel, type CardFilters, type ProfileRow, type TagRow } from "./types";
+import { hasActiveFilters, memberLabel, type CardFilters, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type Props = {
   boardId: string;
+  orgId: string;
   tags: TagRow[];
+  stages: StageRow[];
   members: ProfileRow[];
   value: CardFilters;
   isOrgAdmin?: boolean;
-  tifluxEnabled?: boolean;
-  linkedTickets?: LinkedTicketOption[];
+  onManageStages?: () => void;
   onChange: (next: CardFilters) => void;
   onClear: () => void;
 };
@@ -31,19 +33,30 @@ function toggle<T>(list: T[], item: T): T[] {
 
 export function CardFilterBar({
   boardId,
+  orgId,
   tags,
+  stages,
   members,
   value,
   isOrgAdmin = false,
-  tifluxEnabled = false,
-  linkedTickets = [],
+  onManageStages,
   onChange,
   onClear,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [deleteTarget, setDeleteTarget] = useState<TagRow | null>(null);
+  const [showNewTag, setShowNewTag] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState<string>(TAG_DEFAULT_COLORS[0]);
+  const [tagCreateError, setTagCreateError] = useState<string | null>(null);
+  const [showNewStage, setShowNewStage] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
+  const [newStageColor, setNewStageColor] = useState("#6366F1");
+  const [stageCreateError, setStageCreateError] = useState<string | null>(null);
+  const [deleteStageTarget, setDeleteStageTarget] = useState<StageRow | null>(null);
   const active = hasActiveFilters(value);
+  const sortedStages = [...stages].sort((a, b) => a.position - b.position);
 
   function confirmDeleteTag() {
     if (!deleteTarget) return;
@@ -57,6 +70,60 @@ export function CardFilterBar({
         onChange({ ...value, tagIds: value.tagIds.filter((id) => id !== deleteTarget.id) });
         router.refresh();
       }
+    });
+  }
+
+  function handleCreateTag() {
+    if (!newTagName.trim()) return;
+    setTagCreateError(null);
+    const fd = new FormData();
+    fd.set("orgId", orgId);
+    fd.set("boardId", boardId);
+    fd.set("name", newTagName.trim());
+    fd.set("color", newTagColor);
+    startTransition(async () => {
+      const res = await createTag(fd);
+      if ("error" in res) {
+        setTagCreateError(res.error);
+        return;
+      }
+      setNewTagName("");
+      setShowNewTag(false);
+      router.refresh();
+    });
+  }
+
+  function handleCreateStage() {
+    if (!newStageName.trim()) return;
+    setStageCreateError(null);
+    const fd = new FormData();
+    fd.set("boardId", boardId);
+    fd.set("name", newStageName.trim());
+    fd.set("color", newStageColor);
+    startTransition(async () => {
+      const res = await createStage(fd);
+      if ("error" in res) {
+        setStageCreateError(res.error);
+        return;
+      }
+      setNewStageName("");
+      setShowNewStage(false);
+      router.refresh();
+    });
+  }
+
+  function confirmDeleteStage() {
+    if (!deleteStageTarget || deleteStageTarget.is_system) return;
+    const fd = new FormData();
+    fd.set("stageId", deleteStageTarget.id);
+    fd.set("boardId", boardId);
+    const removedId = deleteStageTarget.id;
+    startTransition(async () => {
+      const res = await deleteStage(fd);
+      setDeleteStageTarget(null);
+      if ("error" in res) return;
+      onChange({ ...value, stageIds: value.stageIds.filter((id) => id !== removedId) });
+      router.refresh();
     });
   }
 
@@ -74,12 +141,15 @@ export function CardFilterBar({
             />
           </div>
 
-          {tifluxEnabled ? (
-            <TifluxTicketFilterCombobox
-              value={value.tifluxTicket}
-              options={linkedTickets}
-              onChange={(tifluxTicket) => onChange({ ...value, tifluxTicket })}
-            />
+          {onManageStages ? (
+            <button
+              type="button"
+              data-testid="manage-stages"
+              onClick={onManageStages}
+              className="rounded-md border border-board-border px-2 py-1.5 text-xs font-medium text-aurora-fg hover:bg-board-accent-muted/40"
+            >
+              Estagios
+            </button>
           ) : null}
 
           <div className="flex items-center gap-1">
@@ -141,47 +211,178 @@ export function CardFilterBar({
           ))}
         </div>
 
-        {tags.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="mr-1 text-xs font-medium text-aurora-muted">Marcador:</span>
-            {tags.map((t) => {
-              const on = value.tagIds.includes(t.id);
-              const color = tagColor(t.color);
-              return (
-                <span key={t.id} className="group/tag relative inline-flex max-w-[11rem]">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-xs font-medium text-aurora-muted">Marcador:</span>
+          {tags.map((t) => {
+            const on = value.tagIds.includes(t.id);
+            const color = tagColor(t.color);
+            return (
+              <span key={t.id} className="group/tag relative inline-flex max-w-[11rem]">
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...value, tagIds: toggle(value.tagIds, t.id) })}
+                  className={`max-w-full truncate whitespace-nowrap rounded-full border py-0.5 pl-2 text-xs transition ${
+                    isOrgAdmin ? "pr-6" : "pr-2"
+                  } ${on ? "text-white" : "text-aurora-fg hover:opacity-90"}`}
+                  style={
+                    on
+                      ? { backgroundColor: color, borderColor: color }
+                      : { backgroundColor: `${color}22`, borderColor: color }
+                  }
+                  title={t.name}
+                >
+                  {t.name}
+                </button>
+                {isOrgAdmin ? (
                   <button
                     type="button"
-                    onClick={() => onChange({ ...value, tagIds: toggle(value.tagIds, t.id) })}
-                    className={`max-w-full truncate whitespace-nowrap rounded-full border py-0.5 pl-2 text-xs transition ${
-                      isOrgAdmin ? "pr-6" : "pr-2"
-                    } ${on ? "text-white" : "text-aurora-fg hover:opacity-90"}`}
-                    style={
-                      on
-                        ? { backgroundColor: color, borderColor: color }
-                        : { backgroundColor: `${color}22`, borderColor: color }
-                    }
-                    title={t.name}
+                    aria-label={`Excluir marcador ${t.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(t);
+                    }}
+                    className={`absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 transition group-hover/tag:opacity-100 ${
+                      on ? "text-white/90 hover:bg-white/20" : "text-aurora-muted hover:bg-black/10"
+                    }`}
                   >
-                    {t.name}
+                    <X className="h-3 w-3" />
                   </button>
-                  {isOrgAdmin ? (
-                    <button
-                      type="button"
-                      aria-label={`Excluir marcador ${t.name}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(t);
-                      }}
-                      className={`absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 transition group-hover/tag:opacity-100 ${
-                        on ? "text-white/90 hover:bg-white/20" : "text-aurora-muted hover:bg-black/10"
-                      }`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  ) : null}
-                </span>
-              );
-            })}
+                ) : null}
+              </span>
+            );
+          })}
+          <button
+            type="button"
+            data-testid="filter-tag-add"
+            onClick={() => setShowNewTag((v) => !v)}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-board-border text-aurora-muted hover:bg-board-accent-muted/40"
+            title="Novo marcador"
+            aria-label="Novo marcador"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {showNewTag ? (
+          <div className="flex flex-wrap items-end gap-2 rounded-lg border border-board-border p-2">
+            <div className="min-w-32 flex-1">
+              <label className="mb-1 block text-xs text-aurora-muted">Nome</label>
+              <input
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="Novo marcador"
+                aria-label="Nome do marcador"
+                required
+                className={inputBoardClassSm}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateTag();
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-aurora-muted">Cor</label>
+              <ColorPicker defaultValue={newTagColor} onChange={setNewTagColor} />
+            </div>
+            <button type="button" disabled={pending} onClick={handleCreateTag} className={btnBoardPrimarySm}>
+              Criar
+            </button>
+            {tagCreateError ? (
+              <p className="w-full text-xs font-semibold text-aurora-danger">{tagCreateError}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-xs font-medium text-aurora-muted">Estagio:</span>
+          <button
+            type="button"
+            data-testid="filter-stage-none"
+            onClick={() => onChange({ ...value, stageIds: toggle(value.stageIds, "none") })}
+            className={chipClass(value.stageIds.includes("none"))}
+          >
+            Sem estagio
+          </button>
+          {sortedStages.map((s) => {
+            const on = value.stageIds.includes(s.id);
+            return (
+              <span key={s.id} className="group/stage relative inline-flex max-w-[11rem]">
+                <button
+                  type="button"
+                  data-testid={`filter-stage-${s.system_key ?? s.id}`}
+                  onClick={() => onChange({ ...value, stageIds: toggle(value.stageIds, s.id) })}
+                  className={`max-w-full truncate whitespace-nowrap rounded-full border py-0.5 text-xs transition ${
+                    !s.is_system ? "pl-2 pr-6" : "px-2"
+                  } ${on ? "text-white" : "text-aurora-fg hover:opacity-90"}`}
+                  style={
+                    on
+                      ? { backgroundColor: s.color, borderColor: s.color }
+                      : { backgroundColor: `${s.color}22`, borderColor: s.color }
+                  }
+                  title={s.name}
+                >
+                  {s.name}
+                </button>
+                {!s.is_system ? (
+                  <button
+                    type="button"
+                    data-testid={`filter-stage-delete-${s.id}`}
+                    aria-label={`Excluir estagio ${s.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteStageTarget(s);
+                    }}
+                    className={`absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 transition group-hover/stage:opacity-100 ${
+                      on ? "text-white/90 hover:bg-white/20" : "text-aurora-muted hover:bg-black/10"
+                    }`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </span>
+            );
+          })}
+          <button
+            type="button"
+            data-testid="filter-stage-add"
+            onClick={() => setShowNewStage((v) => !v)}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-board-border text-aurora-muted hover:bg-board-accent-muted/40"
+            title="Novo estagio"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {showNewStage ? (
+          <div className="flex flex-wrap items-end gap-2 rounded-lg border border-board-border p-2">
+            <div className="min-w-32 flex-1">
+              <label className="mb-1 block text-xs text-aurora-muted">Nome</label>
+              <input
+                value={newStageName}
+                onChange={(e) => setNewStageName(e.target.value)}
+                placeholder="Novo estagio"
+                required
+                className={inputBoardClassSm}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateStage();
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-aurora-muted">Cor</label>
+              <ColorPicker defaultValue={newStageColor} onChange={setNewStageColor} />
+            </div>
+            <button type="button" disabled={pending} onClick={handleCreateStage} className={btnBoardPrimarySm}>
+              Criar
+            </button>
+            {stageCreateError ? (
+              <p className="w-full text-xs font-semibold text-aurora-danger">{stageCreateError}</p>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -198,14 +399,23 @@ export function CardFilterBar({
         onConfirm={confirmDeleteTag}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <ConfirmDialog
+        open={deleteStageTarget !== null}
+        title="Excluir estagio?"
+        message={
+          deleteStageTarget
+            ? `O estagio "${deleteStageTarget.name}" sera removido. Cards que o usam ficarao sem este estagio.`
+            : ""
+        }
+        pending={pending}
+        onConfirm={confirmDeleteStage}
+        onCancel={() => setDeleteStageTarget(null)}
+      />
     </>
   );
 }
 
 function chipClass(on: boolean): string {
-  return `rounded-full border px-2 py-0.5 text-xs transition ${
-    on
-      ? "border-board-accent bg-board-accent text-white"
-      : "border-board-border text-aurora-muted hover:bg-board-accent-muted/40"
-  }`;
+  return `${chipInteractiveBoard} ${on ? "border-board-accent bg-board-accent text-white" : ""}`;
 }

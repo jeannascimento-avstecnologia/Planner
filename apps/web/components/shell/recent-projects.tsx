@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getRecentBoards, type RecentBoard } from "@/lib/recent-boards";
+import { getRecentBoards, pruneRecentBoards, type RecentBoard } from "@/lib/recent-boards";
 
-type Props = { collapsed?: boolean };
+type Props = { collapsed?: boolean; accessibleBoardIds: string[] };
 
-export function RecentProjects({ collapsed }: Props) {
+export function RecentProjects({ collapsed, accessibleBoardIds }: Props) {
   const pathname = usePathname();
   const [items, setItems] = useState<RecentBoard[]>([]);
+
+  useEffect(() => {
+    pruneRecentBoards(accessibleBoardIds);
+  }, [accessibleBoardIds]);
 
   useEffect(() => {
     const refresh = () => setItems(getRecentBoards());
@@ -25,14 +29,14 @@ export function RecentProjects({ collapsed }: Props) {
   if (collapsed || items.length === 0) return null;
 
   return (
-    <div className="space-y-1 border-t border-aurora-sidebar-border pt-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-aurora-sidebar-muted">Recentes</p>
+    <div className="space-y-1 border-t border-white/10 pt-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Recentes</p>
       <ul className="space-y-0.5">
         {items.map((b) => (
           <li key={b.id}>
             <Link
               href={`/boards/${b.id}`}
-              className="block truncate rounded px-2 py-1 text-sm text-aurora-sidebar-fg hover:bg-white/10"
+              className="block truncate rounded px-2 py-1 text-sm text-white/90 hover:bg-white/10 hover:text-white"
             >
               {b.name}
             </Link>

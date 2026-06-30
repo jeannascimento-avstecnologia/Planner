@@ -45,4 +45,6 @@ O objetivo de segurança é **separar topologicamente** o frontend (Next.js) do 
 - [ ] `SERVICE_ROLE_KEY` ausente do bundle cliente
 - [ ] URLs de Auth apontam só para domínios do app
 - [ ] RLS + pgTAP verdes no CI
+- [ ] `RESEND_API_KEY` e `RESEND_FROM` configurados no host (sem `NEXT_PUBLIC_RESEND_*`)
+- [ ] `NEXT_PUBLIC_APP_URL` HTTPS correto (links de convite)
 - [ ] (Opcional) Network Restrictions no Supabase (plano pago)

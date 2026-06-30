@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
 import { createTifluxTicket } from "@/app/(app)/boards/[boardId]/actions";
+import { AuroraModal } from "@/components/ui/aurora-modal";
 import { inputBoardClassSm, btnBoardPrimary } from "@/lib/ui-classes";
 import { TifluxCombobox, type TifluxOption } from "./tiflux-combobox";
 import type { BoardCard } from "./types";
@@ -72,7 +71,7 @@ export function TifluxTicketModal({ boardId, card, onClose }: Props) {
     }
     const followerEmails = followers.map((f) => f.email).filter(Boolean) as string[];
     if (followerEmails.length) fd.set("followers", followerEmails.join(","));
-    if (parentTicket) fd.set("parentTicketNumber", parentTicket.value);
+    if (parentTicket?.value) fd.set("parentTicketNumber", parentTicket.value);
 
     startTransition(async () => {
       const result = await createTifluxTicket(fd);
@@ -85,44 +84,29 @@ export function TifluxTicketModal({ boardId, card, onClose }: Props) {
     });
   }
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-      data-testid="tiflux-ticket-modal"
+  return (
+    <AuroraModal
+      onClose={onClose}
+      title="Chamado Tiflux"
+      subtitle={card.title}
+      variant="board"
+      size="md"
+      testId="tiflux-ticket-modal"
+      zIndex={60}
+      bodyClassName="max-h-[70vh] overflow-y-auto px-5 py-4"
     >
-      <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-board-border bg-board-surface p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-labelledby="tiflux-modal-title"
-      >
-        <header className="mb-4 flex items-start justify-between gap-2">
-          <div>
-            <h2 id="tiflux-modal-title" className="text-lg font-semibold text-aurora-fg">
-              Chamado Tiflux
-            </h2>
-            <p className="mt-1 text-sm text-aurora-muted">{card.title}</p>
+      {success ? (
+        <div className="space-y-4">
+          <div className="aurora-success-pulse rounded-lg border border-aurora-success/40 bg-aurora-success/10 p-4 text-center">
+            <p className="text-sm text-aurora-muted">Chamado criado com sucesso</p>
+            <p className="mt-1 text-2xl font-bold text-aurora-fg">#{success}</p>
+            <p className="mt-1 text-xs text-aurora-muted">Numero atrelado a este card.</p>
           </div>
-          <button type="button" onClick={onClose} className="text-aurora-muted hover:text-aurora-fg">
-            <X className="h-5 w-5" />
+          <button type="button" onClick={onClose} className={`w-full ${btnBoardPrimary}`}>
+            Fechar
           </button>
-        </header>
-
-        {success ? (
-          <div className="space-y-4">
-            <div className="rounded-lg border border-aurora-success/40 bg-aurora-success/10 p-4 text-center">
-              <p className="text-sm text-aurora-muted">Chamado criado com sucesso</p>
-              <p className="mt-1 text-2xl font-bold text-aurora-fg">#{success}</p>
-              <p className="mt-1 text-xs text-aurora-muted">Numero atrelado a este card.</p>
-            </div>
-            <button type="button" onClick={onClose} className={`w-full ${btnBoardPrimary}`}>
-              Fechar
-            </button>
-          </div>
-        ) : (
+        </div>
+      ) : (
           <div className="space-y-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-aurora-muted">Descricao</label>
@@ -223,8 +207,6 @@ export function TifluxTicketModal({ boardId, card, onClose }: Props) {
             </div>
           </div>
         )}
-      </div>
-    </div>,
-    document.body,
+    </AuroraModal>
   );
 }
