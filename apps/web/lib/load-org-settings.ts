@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgId } from "@/lib/active-org";
 import { canManageOrg, isOrgOwnerRole } from "@/lib/org-member-roles";
 import type { OrgMemberRow } from "@nextgen/contracts";
 
@@ -6,6 +7,8 @@ export type OrgSettingsContext = {
   orgId: string;
   orgName: string;
   orgSlug: string;
+  orgLogoUrl: string | null;
+  multiOwnerEnabled: boolean;
   userRole: string;
   canManage: boolean;
   isOwner: boolean;
@@ -20,17 +23,21 @@ export async function loadOrgSettingsContext(): Promise<OrgSettingsContext | nul
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const orgId = await getActiveOrgId();
+  if (!orgId) return null;
+
   const { data: membership } = await supabase
     .from("memberships")
-    .select("org_id, role")
-    .limit(1)
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
     .maybeSingle();
-  if (!membership?.org_id) return null;
+  if (!membership) return null;
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, name, slug")
-    .eq("id", membership.org_id)
+    .select("id, name, slug, logo_url, multi_owner_enabled")
+    .eq("id", orgId)
     .single();
   if (!org) return null;
 
@@ -41,6 +48,8 @@ export async function loadOrgSettingsContext(): Promise<OrgSettingsContext | nul
     orgId: org.id,
     orgName: org.name,
     orgSlug: org.slug,
+    orgLogoUrl: org.logo_url,
+    multiOwnerEnabled: org.multi_owner_enabled ?? false,
     userRole: membership.role,
     canManage: canManageOrg(membership.role),
     isOwner: isOrgOwnerRole(membership.role),

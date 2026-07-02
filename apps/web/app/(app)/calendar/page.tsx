@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgId } from "@/lib/active-org";
 import { formatDue, isOverdue } from "@/components/board/types";
 import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import { CalendarClient } from "./calendar-client";
@@ -7,8 +8,7 @@ import { IcalFeedButton } from "./ical-feed-button";
 
 export default async function CalendarPage() {
   const supabase = await createClient();
-  const { data: memberships } = await supabase.from("memberships").select("org_id").limit(1);
-  const orgId = memberships?.[0]?.org_id;
+  const orgId = await getActiveOrgId();
   if (!orgId) {
     return <p className="text-aurora-muted">Sem organizacao.</p>;
   }

@@ -1,19 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
 import { getAppUrl } from "@/lib/app-url";
 import { makeSecureToken } from "@/lib/tokens";
 import { inviteEmailFailureMessage } from "@/lib/invite-email-messages";
 import { checkInviteBatchRateLimit } from "@/lib/invite-rate-limit";
 import { sendOrgInviteEmail } from "@/lib/notifications/org-invite";
 import { canManageOrg } from "@/lib/org-member-roles";
+import { uploadOrgLogoToStorage } from "@/lib/org-logo-storage-upload";
 import {
+  deleteOrganizationInput,
+  setOrgMultiOwnerInput,
   orgInviteBatchInput,
   removeOrgMemberInput,
   transferOrgOwnershipInput,
   updateOrgMemberRoleInput,
   updateOrganizationInput,
+  updateOrgLogoInput,
   type OrgInviteBatchInput,
 } from "@nextgen/contracts";
 
@@ -54,7 +60,7 @@ async function assertOrgManager(orgId: string): Promise<{ ok: true; userId: stri
 export async function updateOrgMemberRoleAction(input: {
   orgId: string;
   userId: string;
-  role: "admin" | "viewer" | "manager";
+  role: "admin" | "viewer" | "manager" | "owner";
 }): Promise<OrgActionResult> {
   const parsed = updateOrgMemberRoleInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
@@ -71,6 +77,7 @@ export async function updateOrgMemberRoleAction(input: {
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
   revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
   return { ok: true };
 }
 
@@ -89,6 +96,7 @@ export async function removeOrgMemberAction(input: { orgId: string; userId: stri
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
   revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
   return { ok: true };
 }
 
@@ -99,6 +107,7 @@ export async function leaveOrganizationAction(orgId: string): Promise<OrgActionR
 
   revalidatePath("/boards");
   revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
   return { ok: true };
 }
 
@@ -117,6 +126,64 @@ export async function transferOrgOwnershipAction(input: {
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
   revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
+  revalidatePath("/settings/organization/settings");
+  revalidatePath("/boards");
+  revalidatePath("/projects");
+  return { ok: true };
+}
+
+export async function deleteOrganizationAction(orgId: string): Promise<OrgActionResult> {
+  const parsed = deleteOrganizationInput.safeParse({ orgId });
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_organization", { p_org: parsed.data.orgId });
+  if (error) return { ok: false, error: mapOrgRpcError(error.message) };
+
+  const cookieStore = await cookies();
+  if (cookieStore.get(ACTIVE_ORG_COOKIE)?.value === parsed.data.orgId) {
+    cookieStore.delete(ACTIVE_ORG_COOKIE);
+  }
+
+  revalidatePath("/boards");
+  revalidatePath("/projects");
+  revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
+  return { ok: true };
+}
+
+export async function setOrgMultiOwnerAction(input: {
+  orgId: string;
+  enabled: boolean;
+}): Promise<OrgActionResult> {
+  const parsed = setOrgMultiOwnerInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", parsed.data.orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership || membership.role !== "owner") {
+    return { ok: false, error: "Sem permissao." };
+  }
+
+  const { error } = await supabase.rpc("set_org_multi_owner", {
+    p_org: parsed.data.orgId,
+    p_enabled: parsed.data.enabled,
+  });
+  if (error) return { ok: false, error: mapOrgRpcError(error.message) };
+
+  revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
   revalidatePath("/settings/organization/settings");
   return { ok: true };
 }
@@ -141,7 +208,66 @@ export async function updateOrganizationAction(input: {
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
   revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
   revalidatePath("/settings/organization/settings");
+  revalidatePath("/boards");
+  revalidatePath("/projects");
+  return { ok: true };
+}
+
+export async function uploadOrgLogoFileAction(formData: FormData): Promise<
+  | { ok: true; logoUrl: string }
+  | { ok: false; error: string }
+> {
+  const orgId = String(formData.get("orgId") ?? "").trim();
+  const file = formData.get("file");
+  if (!orgId) return { ok: false, error: "Organizacao invalida." };
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Selecione uma imagem." };
+  }
+
+  const access = await assertOrgManager(orgId);
+  if (!access.ok) return access;
+
+  let logoUrl: string;
+  const supabase = await createClient();
+  try {
+    logoUrl = await uploadOrgLogoToStorage(supabase, orgId, file);
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Falha no upload da imagem.",
+    };
+  }
+
+  const saved = await updateOrgLogoAction({ orgId, logoUrl });
+  if (!saved.ok) return saved;
+  return { ok: true, logoUrl };
+}
+
+export async function updateOrgLogoAction(input: {
+  orgId: string;
+  logoUrl: string | null;
+}): Promise<OrgActionResult> {
+  const parsed = updateOrgLogoInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+  const logoUrl = parsed.data.logoUrl?.trim() ?? "";
+  if (logoUrl && !/^https?:\/\//i.test(logoUrl)) {
+    return { ok: false, error: "URL invalida." };
+  }
+
+  const access = await assertOrgManager(parsed.data.orgId);
+  if (!access.ok) return access;
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_org_logo", {
+    p_org: parsed.data.orgId,
+    p_logo_url: logoUrl,
+  });
+  if (error) return { ok: false, error: mapOrgRpcError(error.message) };
+
+  revalidatePath("/settings/organization");
+  revalidatePath("/settings/organizations");
   revalidatePath("/boards");
   revalidatePath("/projects");
   return { ok: true };
@@ -162,10 +288,15 @@ export async function inviteToOrgBatch(input: OrgInviteBatchInput): Promise<OrgI
   const supabase = await createClient();
   const { data: org } = await supabase
     .from("organizations")
-    .select("name")
+    .select("name, multi_owner_enabled")
     .eq("id", parsed.data.orgId)
     .single();
   if (!org) return { ok: false, error: "Organizacao nao encontrada." };
+
+  const hasOwnerInvite = parsed.data.invites.some((i) => i.role === "owner");
+  if (hasOwnerInvite && !org.multi_owner_enabled) {
+    return { ok: false, error: "Ative multiplos proprietarios para convidar como owner." };
+  }
 
   const { data: inviterProfile } = await supabase
     .from("profiles")
@@ -237,12 +368,19 @@ function mapOrgRpcError(message: string): string {
   const map: Record<string, string> = {
     forbidden: "Sem permissao.",
     not_authenticated: "Faca login.",
-    owner_cannot_leave: "Transfira a propriedade antes de sair.",
+    owner_cannot_leave: "Transfira a propriedade ou ative multiplos proprietarios antes de sair.",
     cannot_remove_owner: "Nao e possivel remover o proprietario.",
-    cannot_change_owner_role: "Use transferencia de propriedade.",
-    cannot_assign_owner_directly: "Proprietario so via transferencia.",
+    cannot_change_owner_role: "Use transferencia de propriedade ou ative multiplos proprietarios.",
+    cannot_assign_owner_directly: "Ative multiplos proprietarios para promover ou convidar owners.",
+    cannot_invite_as_owner: "Ative multiplos proprietarios para convidar como proprietario.",
+    demote_extra_owners_first: "Reduza para um proprietario antes de desativar a chave.",
+    last_owner_cannot_demote: "Deve haver ao menos um proprietario na organizacao.",
+    last_owner_cannot_remove: "Nao e possivel remover o ultimo proprietario.",
+    last_owner_cannot_leave: "Nao e possivel sair sendo o unico proprietario.",
+    use_multi_owner_promotion: "Com multiplos proprietarios ativos, promova membros em vez de transferir.",
     member_not_found: "Membro nao encontrado.",
     already_owner: "Voce ja e o proprietario.",
+    org_not_found: "Organizacao nao encontrada.",
   };
   return map[message] ?? "Nao foi possivel concluir a operacao.";
 }

@@ -1,7 +1,8 @@
 import { createOrganization } from "./actions";
 import { inputClass, btnPrimary } from "@/lib/ui-classes";
 import { DeadlineTiles } from "@/components/home/deadline-tiles";
-import { ProjectsViews } from "@/components/projects/projects-views";
+import { OrgLogo } from "@/components/organizations/OrgLogo";
+import { HomeProjectsGrouped } from "@/components/home/home-projects-grouped";
 import { CreateProjectForm } from "@/components/projects/create-project-form";
 import { loadOrgProjects } from "@/lib/load-org-projects";
 
@@ -21,25 +22,48 @@ export default async function BoardsPage() {
     );
   }
 
-  const { orgName, isOrgAdmin, currentUserId, boards, boardMembersByBoardId, deadlineItems } = result.data;
+  const { activeOrgName, activeOrgLogoUrl, activeOrgId, sections, currentUserId, boardMembersByBoardId, deadlineItems } =
+    result.data;
+
+  const creatableOrgs = sections
+    .filter((s) => s.isOrgAdmin)
+    .map((s) => ({ orgId: s.orgId, name: s.orgName, isActive: s.isActive, logoUrl: s.logoUrl }));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-aurora-fg">Home</h2>
-        <p className="text-sm text-aurora-muted">{orgName}</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-aurora-fg">Home</h2>
+          <div className="mt-1 flex items-center gap-2 text-sm text-aurora-muted">
+            {activeOrgName ? (
+              <>
+                <OrgLogo name={activeOrgName} logoUrl={activeOrgLogoUrl} size="xs" />
+                <span>Org ativa: {activeOrgName}</span>
+              </>
+            ) : (
+              <span>Seus projetos por organizacao</span>
+            )}
+          </div>
+        </div>
       </div>
 
       <DeadlineTiles items={deadlineItems} />
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {creatableOrgs.length > 0 ? (
+          <CreateProjectForm orgOptions={creatableOrgs} defaultOrgId={activeOrgId} />
+        ) : (
+          <p className="text-sm text-aurora-muted">
+            Voce nao tem permissao para criar projetos em nenhuma organizacao.
+          </p>
+        )}
+      </div>
+
       <div className="space-y-3">
-        <CreateProjectForm />
-        <ProjectsViews
-          boards={boards}
+        <HomeProjectsGrouped
+          sections={sections}
           boardMembersByBoardId={boardMembersByBoardId}
-          isOrgAdmin={isOrgAdmin}
           currentUserId={currentUserId}
-          hubMode={false}
         />
       </div>
     </div>

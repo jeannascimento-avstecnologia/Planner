@@ -10,6 +10,7 @@ import {
   collectAssigneeUserIds,
   sortAssigneeProfiles,
 } from "@/lib/board-assignees";
+import { isOrgAdminRole } from "@/lib/org-member-roles";
 
 export default async function BoardPage({
   params,
@@ -25,6 +26,12 @@ export default async function BoardPage({
   const { data: board } = await supabase.from("boards").select("*").eq("id", boardId).single();
   if (!board) notFound();
 
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name, logo_url")
+    .eq("id", board.org_id)
+    .maybeSingle();
+
   const { data: myMembership } = user
     ? await supabase
         .from("memberships")
@@ -33,7 +40,7 @@ export default async function BoardPage({
         .eq("user_id", user.id)
         .maybeSingle()
     : { data: null };
-  const isOrgAdmin = myMembership?.role === "admin";
+  const isOrgAdmin = isOrgAdminRole(myMembership?.role);
 
   const [
     { data: columns },
@@ -112,6 +119,8 @@ export default async function BoardPage({
             color: board.color,
             tiflux_enabled: board.tiflux_enabled ?? false,
           }}
+          orgName={org?.name ?? "Organizacao"}
+          orgLogoUrl={org?.logo_url ?? null}
           columns={columns ?? []}
           cards={cards}
           stages={stages ?? []}

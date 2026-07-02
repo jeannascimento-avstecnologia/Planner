@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { membershipRole, orgManageableRole, uuid } from "./schemas";
+import { membershipRole, orgManageableRole, orgMemberRole, uuid } from "./schemas";
 
 export const orgMemberRowSchema = z.object({
   user_id: uuid,
@@ -13,9 +13,15 @@ export type OrgMemberRow = z.infer<typeof orgMemberRowSchema>;
 export const updateOrgMemberRoleInput = z.object({
   orgId: uuid,
   userId: uuid,
-  role: orgManageableRole,
+  role: orgMemberRole,
 });
 export type UpdateOrgMemberRoleInput = z.infer<typeof updateOrgMemberRoleInput>;
+
+export const setOrgMultiOwnerInput = z.object({
+  orgId: uuid,
+  enabled: z.boolean(),
+});
+export type SetOrgMultiOwnerInput = z.infer<typeof setOrgMultiOwnerInput>;
 
 export const removeOrgMemberInput = z.object({
   orgId: uuid,
@@ -29,6 +35,11 @@ export const transferOrgOwnershipInput = z.object({
 });
 export type TransferOrgOwnershipInput = z.infer<typeof transferOrgOwnershipInput>;
 
+export const deleteOrganizationInput = z.object({
+  orgId: uuid,
+});
+export type DeleteOrganizationInput = z.infer<typeof deleteOrganizationInput>;
+
 export const updateOrganizationInput = z.object({
   orgId: uuid,
   name: z.string().min(1).max(120),
@@ -36,9 +47,15 @@ export const updateOrganizationInput = z.object({
 });
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationInput>;
 
+export const updateOrgLogoInput = z.object({
+  orgId: uuid,
+  logoUrl: z.string().nullable(),
+});
+export type UpdateOrgLogoInput = z.infer<typeof updateOrgLogoInput>;
+
 export const orgInviteItemSchema = z.object({
   email: z.string().email(),
-  role: orgManageableRole.default("viewer"),
+  role: orgMemberRole.default("viewer"),
 });
 export type OrgInviteItem = z.infer<typeof orgInviteItemSchema>;
 

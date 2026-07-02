@@ -14,13 +14,14 @@ type Props = {
   members: OrgMemberRow[];
   currentUserId: string;
   isOwner: boolean;
+  compact?: boolean;
 };
 
 function memberLabel(member: OrgMemberRow): string {
   return member.full_name?.trim() || member.user_id.slice(0, 8);
 }
 
-export function TransferOwnershipDialog({ orgId, members, currentUserId, isOwner }: Props) {
+export function TransferOwnershipDialog({ orgId, members, currentUserId, isOwner, compact = false }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState("");
@@ -55,13 +56,14 @@ export function TransferOwnershipDialog({ orgId, members, currentUserId, isOwner
 
   return (
     <section
-      className="max-w-lg space-y-4 rounded-xl border border-aurora-danger/30 bg-aurora-surface p-6"
+      className={`space-y-4 rounded-xl border border-aurora-danger/30 bg-aurora-surface ${compact ? "p-4" : "max-w-lg p-6"}`}
       data-testid="transfer-ownership-section"
     >
       <div>
-        <h2 className="text-base font-semibold text-aurora-fg">Transferir propriedade</h2>
+        <h2 className={`font-semibold text-aurora-fg ${compact ? "text-sm" : "text-base"}`}>Transferir propriedade</h2>
         <p className="mt-1 text-sm text-aurora-muted">
-          Voce passara a ser administrador. O novo proprietario tera controle total da organizacao.
+          Cada organizacao tem um unico proprietario. Voce passara a ser administrador; o membro escolhido sera o
+          novo proprietario.
         </p>
       </div>
 

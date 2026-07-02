@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgId, getActiveOrgMembership, listUserOrgs } from "@/lib/active-org";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import type { DeadlineTileItem } from "@/components/home/deadline-tiles";
@@ -6,7 +7,20 @@ import type { BoardMember } from "@/components/board/share-project-panel";
 import type { UpcomingTask } from "@/components/projects/project-hub-detail";
 import type { ProjectBoardRow } from "@/components/projects/types";
 
+export type OrgProjectSection = {
+  orgId: string;
+  orgName: string;
+  logoUrl: string | null;
+  isActive: boolean;
+  isOrgAdmin: boolean;
+  boards: ProjectBoardRow[];
+};
+
 export type OrgProjectsData = {
+  activeOrgId: string;
+  activeOrgName: string | null;
+  activeOrgLogoUrl: string | null;
+  sections: OrgProjectSection[];
   orgId: string;
   orgName: string | null;
   isOrgAdmin: boolean;
@@ -27,23 +41,24 @@ export async function loadOrgProjects(): Promise<LoadOrgProjectsResult> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: memberships } = await supabase.from("memberships").select("org_id, role").limit(1);
-  const orgId = memberships?.[0]?.org_id ?? null;
+  const orgId = await getActiveOrgId();
+  const membership = await getActiveOrgMembership();
+  const userOrgs = await listUserOrgs();
 
-  const { data: accessibleBoardsProbe } = await supabase
+  const { data: allAccessibleBoards } = await supabase
     .from("boards")
-    .select("id, org_id, name")
+    .select("id, org_id, name, archived")
     .order("created_at", { ascending: true });
 
-  const accessibleBoardCount = accessibleBoardsProbe?.length ?? 0;
-  if (!orgId && accessibleBoardCount === 0) {
+  const accessibleBoardCount = allAccessibleBoards?.length ?? 0;
+  if (userOrgs.length === 0 && accessibleBoardCount === 0) {
     return { kind: "no-org" };
   }
 
-  const isOrgAdmin = isOrgAdminRole(memberships?.[0]?.role);
-  const effectiveOrgId = orgId ?? accessibleBoardsProbe?.[0]?.org_id ?? null;
-  const { data: org } = effectiveOrgId
-    ? await supabase.from("organizations").select("name").eq("id", effectiveOrgId).maybeSingle()
+  const isOrgAdmin = isOrgAdminRole(membership?.role);
+  const effectiveOrgId = orgId ?? userOrgs[0]?.orgId ?? allAccessibleBoards?.[0]?.org_id ?? null;
+  const { data: activeOrgRow } = effectiveOrgId
+    ? await supabase.from("organizations").select("name, logo_url").eq("id", effectiveOrgId).maybeSingle()
     : { data: null };
 
   const { data: boardsRaw } = await supabase
@@ -109,6 +124,54 @@ export async function loadOrgProjects(): Promise<LoadOrgProjectsResult> {
       next_due: st?.nextDue ?? null,
     };
   });
+
+  const boardsByOrg = new Map<string, ProjectBoardRow[]>();
+  for (const board of boards) {
+    const list = boardsByOrg.get(board.org_id) ?? [];
+    list.push(board);
+    boardsByOrg.set(board.org_id, list);
+  }
+
+  const orgMetaById = new Map(userOrgs.map((o) => [o.orgId, o]));
+  const sectionOrgIds = new Set<string>([
+    ...userOrgs.map((o) => o.orgId),
+    ...boards.map((b) => b.org_id),
+  ]);
+
+  const missingOrgIds = [...sectionOrgIds].filter((id) => !orgMetaById.has(id));
+  if (missingOrgIds.length) {
+    const { data: extraOrgs } = await supabase
+      .from("organizations")
+      .select("id, name, logo_url")
+      .in("id", missingOrgIds);
+    for (const o of extraOrgs ?? []) {
+      orgMetaById.set(o.id, {
+        orgId: o.id,
+        name: o.name,
+        slug: "",
+        logoUrl: o.logo_url,
+        role: "viewer",
+        isOwner: false,
+      });
+    }
+  }
+
+  const sections: OrgProjectSection[] = [...sectionOrgIds]
+    .map((id) => {
+      const meta = orgMetaById.get(id);
+      return {
+        orgId: id,
+        orgName: meta?.name ?? "Organizacao",
+        logoUrl: meta?.logoUrl ?? null,
+        isActive: id === effectiveOrgId,
+        isOrgAdmin: isOrgAdminRole(meta?.role),
+        boards: boardsByOrg.get(id) ?? [],
+      };
+    })
+    .sort((a, b) => {
+      if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+      return a.orgName.localeCompare(b.orgName, "pt-BR");
+    });
 
   const boardMembersByBoardId: Record<string, BoardMember[]> = {};
   for (const bm of boardMembersRaw ?? []) {
@@ -177,8 +240,12 @@ export async function loadOrgProjects(): Promise<LoadOrgProjectsResult> {
   return {
     kind: "ok",
     data: {
+      activeOrgId: effectiveOrgId ?? "",
+      activeOrgName: activeOrgRow?.name ?? null,
+      activeOrgLogoUrl: activeOrgRow?.logo_url ?? null,
+      sections,
       orgId: effectiveOrgId ?? "",
-      orgName: org?.name ?? (orgId ? null : "Projetos compartilhados"),
+      orgName: activeOrgRow?.name ?? (orgId ? null : "Projetos compartilhados"),
       isOrgAdmin,
       currentUserId: user?.id ?? null,
       boards,

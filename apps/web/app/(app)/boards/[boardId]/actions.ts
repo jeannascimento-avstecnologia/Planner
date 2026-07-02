@@ -29,6 +29,8 @@ import { TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { getAppUrl } from "@/lib/app-url";
 import type { EmailSendErrorCode } from "@/lib/email";
 import { inviteEmailFailureMessage } from "@/lib/invite-email-messages";
+import { isOrgAdminRole } from "@/lib/org-member-roles";
+import { getActiveOrgId } from "@/lib/active-org";
 import { checkInviteBatchRateLimit } from "@/lib/invite-rate-limit";
 import { makeSecureToken } from "@/lib/tokens";
 import { sendBoardInviteEmail } from "@/lib/notifications/board-invite";
@@ -436,7 +438,7 @@ async function assertCanManageBoardMembers(
     .eq("org_id", board.org_id)
     .eq("user_id", userId)
     .maybeSingle();
-  if (orgMembership?.role === "admin") return { ok: true, orgId: board.org_id };
+  if (isOrgAdminRole(orgMembership?.role)) return { ok: true, orgId: board.org_id };
 
   const { data: boardMember } = await supabase
     .from("board_members")
@@ -673,8 +675,12 @@ export async function createIcalFeedToken(boardId?: string): Promise<{ url?: str
   } = await supabase.auth.getUser();
   if (!user) return { error: "Nao autenticado." };
 
-  const { data: memberships } = await supabase.from("memberships").select("org_id").limit(1);
-  const orgId = memberships?.[0]?.org_id;
+  let orgId: string | null = null;
+  if (boardId) {
+    const { data: board } = await supabase.from("boards").select("org_id").eq("id", boardId).maybeSingle();
+    orgId = board?.org_id ?? null;
+  }
+  if (!orgId) orgId = await getActiveOrgId();
   if (!orgId) return { error: "Sem organizacao." };
 
   const { token, hash } = makeSecureToken();

@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { UserPlus, Settings } from "lucide-react";
+import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { btnBoardSecondary } from "@/lib/ui-classes";
 import { CardDrawer } from "./card-drawer";
 import { CardFilterBar } from "./card-filter-bar";
@@ -43,6 +44,8 @@ type Props = {
     color: string | null;
     tiflux_enabled: boolean;
   };
+  orgName: string;
+  orgLogoUrl: string | null;
   columns: ColumnRow[];
   cards: BoardCard[];
   stages: StageRow[];
@@ -56,6 +59,8 @@ type Props = {
 
 function BoardViewInner({
   board,
+  orgName,
+  orgLogoUrl,
   columns,
   cards,
   stages,
@@ -186,6 +191,11 @@ function BoardViewInner({
             <Link href="/projects" className="hover:text-board-accent">
               Projetos
             </Link>
+            <span>/</span>
+            <span className="inline-flex items-center gap-1.5">
+              <OrgLogo name={orgName} logoUrl={orgLogoUrl} size="xs" />
+              <span>{orgName}</span>
+            </span>
             <span>/</span>
             <span className="font-medium text-aurora-fg">{board.name}</span>
           </div>

@@ -15,10 +15,16 @@ type Props = {
   onOpenMobileMenu?: () => void;
 };
 
-export function AppTopbar({ notifications, unreadCount, avatarUrl, fullName, onOpenMobileMenu }: Props) {
+export function AppTopbar({
+  notifications,
+  unreadCount,
+  avatarUrl,
+  fullName,
+  onOpenMobileMenu,
+}: Props) {
   return (
-    <header className="aurora-topbar-solid sticky top-0 z-20 flex h-14 shrink-0 items-center px-3 md:px-4">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+    <header className="aurora-topbar-solid sticky top-0 z-20 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center px-3 md:px-4">
+      <div className="flex min-w-0 items-center gap-2 justify-self-start">
         <button
           type="button"
           onClick={onOpenMobileMenu}
@@ -30,11 +36,11 @@ export function AppTopbar({ notifications, unreadCount, avatarUrl, fullName, onO
         <TopbarTitle />
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+      <div className="flex items-center justify-center justify-self-center px-2" data-testid="topbar-agify-logo">
         <AgifyLogo variant="topbar" />
       </div>
 
-      <div className="relative z-10 flex flex-1 items-center justify-end gap-1.5">
+      <div className="flex items-center justify-end gap-1.5 justify-self-end">
         <NotificationBell notifications={notifications} unreadCount={unreadCount} variant="topbar" />
         <ThemeToggle variant="topbar" />
         <ProfileMenu avatarUrl={avatarUrl} fullName={fullName} />

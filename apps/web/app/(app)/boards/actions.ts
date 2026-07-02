@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
 import { createBoardInput, updateBoardAppearanceInput, updateBoardSettingsInput, deleteBoardInput } from "@nextgen/contracts";
 import type { Database } from "@nextgen/contracts";
+import { isOrgAdminRole } from "@/lib/org-member-roles";
+import { getActiveOrgId } from "@/lib/active-org";
 
 function slugify(value: string): string {
   const base = value
@@ -19,40 +23,64 @@ export async function createOrganization(formData: FormData): Promise<void> {
   const name = String(formData.get("orgName") ?? "").trim();
   if (!name) return;
   const supabase = await createClient();
-  await supabase.rpc("create_organization", { p_name: name, p_slug: slugify(name) });
+  const { data: org } = await supabase.rpc("create_organization", { p_name: name, p_slug: slugify(name) });
+  if (org?.id) {
+    const cookieStore = await cookies();
+    cookieStore.set(ACTIVE_ORG_COOKIE, org.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  }
   revalidatePath("/boards");
   revalidatePath("/projects");
 }
 
-export async function createBoard(formData: FormData): Promise<void> {
+export async function createBoard(formData: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
   const parsed = createBoardInput.safeParse({
     name: formData.get("name"),
     description: formData.get("description") || undefined,
     icon: formData.get("icon") || undefined,
     color: formData.get("color") || undefined,
+    orgId: formData.get("orgId") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) return { ok: false, error: "Nao autenticado." };
 
-  const { data: memberships } = await supabase.from("memberships").select("org_id").limit(1);
-  const orgId = memberships?.[0]?.org_id;
-  if (!orgId) return;
+  const targetOrgId = parsed.data.orgId ?? (await getActiveOrgId());
+  if (!targetOrgId) return { ok: false, error: "Selecione uma organizacao." };
 
-  await supabase.from("boards").insert({
-    org_id: orgId,
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", targetOrgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!isOrgAdminRole(membership?.role)) {
+    return { ok: false, error: "Sem permissao para criar projetos nesta organizacao." };
+  }
+
+  const { error } = await supabase.from("boards").insert({
+    org_id: targetOrgId,
     name: parsed.data.name,
     description: parsed.data.description ?? null,
     icon: parsed.data.icon ?? null,
     color: parsed.data.color ?? null,
     created_by: user.id,
   });
+  if (error) return { ok: false, error: "Nao foi possivel criar o projeto." };
+
   revalidatePath("/boards");
   revalidatePath("/projects");
+  revalidatePath("/settings/organizations");
+  return { ok: true };
 }
 
 export async function updateBoardAppearance(formData: FormData): Promise<void> {
@@ -130,7 +158,7 @@ export async function deleteBoard(formData: FormData): Promise<BoardSettingsResu
     .eq("org_id", board.org_id)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (membership?.role !== "admin") {
+  if (!isOrgAdminRole(membership?.role)) {
     return { error: "Sem permissao para excluir este projeto." };
   }
 

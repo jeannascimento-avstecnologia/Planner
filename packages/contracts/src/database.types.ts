@@ -13,9 +13,9 @@ export type Database = {
   public: {
     Tables: {
       organizations: {
-        Row: { id: string; name: string; slug: string; created_at: string; updated_at: string };
-        Insert: { id?: string; name: string; slug: string; created_at?: string; updated_at?: string };
-        Update: { id?: string; name?: string; slug?: string; created_at?: string; updated_at?: string };
+        Row: { id: string; name: string; slug: string; logo_url: string | null; multi_owner_enabled: boolean; created_at: string; updated_at: string };
+        Insert: { id?: string; name: string; slug: string; logo_url?: string | null; multi_owner_enabled?: boolean; created_at?: string; updated_at?: string };
+        Update: { id?: string; name?: string; slug?: string; logo_url?: string | null; multi_owner_enabled?: boolean; created_at?: string; updated_at?: string };
         Relationships: [];
       };
       profiles: {
@@ -277,8 +277,20 @@ export type Database = {
         Args: { p_org: string; p_new_owner: string };
         Returns: undefined;
       };
+      delete_organization: {
+        Args: { p_org: string };
+        Returns: undefined;
+      };
+      set_org_multi_owner: {
+        Args: { p_org: string; p_enabled: boolean };
+        Returns: Database["public"]["Tables"]["organizations"]["Row"];
+      };
       update_organization: {
         Args: { p_org: string; p_name: string; p_slug: string };
+        Returns: Database["public"]["Tables"]["organizations"]["Row"];
+      };
+      update_org_logo: {
+        Args: { p_org: string; p_logo_url: string };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
       resolve_org_invitation: {
@@ -297,6 +309,10 @@ export type Database = {
       accept_org_invitation: {
         Args: { p_token: string };
         Returns: string;
+      };
+      move_board_to_org: {
+        Args: { p_board: string; p_target_org: string };
+        Returns: undefined;
       };
     };
     Enums: {

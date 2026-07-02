@@ -19,6 +19,8 @@ function appPublicUrlIsHttps(): boolean {
 }
 
 export function buildContentSecurityPolicy(isDev: boolean): string {
+  const supabaseOriginList = supabaseOrigins().filter((origin) => origin.startsWith("http"));
+
   const connectSrc = [
     "'self'",
     ...supabaseOrigins(),
@@ -26,12 +28,23 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     ...(isDev ? ["http://127.0.0.1:*", "http://localhost:*", "ws://127.0.0.1:*", "ws://localhost:*"] : []),
   ];
 
+  const imgSrc = [
+    "'self'",
+    "data:",
+    "blob:",
+    "https://res.cloudinary.com",
+    "https://*.cloudinary.com",
+    ...supabaseOriginList,
+    ...(isDev ? ["http://127.0.0.1:*", "http://localhost:*"] : []),
+    "https:",
+  ];
+
   const directives = [
     "default-src 'self'",
     // Next.js + ThemeScript inline no head
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https:",
+    `img-src ${imgSrc.join(" ")}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc.join(" ")}`,
     "frame-ancestors 'self'",

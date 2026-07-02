@@ -52,7 +52,24 @@ function TopbarTitleInner() {
     );
   }
 
+  if (pathname.startsWith("/settings/organizations")) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+        Organizacoes
+      </span>
+    );
+  }
+
+  if (pathname.startsWith("/settings/organization")) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+        Organizacao
+      </span>
+    );
+  }
+
   const title = getRouteTitle(pathname);
+  if (!title) return null;
   return <h1 className="truncate text-sm font-semibold text-white md:text-base">{title}</h1>;
 }
 

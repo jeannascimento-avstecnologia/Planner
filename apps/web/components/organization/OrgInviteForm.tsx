@@ -9,16 +9,18 @@ import {
 } from "@/app/(app)/settings/organization/actions";
 import { btnBoardPrimary, inputClass } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
-import type { OrgManageableRole } from "@nextgen/contracts";
+import type { OrgMemberRole } from "@nextgen/contracts";
 
 type PendingInvite = {
   email: string;
-  role: OrgManageableRole;
+  role: OrgMemberRole;
 };
 
 type Props = {
   orgId: string;
   canManage?: boolean;
+  multiOwnerEnabled?: boolean;
+  currentUserIsOwner?: boolean;
 };
 
 const emailSchema = z.string().email();
@@ -64,16 +66,34 @@ function InviteLinkCopy({ url }: { url: string }) {
   );
 }
 
-export function OrgInviteForm({ orgId, canManage = false }: Props) {
+export function OrgInviteForm({
+  orgId,
+  canManage = false,
+  multiOwnerEnabled = false,
+  currentUserIsOwner = false,
+}: Props) {
   const [pending, startTransition] = useTransition();
   const [draftEmail, setDraftEmail] = useState("");
-  const [draftRole, setDraftRole] = useState<OrgManageableRole>("viewer");
+  const [draftRole, setDraftRole] = useState<OrgMemberRole>("viewer");
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [inputError, setInputError] = useState<string | null>(null);
   const [results, setResults] = useState<OrgInviteBatchItemResult[] | null>(null);
 
   if (!canManage) {
     return <p className="text-xs text-aurora-muted">Apenas administradores podem convidar membros.</p>;
+  }
+
+  const showOwnerRole = multiOwnerEnabled && currentUserIsOwner;
+
+  function roleSelectOptions() {
+    return (
+      <>
+        <option value="viewer">Visualizador</option>
+        <option value="admin">Administrador</option>
+        <option value="manager">Gerente</option>
+        {showOwnerRole ? <option value="owner">Proprietario</option> : null}
+      </>
+    );
   }
 
   function addInvite() {
@@ -99,7 +119,7 @@ export function OrgInviteForm({ orgId, canManage = false }: Props) {
     setResults(null);
   }
 
-  function updateRole(email: string, role: OrgManageableRole) {
+  function updateRole(email: string, role: OrgMemberRole) {
     setInvites((prev) => prev.map((i) => (i.email === email ? { ...i, role } : i)));
     setResults(null);
   }
@@ -151,13 +171,11 @@ export function OrgInviteForm({ orgId, canManage = false }: Props) {
         />
         <select
           value={draftRole}
-          onChange={(e) => setDraftRole(e.target.value as OrgManageableRole)}
+          onChange={(e) => setDraftRole(e.target.value as OrgMemberRole)}
           className={`w-full shrink-0 sm:w-36 ${inputClass}`}
           aria-label="Papel do convite"
         >
-          <option value="viewer">Visualizador</option>
-          <option value="admin">Administrador</option>
-          <option value="manager">Gerente</option>
+          {roleSelectOptions()}
         </select>
         <button
           type="button"
@@ -183,13 +201,11 @@ export function OrgInviteForm({ orgId, canManage = false }: Props) {
               <span className="min-w-0 flex-1 truncate text-sm text-aurora-fg">{invite.email}</span>
               <select
                 value={invite.role}
-                onChange={(e) => updateRole(invite.email, e.target.value as OrgManageableRole)}
+                onChange={(e) => updateRole(invite.email, e.target.value as OrgMemberRole)}
                 className="rounded border border-aurora-border bg-aurora-surface px-1.5 py-0.5 text-xs"
                 aria-label={`Papel de ${invite.email}`}
               >
-                <option value="viewer">Visualizador</option>
-                <option value="admin">Administrador</option>
-                <option value="manager">Gerente</option>
+                {roleSelectOptions()}
               </select>
               <button
                 type="button"

@@ -10,26 +10,43 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { orgRoleLabel } from "@/lib/org-member-roles";
 import { appToast } from "@/lib/toast";
-import type { OrgMemberRow } from "@nextgen/contracts";
-import type { OrgManageableRole } from "@nextgen/contracts";
+import type { OrgMemberRow, OrgMemberRole } from "@nextgen/contracts";
 
 type Props = {
   orgId: string;
   members: OrgMemberRow[];
   canManage?: boolean;
   currentUserId: string;
+  currentUserIsOwner?: boolean;
+  multiOwnerEnabled?: boolean;
 };
 
 function memberLabel(member: OrgMemberRow): string {
   return member.full_name?.trim() || member.user_id.slice(0, 8);
 }
 
-export function OrgMembersTable({ orgId, members, canManage = false, currentUserId }: Props) {
+const ROLE_OPTIONS: { value: OrgMemberRole; label: string }[] = [
+  { value: "viewer", label: "Visualizador" },
+  { value: "admin", label: "Administrador" },
+  { value: "manager", label: "Gerente" },
+  { value: "owner", label: "Proprietario" },
+];
+
+export function OrgMembersTable({
+  orgId,
+  members,
+  canManage = false,
+  currentUserId,
+  currentUserIsOwner = false,
+  multiOwnerEnabled = false,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [removeTarget, setRemoveTarget] = useState<OrgMemberRow | null>(null);
 
-  function changeRole(userId: string, role: OrgManageableRole) {
+  const ownerCount = members.filter((m) => m.role === "owner").length;
+
+  function changeRole(userId: string, role: OrgMemberRole) {
     startTransition(async () => {
       const res = await updateOrgMemberRoleAction({ orgId, userId, role });
       if (!res.ok) {
@@ -55,6 +72,30 @@ export function OrgMembersTable({ orgId, members, canManage = false, currentUser
     });
   }
 
+  function optionsForMember(member: OrgMemberRow): { value: OrgMemberRole; label: string }[] {
+    const base = ROLE_OPTIONS.filter((o) => o.value !== "owner" || (multiOwnerEnabled && currentUserIsOwner));
+    if (member.role === "owner" && multiOwnerEnabled && ownerCount <= 1) {
+      return [{ value: "owner", label: "Proprietario" }];
+    }
+    return base;
+  }
+
+  function canEditRole(member: OrgMemberRow): boolean {
+    if (!canManage) return false;
+    if (member.role === "owner" && !multiOwnerEnabled) return false;
+    if (member.role === "owner" && multiOwnerEnabled && !currentUserIsOwner) return false;
+    if (member.user_id === currentUserId && member.role === "owner" && ownerCount <= 1) return false;
+    return true;
+  }
+
+  function canRemoveMember(member: OrgMemberRow): boolean {
+    if (!canManage || member.user_id === currentUserId) return false;
+    if (member.role === "owner") {
+      return multiOwnerEnabled && currentUserIsOwner && ownerCount > 1;
+    }
+    return true;
+  }
+
   return (
     <div data-testid="org-members-table">
       <div className="overflow-x-auto rounded-lg border border-aurora-border">
@@ -75,8 +116,7 @@ export function OrgMembersTable({ orgId, members, canManage = false, currentUser
               </tr>
             ) : (
               members.map((member) => {
-                const isSelf = member.user_id === currentUserId;
-                const isOwner = member.role === "owner";
+                const editable = canEditRole(member);
                 return (
                   <tr key={member.user_id} data-testid={`org-member-row-${member.user_id}`}>
                     <td className="px-4 py-3">
@@ -93,17 +133,19 @@ export function OrgMembersTable({ orgId, members, canManage = false, currentUser
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {canManage && !isOwner ? (
+                      {editable ? (
                         <select
                           value={member.role}
-                          onChange={(e) => changeRole(member.user_id, e.target.value as OrgManageableRole)}
+                          onChange={(e) => changeRole(member.user_id, e.target.value as OrgMemberRole)}
                           className="rounded border border-aurora-border bg-aurora-surface px-2 py-1 text-xs"
                           aria-label={`Papel de ${memberLabel(member)}`}
                           data-testid={`org-member-role-${member.user_id}`}
                         >
-                          <option value="viewer">Visualizador</option>
-                          <option value="admin">Administrador</option>
-                          <option value="manager">Gerente</option>
+                          {optionsForMember(member).map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       ) : (
                         <span className="text-aurora-muted">{orgRoleLabel(member.role)}</span>
@@ -111,7 +153,7 @@ export function OrgMembersTable({ orgId, members, canManage = false, currentUser
                     </td>
                     {canManage ? (
                       <td className="px-4 py-3">
-                        {!isSelf && !isOwner ? (
+                        {canRemoveMember(member) ? (
                           <button
                             type="button"
                             onClick={() => setRemoveTarget(member)}

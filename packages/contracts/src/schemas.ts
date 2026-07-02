@@ -11,6 +11,9 @@ export type MembershipRole = z.infer<typeof membershipRole>;
 export const orgManageableRole = z.enum(["admin", "viewer", "manager"]);
 export type OrgManageableRole = z.infer<typeof orgManageableRole>;
 
+export const orgMemberRole = z.enum(["admin", "viewer", "manager", "owner"]);
+export type OrgMemberRole = z.infer<typeof orgMemberRole>;
+
 export const boardMemberRole = z.enum(["admin", "viewer", "manager"]);
 export type BoardMemberRole = z.infer<typeof boardMemberRole>;
 
@@ -49,6 +52,7 @@ export const createBoardInput = z.object({
   description: z.string().max(2000).optional(),
   icon: z.string().max(40).optional(),
   color: hexColor.optional(),
+  orgId: uuid.optional(),
 });
 export type CreateBoardInput = z.infer<typeof createBoardInput>;
 

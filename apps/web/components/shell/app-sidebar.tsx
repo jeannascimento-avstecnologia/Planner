@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, FolderKanban, Home, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, FolderKanban, Home, X, Building2 } from "lucide-react";
 import { RecentProjects } from "./recent-projects";
 import { AgifyLogo } from "./agify-logo";
 import { SignOutButton } from "./sign-out-button";
@@ -48,6 +48,7 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
     { href: "/boards", label: "Home", icon: Home },
     { href: "/calendar", label: "Calendario", icon: Calendar },
     { href: "/projects", label: "Projetos", icon: FolderKanban },
+    { href: "/settings/organizations", label: "Organizacoes", icon: Building2 },
   ];
 
   function handleLogoClick(e: React.MouseEvent) {
@@ -95,8 +96,16 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
           const activeHome = label === "Home" && pathname === "/boards";
           const activeProjetos =
             label === "Projetos" && (pathname === "/projects" || pathname.startsWith("/boards/"));
+          const activeOrganizacoes =
+            label === "Organizacoes" && pathname.startsWith("/settings/organizations");
           const active =
-            label === "Home" ? activeHome : label === "Projetos" ? activeProjetos : pathname === href;
+            label === "Home"
+              ? activeHome
+              : label === "Projetos"
+                ? activeProjetos
+                : label === "Organizacoes"
+                  ? activeOrganizacoes
+                  : pathname === href;
           return (
             <Link
               key={label}
