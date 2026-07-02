@@ -82,9 +82,9 @@ export function OrgMembersTable({
 
   function canEditRole(member: OrgMemberRow): boolean {
     if (!canManage) return false;
+    if (member.user_id === currentUserId) return false;
     if (member.role === "owner" && !multiOwnerEnabled) return false;
     if (member.role === "owner" && multiOwnerEnabled && !currentUserIsOwner) return false;
-    if (member.user_id === currentUserId && member.role === "owner" && ownerCount <= 1) return false;
     return true;
   }
 

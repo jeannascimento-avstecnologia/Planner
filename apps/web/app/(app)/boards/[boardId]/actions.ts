@@ -611,6 +611,10 @@ export async function updateBoardMemberRole(formData: FormData): Promise<UpdateM
   const access = await assertCanManageBoardMembers(supabase, parsed.data.boardId, user.id);
   if (!access.ok) return { ok: false, error: access.error };
 
+  if (user.id === parsed.data.userId) {
+    return { ok: false, error: "Voce nao pode alterar seu proprio papel." };
+  }
+
   const { error } = await supabase
     .from("board_members")
     .update({ role: parsed.data.role })

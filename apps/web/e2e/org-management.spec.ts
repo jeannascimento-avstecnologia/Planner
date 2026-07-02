@@ -33,6 +33,15 @@ test.describe("Organization management", () => {
     await expect(memberRow).toContainText("Administrador");
   });
 
+  test("owner nao altera proprio papel", async ({ page }) => {
+    await openOrgSettings(page);
+    const ownerRow = page.getByTestId("org-member-row-11111111-1111-1111-1111-111111111111");
+    await expect(ownerRow).toContainText("Proprietario");
+    await expect(
+      ownerRow.getByTestId("org-member-role-11111111-1111-1111-1111-111111111111"),
+    ).toHaveCount(0);
+  });
+
   test("org admin ve membros mas nao altera papeis", async ({ page }) => {
     await loginAsOrgAdmin(page);
     await openOrgSettings(page);

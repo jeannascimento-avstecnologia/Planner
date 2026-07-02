@@ -74,7 +74,7 @@ export function BoardMembersList({
             return (
               <li key={m.user_id} className="flex items-center justify-between gap-2 text-aurora-fg">
                 <span className="min-w-0 truncate">{memberLabel(m)}</span>
-                {canManageMembers ? (
+                {canManageMembers && !isSelf ? (
                   <div className="flex shrink-0 items-center gap-1">
                     <select
                       value={m.role}
@@ -86,17 +86,15 @@ export function BoardMembersList({
                       <option value="admin">Editor</option>
                       <option value="manager">Gerente</option>
                     </select>
-                    {!isSelf ? (
-                      <button
-                        type="button"
-                        onClick={() => setRemoveTarget(m)}
-                        className="rounded p-1 text-aurora-muted hover:bg-aurora-danger/10 hover:text-aurora-danger"
-                        aria-label={`Remover ${memberLabel(m)}`}
-                        data-testid={`remove-board-member-${m.user_id}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setRemoveTarget(m)}
+                      className="rounded p-1 text-aurora-muted hover:bg-aurora-danger/10 hover:text-aurora-danger"
+                      aria-label={`Remover ${memberLabel(m)}`}
+                      data-testid={`remove-board-member-${m.user_id}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 ) : (
                   <span className="shrink-0 text-aurora-muted">{boardRoleLabel(m.role)}</span>

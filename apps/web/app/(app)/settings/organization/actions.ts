@@ -87,6 +87,10 @@ export async function updateOrgMemberRoleAction(input: {
   const access = await assertOrgMemberManager(parsed.data.orgId);
   if (!access.ok) return access;
 
+  if (access.userId === parsed.data.userId) {
+    return { ok: false, error: "Voce nao pode alterar seu proprio papel." };
+  }
+
   if (parsed.data.role === "owner") {
     const supabaseCheck = await createClient();
     const { data: membership } = await supabaseCheck
@@ -401,6 +405,7 @@ function mapOrgRpcError(message: string): string {
     owner_cannot_leave: "Transfira a propriedade ou ative multiplos proprietarios antes de sair.",
     cannot_remove_owner: "Nao e possivel remover o proprietario.",
     cannot_change_owner_role: "Use transferencia de propriedade ou ative multiplos proprietarios.",
+    cannot_change_own_role: "Voce nao pode alterar seu proprio papel.",
     cannot_assign_owner_directly: "Ative multiplos proprietarios para promover ou convidar owners.",
     cannot_invite_as_owner: "Ative multiplos proprietarios para convidar como proprietario.",
     demote_extra_owners_first: "Reduza para um proprietario antes de desativar a chave.",
