@@ -68,6 +68,19 @@ export async function updateOrgMemberRoleAction(input: {
   const access = await assertOrgManager(parsed.data.orgId);
   if (!access.ok) return access;
 
+  if (parsed.data.role === "owner") {
+    const supabaseCheck = await createClient();
+    const { data: membership } = await supabaseCheck
+      .from("memberships")
+      .select("role")
+      .eq("org_id", parsed.data.orgId)
+      .eq("user_id", access.userId)
+      .maybeSingle();
+    if (membership?.role !== "owner") {
+      return { ok: false, error: "Sem permissao para promover proprietarios." };
+    }
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_membership_role", {
     p_org: parsed.data.orgId,

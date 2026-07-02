@@ -1,4 +1,15 @@
 /** Reescreve URL publica do Supabase Storage para rota same-origin (CSP img-src 'self'). */
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const FILE_RE = /^[\w-]+\.(jpg|jpeg|png|webp|gif)$/i;
+
+function isValidOrgLogoStoragePath(storagePath: string): boolean {
+  const parts = storagePath.split("/");
+  if (parts.length !== 2) return false;
+  const [orgId, fileName] = parts;
+  return Boolean(orgId && fileName && UUID_RE.test(orgId) && FILE_RE.test(fileName));
+}
+
 export function resolveOrgLogoDisplayUrl(logoUrl: string | null | undefined): string | null {
   const raw = logoUrl?.trim();
   if (!raw) return null;
@@ -12,7 +23,7 @@ export function resolveOrgLogoDisplayUrl(logoUrl: string | null | undefined): st
     const supabaseOrigin = new URL(supabaseBase).origin;
     if (parsed.origin === supabaseOrigin && parsed.pathname.includes(marker)) {
       const storagePath = decodeURIComponent(parsed.pathname.split(marker)[1] ?? "");
-      if (storagePath && /^[\w-]+\/[\w-]+\.(jpg|jpeg|png|webp|gif)$/i.test(storagePath)) {
+      if (storagePath && isValidOrgLogoStoragePath(storagePath)) {
         return `/api/org-logos/${storagePath}`;
       }
     }
