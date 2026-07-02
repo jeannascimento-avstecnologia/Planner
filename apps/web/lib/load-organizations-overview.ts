@@ -57,6 +57,25 @@ export async function loadOrganizationsOverview(): Promise<OrganizationsOverview
 
   const userOrgs = await listUserOrgs();
   const activeOrgId = await getActiveOrgId();
+  // #region agent log
+  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+    body: JSON.stringify({
+      sessionId: "fa60ca",
+      runId: "post-fix",
+      hypothesisId: "H1",
+      location: "load-organizations-overview.ts",
+      message: "orgs overview built",
+      data: {
+        orgCount: userOrgs.length,
+        orgIds: userOrgs.map((o) => o.orgId),
+        roles: userOrgs.map((o) => o.role),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const { data: boardsRaw } = await supabase
     .from("boards")

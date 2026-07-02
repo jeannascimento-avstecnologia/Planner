@@ -25,7 +25,26 @@ export async function listUserOrgs(): Promise<UserOrgRow[]> {
   const { data: memberships } = await supabase
     .from("memberships")
     .select("org_id, role, created_at")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: true });
+  // #region agent log
+  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+    body: JSON.stringify({
+      sessionId: "fa60ca",
+      runId: "post-fix",
+      hypothesisId: "H1",
+      location: "active-org.ts:listUserOrgs",
+      message: "memberships loaded for current user only",
+      data: {
+        rowCount: memberships?.length ?? 0,
+        orgIds: [...new Set((memberships ?? []).map((m) => m.org_id))],
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   if (!memberships?.length) return [];
 
   const orgIds = memberships.map((m) => m.org_id);
