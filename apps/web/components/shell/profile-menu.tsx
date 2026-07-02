@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, KeyRound, User } from "lucide-react";
+import { Building2, KeyRound, User } from "lucide-react";
 
 type Props = {
   avatarUrl?: string;
@@ -35,7 +35,10 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
 
   const topbarIconBtn =
     "flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition hover:bg-white/90";
-  const active = pathname === "/profile" || pathname === "/profile/password";
+  const active =
+    pathname === "/profile" ||
+    pathname === "/profile/password" ||
+    pathname.startsWith("/settings/organization");
 
   return (
     <div ref={ref} className="relative">
@@ -73,6 +76,14 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
             data-testid="profile-change-password"
           >
             <KeyRound className="h-4 w-4" /> Mudar senha
+          </Link>
+          <Link
+            href="/settings/organization"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-aurora-fg hover:bg-aurora-surface-2"
+            data-testid="profile-org-settings"
+          >
+            <Building2 className="h-4 w-4" /> Organizacao
           </Link>
         </div>
       ) : null}

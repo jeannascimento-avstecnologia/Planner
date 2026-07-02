@@ -62,9 +62,32 @@ Sem Upstash: limite desabilitado (apenas max 20 por batch no schema Zod).
 |---------|----------------|------|
 | "Email nao configurado" | `RESEND_API_KEY` ausente | Adicionar secret e redeploy |
 | "Dominio nao verificado" | `RESEND_FROM` sem dominio verified | Verificar DNS no Resend |
-| Link aponta localhost | `NEXT_PUBLIC_APP_URL` errado | Corrigir env e rebuild |
-| Login perde convite | `next` ausente | Usar fluxo `/invite` (ja redireciona) |
+| Link aponta localhost | `NEXT_PUBLIC_APP_URL` errado no build | Corrigir env, rebuild, `pm2 restart` |
+| "Convite invalido ou expirado" instantaneo | Migration `fix_invitation_digest` fora do cloud | `npx supabase migration list --linked` + `db push` |
+| Email nunca chega (staging) | `onboarding@resend.dev` | So entrega para email da conta Resend |
+| Tela "Email diferente do convite" | Sessao com email != convidado | "Entrar com outra conta" na tela de convite |
+| 404 em `/invite` ou `/invite/org` | Deploy antigo | Redeploy app |
+| Email sem branding | Deploy antigo ou cliente plain-text | Ver raw HTML em Resend Logs; rebuild |
+| Login perde convite | `next` ausente | Fluxo `/invite` ja redireciona ao login |
 | 429 Resend | quota / rate limit | Aguardar ou upgrade Resend |
+
+### Checklist reproducao (convite board)
+
+1. Confirmar `NEXT_PUBLIC_APP_URL` no build vs URL nos links gerados.
+2. Migrations aplicadas no Supabase Cloud:
+   - `20260629120000_fix_invitation_digest.sql`
+   - `20260629170000_invite_email_jwt_compare.sql`
+   - `20260629180000_resolve_board_invitation.sql`
+3. Gerar convite; comparar URL Resend Logs vs UI.
+4. Cenarios: mesmo email logado, email diferente, sem login.
+5. Resend: dominio verificado em producao.
+6. SQL: `select public.resolve_board_invitation('<token>');`
+
+### Verificacao render email (branding)
+
+1. Resend → Delivered → raw HTML.
+2. Logo (data URI), preheader, assunto com `PRODUCT_NAME`.
+3. Gmail + Outlook (screenshot para PR).
 
 ## Checklist pre-go-live
 
@@ -72,7 +95,7 @@ Sem Upstash: limite desabilitado (apenas max 20 por batch no schema Zod).
 - [ ] Dominio verificado no Resend (producao)
 - [ ] `NEXT_PUBLIC_APP_URL` HTTPS correto
 - [ ] Supabase Auth URLs alinhadas
-- [ ] `supabase db push` aplicado
-- [ ] pgTAP `08_invitations_test.sql` verde
-- [ ] E2E `board-invites.spec.ts` verde
-- [ ] Teste manual de email recebido
+- [ ] `supabase db push` aplicado (incl. org management `202607021*`)
+- [ ] pgTAP `08_invitations_test.sql` + `20-24_org_*` verdes
+- [ ] E2E `board-invites.spec.ts` + `org-*` verdes
+- [ ] Teste manual de email recebido (HTML branded)

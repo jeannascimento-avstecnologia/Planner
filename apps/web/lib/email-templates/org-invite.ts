@@ -1,10 +1,11 @@
-import { boardRoleLabel } from "@/lib/board-member-roles";
+import { orgRoleLabel } from "@/lib/org-member-roles";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { AGIFY_EMAIL, agifyLogoSrc } from "@/lib/email-templates/agify-email-brand";
+import { escapeHtml } from "@/lib/email-templates/board-invite";
 
-export type BoardInviteEmailParams = {
+export type OrgInviteEmailParams = {
   to: string;
-  boardName: string;
+  orgName: string;
   inviterName: string;
   role: string;
   inviteUrl: string;
@@ -12,25 +13,25 @@ export type BoardInviteEmailParams = {
   expiresAt: Date;
 };
 
-export function buildBoardInviteEmail(params: BoardInviteEmailParams): {
+export function buildOrgInviteEmail(params: OrgInviteEmailParams): {
   subject: string;
   html: string;
   text: string;
 } {
-  const roleLabel = boardRoleLabel(params.role);
+  const roleLabel = orgRoleLabel(params.role);
   const expires = params.expiresAt.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
-  const subject = `Convite para o projeto ${params.boardName} — ${PRODUCT_NAME}`;
+  const subject = `Convite para ${params.orgName} — ${PRODUCT_NAME}`;
   const logoSrc = agifyLogoSrc(params.appUrl);
-  const preheader = `${params.inviterName} convidou voce para o projeto ${params.boardName}.`;
+  const preheader = `${params.inviterName} convidou voce para a organizacao ${params.orgName}.`;
 
   const text = [
-    `${PRODUCT_NAME} | Convite de projeto`,
+    `${PRODUCT_NAME} | Convite de organizacao`,
     "",
-    `${params.inviterName} convidou voce para participar do projeto "${params.boardName}" no ${PRODUCT_NAME}.`,
+    `${params.inviterName} convidou voce para participar da organizacao "${params.orgName}" no ${PRODUCT_NAME}.`,
     `Nivel de acesso: ${roleLabel}.`,
     `Aceite o convite (valido ate ${expires}):`,
     params.inviteUrl,
@@ -61,11 +62,11 @@ export function buildBoardInviteEmail(params: BoardInviteEmailParams): {
         <tr>
           <td style="padding:8px 32px 32px;text-align:center;">
             <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;line-height:1.3;color:${AGIFY_EMAIL.fg};letter-spacing:-0.02em;">
-              Voce foi convidado para um projeto
+              Voce foi convidado para uma organizacao
             </h1>
             <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:${AGIFY_EMAIL.muted};">
-              <strong style="color:${AGIFY_EMAIL.fg};">${escapeHtml(params.inviterName)}</strong> convidou voce para participar de
-              <strong style="color:${AGIFY_EMAIL.fg};">${escapeHtml(params.boardName)}</strong>.
+              <strong style="color:${AGIFY_EMAIL.fg};">${escapeHtml(params.inviterName)}</strong> convidou voce para
+              <strong style="color:${AGIFY_EMAIL.fg};">${escapeHtml(params.orgName)}</strong>.
             </p>
             <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 28px;background:${AGIFY_EMAIL.bg};border-radius:12px;border:1px solid ${AGIFY_EMAIL.border};">
               <tr>
@@ -106,12 +107,4 @@ export function buildBoardInviteEmail(params: BoardInviteEmailParams): {
 </html>`;
 
   return { subject, html, text };
-}
-
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }

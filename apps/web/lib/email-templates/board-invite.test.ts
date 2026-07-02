@@ -12,12 +12,14 @@ const baseParams = {
 };
 
 describe("buildBoardInviteEmail", () => {
-  it("includes inline logo and gradient border with purple CTA", () => {
-    const { html } = buildBoardInviteEmail(baseParams);
+  it("includes inline logo, preheader and gradient border with purple CTA", () => {
+    const { html, text } = buildBoardInviteEmail(baseParams);
     expect(html).toMatch(/data:image\/png;base64,|https:\/\/app\.example\.com\/branding\/agify\.png/);
     expect(html).toContain("linear-gradient(135deg, #38BDF8");
     expect(html).toContain("background:#7C3AED");
     expect(html).toContain("Aceitar convite");
+    expect(html).toContain("display:none");
+    expect(text).toContain("Agify | Convite de projeto");
   });
 
   it("escapes HTML in dynamic fields", () => {

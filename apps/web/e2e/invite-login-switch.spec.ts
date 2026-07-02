@@ -39,7 +39,7 @@ test("convite pendente: login com email correto aceita", async ({ page }) => {
   await page.getByRole("button", { name: "Entrar" }).click();
 
   await expect(page).toHaveURL(/\/boards\/[0-9a-f-]+/, { timeout: 20_000 });
-  await expect(page.getByText(/nao deveria estar vendo esta tela|invalido ou expirado/i)).toHaveCount(0);
+  await expect(page.getByText(/Email diferente do convite|invalido ou expirado/i)).toHaveCount(0);
 });
 
 test("convite pendente: sessao admin e login na mesma aba mostra mismatch ate sair", async ({ page }) => {
@@ -62,7 +62,7 @@ test("convite pendente: sessao admin e login na mesma aba mostra mismatch ate sa
   await guestCtx.close();
 
   await page.goto(invitePath);
-  await expect(page.getByText(/nao deveria estar vendo esta tela/i)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Email diferente do convite/i)).toBeVisible({ timeout: 10_000 });
 
   await page.goto(`/login?next=${encodeURIComponent(inviteRel)}`);
   await page.getByLabel("Email").fill(inviteEmail);

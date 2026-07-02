@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isOrgAdminRole } from "@/lib/org-member-roles";
 import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import type { DeadlineTileItem } from "@/components/home/deadline-tiles";
 import type { BoardMember } from "@/components/board/share-project-panel";
@@ -39,7 +40,7 @@ export async function loadOrgProjects(): Promise<LoadOrgProjectsResult> {
     return { kind: "no-org" };
   }
 
-  const isOrgAdmin = memberships?.[0]?.role === "admin";
+  const isOrgAdmin = isOrgAdminRole(memberships?.[0]?.role);
   const effectiveOrgId = orgId ?? accessibleBoardsProbe?.[0]?.org_id ?? null;
   const { data: org } = effectiveOrgId
     ? await supabase.from("organizations").select("name").eq("id", effectiveOrgId).maybeSingle()

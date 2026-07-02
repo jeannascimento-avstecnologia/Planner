@@ -3,27 +3,30 @@
 import { useState, useTransition } from "react";
 import { ArrowRight, Check, Copy, X } from "lucide-react";
 import { z } from "zod";
-import { inviteToBoardBatch, type InviteBatchItemResult } from "@/app/(app)/boards/[boardId]/actions";
+import {
+  inviteToOrgBatch,
+  type OrgInviteBatchItemResult,
+} from "@/app/(app)/settings/organization/actions";
 import { btnBoardPrimary, inputClass } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
-import type { BoardMemberRole } from "@nextgen/contracts";
+import type { OrgManageableRole } from "@nextgen/contracts";
 
-export type PendingInvite = {
+type PendingInvite = {
   email: string;
-  role: BoardMemberRole;
+  role: OrgManageableRole;
 };
 
 type Props = {
-  boardId: string;
-  canManageMembers?: boolean;
+  orgId: string;
+  canManage?: boolean;
 };
 
 const emailSchema = z.string().email();
 
-function inviteResultMessage(r: InviteBatchItemResult): string {
+function inviteResultMessage(r: OrgInviteBatchItemResult): string {
   if (!r.ok) return r.error ?? "Erro ao convidar.";
-  if (r.emailSent) return "Convite enviado por email. Copie o link abaixo se necessario.";
-  return "Convite criado — copie o link abaixo.";
+  if (r.emailSent) return "Convite enviado por email.";
+  return r.error ?? "Convite criado — copie o link abaixo.";
 }
 
 function InviteLinkCopy({ url }: { url: string }) {
@@ -44,7 +47,7 @@ function InviteLinkCopy({ url }: { url: string }) {
         target="_blank"
         rel="noopener noreferrer"
         className="block break-all text-xs text-aurora-accent hover:underline"
-        data-testid="invite-link-url"
+        data-testid="org-invite-link-url"
       >
         {url}
       </a>
@@ -52,7 +55,7 @@ function InviteLinkCopy({ url }: { url: string }) {
         type="button"
         onClick={copy}
         className="inline-flex items-center gap-1.5 rounded-md border border-aurora-border bg-aurora-surface px-2 py-1 text-xs text-aurora-fg hover:bg-aurora-surface-2"
-        data-testid="invite-link-copy"
+        data-testid="org-invite-link-copy"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-aurora-success" /> : <Copy className="h-3.5 w-3.5" />}
         {copied ? "Link copiado!" : "Copiar link de convite"}
@@ -61,16 +64,16 @@ function InviteLinkCopy({ url }: { url: string }) {
   );
 }
 
-export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) {
+export function OrgInviteForm({ orgId, canManage = false }: Props) {
   const [pending, startTransition] = useTransition();
   const [draftEmail, setDraftEmail] = useState("");
-  const [draftRole, setDraftRole] = useState<BoardMemberRole>("viewer");
+  const [draftRole, setDraftRole] = useState<OrgManageableRole>("viewer");
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [inputError, setInputError] = useState<string | null>(null);
-  const [results, setResults] = useState<InviteBatchItemResult[] | null>(null);
+  const [results, setResults] = useState<OrgInviteBatchItemResult[] | null>(null);
 
-  if (!canManageMembers) {
-    return <p className="text-xs text-aurora-muted">Apenas Gerente do projeto ou admin da org podem convidar.</p>;
+  if (!canManage) {
+    return <p className="text-xs text-aurora-muted">Apenas administradores podem convidar membros.</p>;
   }
 
   function addInvite() {
@@ -96,7 +99,7 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
     setResults(null);
   }
 
-  function updateRole(email: string, role: BoardMemberRole) {
+  function updateRole(email: string, role: OrgManageableRole) {
     setInvites((prev) => prev.map((i) => (i.email === email ? { ...i, role } : i)));
     setResults(null);
   }
@@ -105,7 +108,7 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
     if (invites.length === 0) return;
     setInputError(null);
     startTransition(async () => {
-      const res = await inviteToBoardBatch({ boardId, invites });
+      const res = await inviteToOrgBatch({ orgId, invites });
       if (!res.ok) {
         setInputError(res.error);
         appToast.error(res.error);
@@ -125,7 +128,7 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
   }
 
   return (
-    <section className="space-y-3 rounded-lg border border-aurora-border bg-aurora-bg p-4" data-testid="invite-emails-section">
+    <section className="space-y-3 rounded-lg border border-aurora-border bg-aurora-bg p-4" data-testid="org-invite-form">
       <p className="text-sm font-semibold text-aurora-fg">Convidar por email</p>
 
       <div className="flex flex-wrap gap-2 sm:flex-nowrap">
@@ -144,16 +147,16 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
           }}
           placeholder="email@empresa.com"
           className={`min-w-0 flex-1 ${inputClass}`}
-          data-testid="invite-email-input"
+          data-testid="org-invite-email-input"
         />
         <select
           value={draftRole}
-          onChange={(e) => setDraftRole(e.target.value as BoardMemberRole)}
-          className={`w-full shrink-0 sm:w-28 ${inputClass}`}
-          aria-label="Nivel de acesso do convite"
+          onChange={(e) => setDraftRole(e.target.value as OrgManageableRole)}
+          className={`w-full shrink-0 sm:w-36 ${inputClass}`}
+          aria-label="Papel do convite"
         >
-          <option value="viewer">Visualizar</option>
-          <option value="admin">Editor</option>
+          <option value="viewer">Visualizador</option>
+          <option value="admin">Administrador</option>
           <option value="manager">Gerente</option>
         </select>
         <button
@@ -161,7 +164,7 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
           onClick={addInvite}
           className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-aurora-border bg-aurora-surface px-3 text-sm font-medium text-aurora-fg hover:bg-aurora-surface-2"
           aria-label="Adicionar email"
-          data-testid="invite-email-add"
+          data-testid="org-invite-email-add"
         >
           <ArrowRight className="h-4 w-4" />
           Adicionar
@@ -171,7 +174,7 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
       {inputError ? <p className="text-xs text-aurora-danger">{inputError}</p> : null}
 
       {invites.length > 0 ? (
-        <ul className="space-y-2" data-testid="invite-email-list">
+        <ul className="space-y-2" data-testid="org-invite-email-list">
           {invites.map((invite) => (
             <li
               key={invite.email}
@@ -180,12 +183,12 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
               <span className="min-w-0 flex-1 truncate text-sm text-aurora-fg">{invite.email}</span>
               <select
                 value={invite.role}
-                onChange={(e) => updateRole(invite.email, e.target.value as BoardMemberRole)}
+                onChange={(e) => updateRole(invite.email, e.target.value as OrgManageableRole)}
                 className="rounded border border-aurora-border bg-aurora-surface px-1.5 py-0.5 text-xs"
                 aria-label={`Papel de ${invite.email}`}
               >
-                <option value="viewer">Visualizar</option>
-                <option value="admin">Editor</option>
+                <option value="viewer">Visualizador</option>
+                <option value="admin">Administrador</option>
                 <option value="manager">Gerente</option>
               </select>
               <button
@@ -219,7 +222,7 @@ export function InviteEmailsPanel({ boardId, canManageMembers = false }: Props) 
         onClick={sendInvites}
         disabled={pending || invites.length === 0}
         className={`w-full ${btnBoardPrimary}`}
-        data-testid="invite-send"
+        data-testid="org-invite-send"
       >
         {pending ? "Enviando..." : "Enviar convite"}
       </button>

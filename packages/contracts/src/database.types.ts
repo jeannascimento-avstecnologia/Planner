@@ -120,6 +120,42 @@ export type Database = {
         Update: { card_id?: string; tag_id?: string; org_id?: string };
         Relationships: [];
       };
+      organization_invitations: {
+        Row: {
+          id: string;
+          org_id: string;
+          email: string;
+          role: Database["public"]["Enums"]["membership_role"];
+          token_hash: string;
+          expires_at: string;
+          accepted_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          email: string;
+          role?: Database["public"]["Enums"]["membership_role"];
+          token_hash: string;
+          expires_at: string;
+          accepted_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          email?: string;
+          role?: Database["public"]["Enums"]["membership_role"];
+          token_hash?: string;
+          expires_at?: string;
+          accepted_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       invitations: {
         Row: {
           id: string; org_id: string; board_id: string; email: string;
@@ -211,9 +247,60 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      list_org_members: {
+        Args: { p_org: string };
+        Returns: {
+          user_id: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          role: Database["public"]["Enums"]["membership_role"];
+          created_at: string;
+        }[];
+      };
+      update_membership_role: {
+        Args: {
+          p_org: string;
+          p_user: string;
+          p_role: Database["public"]["Enums"]["membership_role"];
+        };
+        Returns: undefined;
+      };
+      remove_org_member: {
+        Args: { p_org: string; p_user: string };
+        Returns: undefined;
+      };
+      leave_organization: {
+        Args: { p_org: string };
+        Returns: undefined;
+      };
+      transfer_org_ownership: {
+        Args: { p_org: string; p_new_owner: string };
+        Returns: undefined;
+      };
+      update_organization: {
+        Args: { p_org: string; p_name: string; p_slug: string };
+        Returns: Database["public"]["Tables"]["organizations"]["Row"];
+      };
+      resolve_org_invitation: {
+        Args: { p_token: string };
+        Returns: {
+          status: string;
+          org_id: string | null;
+          email: string | null;
+          role: Database["public"]["Enums"]["membership_role"] | null;
+        }[];
+      };
+      peek_org_invitation: {
+        Args: { p_token: string };
+        Returns: { email: string }[];
+      };
+      accept_org_invitation: {
+        Args: { p_token: string };
+        Returns: string;
+      };
     };
     Enums: {
-      membership_role: "admin" | "viewer" | "manager";
+      membership_role: "admin" | "viewer" | "manager" | "owner";
       card_priority: "low" | "medium" | "high" | "urgent";
       card_event_type:
         | "created"

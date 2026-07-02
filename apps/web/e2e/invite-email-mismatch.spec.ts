@@ -39,7 +39,7 @@ test("convite: login com email convidado existente aceita", async ({ page }) => 
   await page.getByRole("button", { name: "Entrar" }).click();
 
   await expect(page).toHaveURL(/\/boards\/[0-9a-f-]+/, { timeout: 20_000 });
-  await expect(page.getByText(/outro email|nao deveria estar vendo esta tela/i)).toHaveCount(0);
+  await expect(page.getByText(/Email diferente do convite|outro email/i)).toHaveCount(0);
 });
 
 test("convite: admin abre link e login sem sair mostra mismatch", async ({ page }) => {
@@ -58,7 +58,7 @@ test("convite: admin abre link e login sem sair mostra mismatch", async ({ page 
 
   await loginAsStandard(page);
   await page.goto(invitePath);
-  await expect(page.getByText(/nao deveria estar vendo esta tela/i)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Email diferente do convite/i)).toBeVisible({ timeout: 10_000 });
 
   await page.goto("/login");
   await page.getByLabel("Email").fill(inviteEmail);
@@ -67,7 +67,7 @@ test("convite: admin abre link e login sem sair mostra mismatch", async ({ page 
   await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
 
   await page.goto(invitePath);
-  const mismatch = await page.getByText(/nao deveria estar vendo esta tela/i).isVisible().catch(() => false);
+  const mismatch = await page.getByText(/Email diferente do convite/i).isVisible().catch(() => false);
   const accepted = page.url().match(/\/boards\/[0-9a-f-]+/);
   expect(mismatch && !accepted).toBeTruthy();
 });

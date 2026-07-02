@@ -5,8 +5,11 @@ export const uuid = z.string().uuid();
 export const cardPriority = z.enum(["low", "medium", "high", "urgent"]);
 export type CardPriority = z.infer<typeof cardPriority>;
 
-export const membershipRole = z.enum(["admin", "viewer", "manager"]);
+export const membershipRole = z.enum(["admin", "viewer", "manager", "owner"]);
 export type MembershipRole = z.infer<typeof membershipRole>;
+
+export const orgManageableRole = z.enum(["admin", "viewer", "manager"]);
+export type OrgManageableRole = z.infer<typeof orgManageableRole>;
 
 export const boardMemberRole = z.enum(["admin", "viewer", "manager"]);
 export type BoardMemberRole = z.infer<typeof boardMemberRole>;

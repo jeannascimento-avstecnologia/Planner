@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { acceptBoardInviteByToken } from "@/lib/accept-board-invite";
+import { acceptOrgInviteByToken } from "@/lib/accept-org-invite";
 import { createClient } from "@/lib/supabase/server";
-import { resolveBoardInvitation } from "@/lib/resolve-board-invitation";
+import { resolveOrgInvitation } from "@/lib/resolve-org-invitation";
 import { normalizeAuthEmail } from "@/lib/normalize-auth-email";
 import { authBtnSecondary, authLinkClass, btnPrimary } from "@/lib/ui-classes";
 import { AuthLayoutShell } from "@/components/auth/auth-layout-shell";
@@ -68,7 +68,7 @@ function InviteSessionError({
   );
 }
 
-export default async function InvitePage({
+export default async function OrgInvitePage({
   searchParams,
 }: {
   searchParams: Promise<{ token?: string }>;
@@ -87,8 +87,8 @@ export default async function InvitePage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const inviteNext = `/invite?token=${encodeURIComponent(token)}`;
-  const resolved = await resolveBoardInvitation(token);
+  const inviteNext = `/invite/org?token=${encodeURIComponent(token)}`;
+  const resolved = await resolveOrgInvitation(token);
   const sessionEmail = user?.email ? normalizeAuthEmail(user.email) : "";
   const inviteEmail = resolved?.email ? normalizeAuthEmail(resolved.email) : "";
 
@@ -96,16 +96,16 @@ export default async function InvitePage({
     redirect(`/login?next=${encodeURIComponent(inviteNext)}`);
   }
 
-  if (resolved?.status === "accepted" && resolved.boardId) {
+  if (resolved?.status === "accepted" && resolved.orgId) {
     const { data: existingMember } = await supabase
-      .from("board_members")
-      .select("board_id")
-      .eq("board_id", resolved.boardId)
+      .from("memberships")
+      .select("org_id")
+      .eq("org_id", resolved.orgId)
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (existingMember) {
-      redirect(`/boards/${resolved.boardId}`);
+      redirect("/boards");
     }
 
     return (
@@ -133,10 +133,10 @@ export default async function InvitePage({
     );
   }
 
-  const result = await acceptBoardInviteByToken(token);
+  const result = await acceptOrgInviteByToken(token);
 
-  if (result.boardId) {
-    redirect(`/boards/${result.boardId}`);
+  if (result.orgId) {
+    redirect("/boards");
   }
 
   const errorText = mapInviteError(result.error ?? "Nao foi possivel aceitar o convite.");

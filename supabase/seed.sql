@@ -46,8 +46,8 @@ values ('22222222-2222-2222-2222-222222222222', 'Acme Inc', 'acme')
 on conflict (id) do nothing;
 
 insert into public.memberships (org_id, user_id, role)
-values ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'admin')
-on conflict (org_id, user_id) do nothing;
+values ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'owner')
+on conflict (org_id, user_id) do update set role = excluded.role;
 
 insert into public.boards (id, org_id, name, description, icon, color, created_by, tiflux_enabled, integrations)
 values ('33333333-3333-3333-3333-333333333333',
@@ -96,6 +96,44 @@ insert into auth.identities (
 insert into public.board_members (board_id, user_id, role)
 values ('33333333-3333-3333-3333-333333333333', '66666666-6666-6666-6666-666666666666', 'viewer')
 on conflict (board_id, user_id) do update set role = excluded.role;
+
+-- Org admin demo (segundo membro para transfer ownership E2E): orgadmin@nextgen.dev / password123
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data, is_sso_user, is_anonymous,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  email_change_token_current, phone_change, phone_change_token, reauthentication_token
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '77777777-7777-7777-7777-777777777777',
+  'authenticated', 'authenticated', 'orgadmin@nextgen.dev',
+  crypt('password123', gen_salt('bf')),
+  now(), now(), now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"full_name":"Org Admin Demo"}'::jsonb,
+  false, false,
+  '', '', '', '', '', '', '', ''
+) on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at
+) values (
+  '77777777-7777-7777-7777-777777777778',
+  '77777777-7777-7777-7777-777777777777',
+  '77777777-7777-7777-7777-777777777777',
+  'email',
+  jsonb_build_object(
+    'sub', '77777777-7777-7777-7777-777777777777',
+    'email', 'orgadmin@nextgen.dev',
+    'email_verified', true
+  ),
+  now(), now(), now()
+) on conflict do nothing;
+
+insert into public.memberships (org_id, user_id, role)
+values ('22222222-2222-2222-2222-222222222222', '77777777-7777-7777-7777-777777777777', 'admin')
+on conflict (org_id, user_id) do update set role = excluded.role;
 
 insert into public.columns (id, board_id, org_id, name, position) values
   ('44444444-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'To Do', 'a0'),

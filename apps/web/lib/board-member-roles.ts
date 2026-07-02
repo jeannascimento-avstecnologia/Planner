@@ -1,3 +1,5 @@
+import { isOrgAdminRole } from "@/lib/org-member-roles";
+
 export const BOARD_ROLE_LABELS: Record<string, string> = {
   viewer: "Visualizar",
   admin: "Editor",
