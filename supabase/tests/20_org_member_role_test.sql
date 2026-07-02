@@ -25,10 +25,13 @@ select is(
   'owner lista membros'
 );
 
--- admin altera role de viewer
-select lives_ok(
-  $$select public.update_membership_role('e5555555-5555-5555-5555-555555555555', 'c3333333-3333-3333-3333-333333333333', 'admin')$$,
-  'admin pode promover viewer'
+-- admin org nao altera roles (RBAC 20260702160000)
+select set_config('request.jwt.claims', json_build_object('sub','b2222222-2222-2222-2222-222222222222','role','authenticated')::text, true);
+select throws_ok(
+  $$select public.update_membership_role('e5555555-5555-5555-5555-555555555555', 'c3333333-3333-3333-3333-333333333333', 'viewer')$$,
+  'P0001',
+  'forbidden',
+  'admin org bloqueado em update role'
 );
 
 -- viewer nao altera roles
@@ -40,10 +43,10 @@ select throws_ok(
   'viewer bloqueado em update role'
 );
 
--- nao altera owner diretamente
+-- owner nao pode rebaixar a si proprio (single-owner)
 select set_config('request.jwt.claims', json_build_object('sub','a1111111-1111-1111-1111-111111111111','role','authenticated')::text, true);
 select throws_ok(
-  $$select public.update_membership_role('e5555555-5555-5555-5555-555555555555', 'b2222222-2222-2222-2222-222222222222', 'viewer')$$,
+  $$select public.update_membership_role('e5555555-5555-5555-5555-555555555555', 'a1111111-1111-1111-1111-111111111111', 'viewer')$$,
   'P0001',
   'cannot_change_owner_role',
   'nao muda role do owner'

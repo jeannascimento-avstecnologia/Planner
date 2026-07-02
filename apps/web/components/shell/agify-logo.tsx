@@ -49,6 +49,39 @@ const VARIANTS: Record<Variant, { src: string; width: number; height: number; si
 };
 
 export function AgifyLogo({ variant = "topbar" }: Props) {
+  if (variant === "topbar") {
+    const full = VARIANTS.topbar;
+    const icon = VARIANTS["sidebar-collapsed"];
+    return (
+      <>
+        <span className="inline-block md:hidden">
+          <Image
+            src={icon.src}
+            alt={PRODUCT_NAME}
+            width={icon.width}
+            height={icon.height}
+            priority
+            sizes={icon.sizes}
+            quality={100}
+            className="h-7 w-7 object-contain"
+          />
+        </span>
+        <span className="hidden md:inline-block">
+          <Image
+            src={full.src}
+            alt={PRODUCT_NAME}
+            width={full.width}
+            height={full.height}
+            priority
+            sizes={full.sizes}
+            quality={100}
+            className={full.imageClass}
+          />
+        </span>
+      </>
+    );
+  }
+
   const config = VARIANTS[variant];
 
   return (

@@ -16,7 +16,7 @@ export default async function OrganizationSettingsPage() {
         orgId={ctx.orgId}
         orgName={ctx.orgName}
         logoUrl={ctx.orgLogoUrl}
-        canManage={ctx.canManage}
+        canManage={ctx.canManageIdentity}
       />
 
       <div className="space-y-3">
@@ -25,10 +25,12 @@ export default async function OrganizationSettingsPage() {
           orgId={ctx.orgId}
           initialName={ctx.orgName}
           initialSlug={ctx.orgSlug}
-          canManage={ctx.canManage}
+          canManage={ctx.canManageIdentity}
         />
       </div>
 
+      {ctx.canManageIdentity ? (
+        <>
       <MultiOwnerToggle orgId={ctx.orgId} enabled={ctx.multiOwnerEnabled} isOwner={ctx.isOwner} />
 
       {ctx.isOwner && !ctx.multiOwnerEnabled ? (
@@ -41,6 +43,8 @@ export default async function OrganizationSettingsPage() {
       ) : null}
 
       {ctx.isOwner ? <DeleteOrganizationSection orgId={ctx.orgId} orgName={ctx.orgName} /> : null}
+        </>
+      ) : null}
 
       {!ctx.isOwner ? <LeaveOrganizationSection orgId={ctx.orgId} orgName={ctx.orgName} /> : null}
     </section>

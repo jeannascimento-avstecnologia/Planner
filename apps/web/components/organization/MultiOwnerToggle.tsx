@@ -37,7 +37,7 @@ export function MultiOwnerToggle({ orgId, enabled, isOwner }: Props) {
       className="space-y-2 rounded-xl border border-aurora-border bg-aurora-surface p-4"
       data-testid="multi-owner-toggle-section"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h3 className="text-sm font-semibold text-aurora-fg">Multiplos proprietarios</h3>
           <p className="mt-1 text-sm text-aurora-muted">

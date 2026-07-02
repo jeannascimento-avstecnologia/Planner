@@ -9,7 +9,7 @@ import { makeSecureToken } from "@/lib/tokens";
 import { inviteEmailFailureMessage } from "@/lib/invite-email-messages";
 import { checkInviteBatchRateLimit } from "@/lib/invite-rate-limit";
 import { sendOrgInviteEmail } from "@/lib/notifications/org-invite";
-import { canManageOrg } from "@/lib/org-member-roles";
+import { canManageOrgIdentity, canManageOrgMembers } from "@/lib/org-member-roles";
 import { uploadOrgLogoToStorage } from "@/lib/org-logo-storage-upload";
 import {
   deleteOrganizationInput,
@@ -38,7 +38,7 @@ export type OrgInviteBatchResult =
   | { ok: true; results: OrgInviteBatchItemResult[] }
   | { ok: false; error: string };
 
-async function assertOrgManager(orgId: string): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+async function assertOrgMemberManager(orgId: string): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -51,8 +51,27 @@ async function assertOrgManager(orgId: string): Promise<{ ok: true; userId: stri
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!membership || !canManageOrg(membership.role)) {
-    return { ok: false, error: "Sem permissao para gerenciar a organizacao." };
+  if (!membership || !canManageOrgMembers(membership.role)) {
+    return { ok: false, error: "Sem permissao para gerenciar membros." };
+  }
+  return { ok: true, userId: user.id };
+}
+
+async function assertOrgOwner(orgId: string): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership || !canManageOrgIdentity(membership.role)) {
+    return { ok: false, error: "Sem permissao. Apenas o proprietario pode fazer isso." };
   }
   return { ok: true, userId: user.id };
 }
@@ -65,7 +84,7 @@ export async function updateOrgMemberRoleAction(input: {
   const parsed = updateOrgMemberRoleInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
-  const access = await assertOrgManager(parsed.data.orgId);
+  const access = await assertOrgMemberManager(parsed.data.orgId);
   if (!access.ok) return access;
 
   if (parsed.data.role === "owner") {
@@ -98,7 +117,7 @@ export async function removeOrgMemberAction(input: { orgId: string; userId: stri
   const parsed = removeOrgMemberInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
-  const access = await assertOrgManager(parsed.data.orgId);
+  const access = await assertOrgMemberManager(parsed.data.orgId);
   if (!access.ok) return access;
 
   const supabase = await createClient();
@@ -131,6 +150,9 @@ export async function transferOrgOwnershipAction(input: {
   const parsed = transferOrgOwnershipInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
+  const access = await assertOrgOwner(parsed.data.orgId);
+  if (!access.ok) return access;
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("transfer_org_ownership", {
     p_org: parsed.data.orgId,
@@ -149,6 +171,9 @@ export async function transferOrgOwnershipAction(input: {
 export async function deleteOrganizationAction(orgId: string): Promise<OrgActionResult> {
   const parsed = deleteOrganizationInput.safeParse({ orgId });
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+
+  const access = await assertOrgOwner(parsed.data.orgId);
+  if (!access.ok) return access;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_organization", { p_org: parsed.data.orgId });
@@ -173,22 +198,10 @@ export async function setOrgMultiOwnerAction(input: {
   const parsed = setOrgMultiOwnerInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
+  const access = await assertOrgOwner(parsed.data.orgId);
+  if (!access.ok) return access;
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Nao autenticado." };
-
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("org_id", parsed.data.orgId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership || membership.role !== "owner") {
-    return { ok: false, error: "Sem permissao." };
-  }
-
   const { error } = await supabase.rpc("set_org_multi_owner", {
     p_org: parsed.data.orgId,
     p_enabled: parsed.data.enabled,
@@ -209,7 +222,7 @@ export async function updateOrganizationAction(input: {
   const parsed = updateOrganizationInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
-  const access = await assertOrgManager(parsed.data.orgId);
+  const access = await assertOrgOwner(parsed.data.orgId);
   if (!access.ok) return access;
 
   const supabase = await createClient();
@@ -239,7 +252,7 @@ export async function uploadOrgLogoFileAction(formData: FormData): Promise<
     return { ok: false, error: "Selecione uma imagem." };
   }
 
-  const access = await assertOrgManager(orgId);
+  const access = await assertOrgOwner(orgId);
   if (!access.ok) return access;
 
   let logoUrl: string;
@@ -269,7 +282,7 @@ export async function updateOrgLogoAction(input: {
     return { ok: false, error: "URL invalida." };
   }
 
-  const access = await assertOrgManager(parsed.data.orgId);
+  const access = await assertOrgOwner(parsed.data.orgId);
   if (!access.ok) return access;
 
   const supabase = await createClient();
@@ -290,7 +303,7 @@ export async function inviteToOrgBatch(input: OrgInviteBatchInput): Promise<OrgI
   const parsed = orgInviteBatchInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
-  const access = await assertOrgManager(parsed.data.orgId);
+  const access = await assertOrgMemberManager(parsed.data.orgId);
   if (!access.ok) return { ok: false, error: access.error };
 
   const rate = await checkInviteBatchRateLimit(access.userId, parsed.data.invites.length);
@@ -307,8 +320,12 @@ export async function inviteToOrgBatch(input: OrgInviteBatchInput): Promise<OrgI
   if (!org) return { ok: false, error: "Organizacao nao encontrada." };
 
   const hasOwnerInvite = parsed.data.invites.some((i) => i.role === "owner");
-  if (hasOwnerInvite && !org.multi_owner_enabled) {
-    return { ok: false, error: "Ative multiplos proprietarios para convidar como owner." };
+  if (hasOwnerInvite) {
+    const ownerAccess = await assertOrgOwner(parsed.data.orgId);
+    if (!ownerAccess.ok) return { ok: false, error: "Apenas o proprietario pode convidar socios." };
+    if (!org.multi_owner_enabled) {
+      return { ok: false, error: "Ative multiplos proprietarios para convidar como owner." };
+    }
   }
 
   const { data: inviterProfile } = await supabase

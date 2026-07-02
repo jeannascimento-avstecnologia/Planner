@@ -42,7 +42,7 @@ export function AuroraModal({
   showHairline = variant === "app",
   headerExtra,
   zIndex = 50,
-  bodyClassName = "flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-4",
+  bodyClassName = "flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6",
   footer,
   showClose = true,
   role = "dialog",
@@ -74,10 +74,10 @@ export function AuroraModal({
       >
         {showHairline ? <div className="aurora-modal-hairline shrink-0" aria-hidden /> : null}
         {title || headerExtra ? (
-          <header className={`flex shrink-0 items-center justify-between gap-3 border-b ${borderClass} px-6 py-4`}>
-            <div className="min-w-0">
+          <header className={`flex shrink-0 items-center justify-between gap-3 border-b ${borderClass} px-4 py-3 sm:px-6 sm:py-4`}>
+            <div className="min-w-0 flex-1">
               {title ? (
-                <h2 id="aurora-modal-title" className="text-lg font-semibold text-aurora-fg">
+                <h2 id="aurora-modal-title" className="truncate text-base font-semibold text-aurora-fg sm:text-lg">
                   {title}
                 </h2>
               ) : null}
@@ -99,7 +99,7 @@ export function AuroraModal({
           </header>
         ) : null}
         <div className={bodyClassName}>{children}</div>
-        {footer ? <footer className={`shrink-0 border-t ${borderClass} px-6 py-4`}>{footer}</footer> : null}
+        {footer ? <footer className={`shrink-0 border-t ${borderClass} px-4 py-3 sm:px-6 sm:py-4`}>{footer}</footer> : null}
       </div>
     </AuroraOverlay>,
     document.body,

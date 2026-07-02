@@ -184,23 +184,25 @@ function BoardViewInner({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
           <BoardIcon icon={board.icon} color={board.color} size="sm" />
-          <div className="flex items-center gap-2 text-sm text-aurora-muted">
-            <Link href="/projects" className="hover:text-board-accent">
-              Projetos
-            </Link>
-            <span>/</span>
-            <span className="inline-flex items-center gap-1.5">
-              <OrgLogo name={orgName} logoUrl={orgLogoUrl} size="xs" />
-              <span>{orgName}</span>
-            </span>
-            <span>/</span>
-            <span className="font-medium text-aurora-fg">{board.name}</span>
+          <div className="min-w-0 flex-1 text-sm text-aurora-muted">
+            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+              <Link href="/projects" className="shrink-0 hover:text-board-accent">
+                Projetos
+              </Link>
+              <span className="shrink-0">/</span>
+              <span className="hidden min-w-0 items-center gap-1.5 truncate sm:inline-flex">
+                <OrgLogo name={orgName} logoUrl={orgLogoUrl} size="xs" />
+                <span className="truncate">{orgName}</span>
+              </span>
+              <span className="hidden shrink-0 sm:inline">/</span>
+              <span className="min-w-0 truncate font-medium text-aurora-fg">{board.name}</span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canEditBoard ? (
             <BoardAppearanceEditor boardId={board.id} icon={board.icon} color={board.color} />
           ) : null}
@@ -221,7 +223,8 @@ function BoardViewInner({
               onClick={() => setShareOpen(true)}
               className={`inline-flex items-center gap-1.5 ${btnBoardSecondary}`}
             >
-              <UserPlus className="h-4 w-4" /> Convidar um integrante
+              <UserPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Convidar um integrante</span>
             </button>
           ) : null}
         </div>

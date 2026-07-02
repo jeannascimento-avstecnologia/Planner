@@ -6,7 +6,6 @@ import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 export default async function OrganizationSettingsLayout({ children }: { children: React.ReactNode }) {
   const ctx = await loadOrgSettingsContext();
   if (!ctx) redirect("/login");
-  if (!ctx.canManage) redirect("/boards");
 
   return (
     <div className="bg-aurora-bg -m-4 min-h-[calc(100vh-3.5rem)] p-4 md:-m-6 md:p-6">

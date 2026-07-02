@@ -28,7 +28,7 @@ export function BoardViewSwitcher({ value }: Props) {
   }
 
   return (
-    <div className="flex w-full gap-2">
+    <div className="flex w-full gap-1 sm:gap-2">
       {MODES.map(({ id, label, icon: Icon }) => {
         const on = value === id;
         return (
@@ -36,14 +36,15 @@ export function BoardViewSwitcher({ value }: Props) {
             key={id}
             type="button"
             onClick={() => setView(id)}
-            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition ${
+            aria-label={label}
+            className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-2 py-2 text-sm font-medium transition sm:gap-1.5 sm:px-3 ${
               on
                 ? viewSwitcherBoardActiveClass
                 : "border border-board-border text-aurora-muted hover:bg-board-accent-muted/40 hover:text-aurora-fg"
             }`}
           >
-            <Icon className="h-4 w-4" />
-            {label}
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="hidden truncate sm:inline">{label}</span>
           </button>
         );
       })}

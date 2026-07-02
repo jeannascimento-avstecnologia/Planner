@@ -18,7 +18,8 @@ type Props = {
   orgId: string;
   orgName: string;
   logoUrl: string | null;
-  canManage: boolean;
+  canManageMembers: boolean;
+  canManageIdentity: boolean;
   isOwner: boolean;
   multiOwnerEnabled: boolean;
   currentUserId: string;
@@ -33,7 +34,8 @@ export function OrgQuickManageModal({
   orgId,
   orgName,
   logoUrl,
-  canManage,
+  canManageMembers,
+  canManageIdentity,
   isOwner,
   multiOwnerEnabled,
   currentUserId,
@@ -41,7 +43,7 @@ export function OrgQuickManageModal({
   pendingInvites,
   onClose,
 }: Props) {
-  const [tab, setTab] = useState<Tab>("identity");
+  const [tab, setTab] = useState<Tab>("members");
 
   const tabClass = (active: boolean) =>
     `rounded-md px-3 py-1.5 text-sm ${
@@ -53,45 +55,54 @@ export function OrgQuickManageModal({
       open
       onClose={onClose}
       title={orgName}
-      subtitle="Gerenciar organizacao"
+      subtitle={canManageMembers ? "Gerenciar organizacao" : "Visualizar organizacao"}
       size="lg"
       testId="org-quick-manage-modal"
       headerExtra={<OrgLogo name={orgName} logoUrl={logoUrl} size="sm" />}
     >
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2 border-b border-aurora-border pb-2">
-          <button type="button" onClick={() => setTab("identity")} className={tabClass(tab === "identity")} data-testid="org-quick-tab-identity">
-            Identidade
-          </button>
+        <div className="-mx-1 flex gap-2 overflow-x-auto border-b border-aurora-border px-1 pb-2">
+          {canManageIdentity ? (
+            <button type="button" onClick={() => setTab("identity")} className={tabClass(tab === "identity")} data-testid="org-quick-tab-identity">
+              Identidade
+            </button>
+          ) : null}
           <button type="button" onClick={() => setTab("members")} className={tabClass(tab === "members")} data-testid="org-quick-tab-members">
             Membros
           </button>
-          <button type="button" onClick={() => setTab("invites")} className={tabClass(tab === "invites")} data-testid="org-quick-tab-invites">
-            Convites
-          </button>
-          {canManage ? (
+          {canManageMembers ? (
+            <button type="button" onClick={() => setTab("invites")} className={tabClass(tab === "invites")} data-testid="org-quick-tab-invites">
+              Convites
+            </button>
+          ) : null}
+          {canManageIdentity ? (
             <button type="button" onClick={() => setTab("advanced")} className={tabClass(tab === "advanced")} data-testid="org-quick-tab-advanced">
               Avancado
             </button>
           ) : null}
         </div>
 
-        {tab === "identity" ? (
-          <OrgLogoUploader orgId={orgId} orgName={orgName} logoUrl={logoUrl} canManage={canManage} />
+        {tab === "identity" && canManageIdentity ? (
+          <OrgLogoUploader orgId={orgId} orgName={orgName} logoUrl={logoUrl} canManage={canManageIdentity} />
+        ) : tab === "identity" ? (
+          <div className="flex items-center gap-3">
+            <OrgLogo name={orgName} logoUrl={logoUrl} size="lg" />
+            <p className="text-sm text-aurora-muted">Apenas o proprietario pode alterar a identidade da organizacao.</p>
+          </div>
         ) : tab === "members" ? (
           <OrgMembersTable
             orgId={orgId}
             members={members}
-            canManage={canManage}
+            canManage={canManageMembers}
             currentUserId={currentUserId}
             currentUserIsOwner={isOwner}
             multiOwnerEnabled={multiOwnerEnabled}
           />
-        ) : tab === "invites" ? (
+        ) : tab === "invites" && canManageMembers ? (
           <div className="space-y-4">
             <OrgInviteForm
               orgId={orgId}
-              canManage={canManage}
+              canManage={canManageMembers}
               multiOwnerEnabled={multiOwnerEnabled}
               currentUserIsOwner={isOwner}
             />

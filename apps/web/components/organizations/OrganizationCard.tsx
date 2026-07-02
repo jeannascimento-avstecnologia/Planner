@@ -51,7 +51,7 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
         className="overflow-hidden rounded-xl border border-aurora-border bg-aurora-surface transition hover:bg-aurora-surface-2/40"
         data-testid={`org-card-${org.orgId}`}
       >
-        <header className="flex flex-wrap items-center gap-2 border-b border-aurora-border bg-aurora-surface-2 px-4 py-3">
+        <header className="flex flex-col gap-3 border-b border-aurora-border bg-aurora-surface-2 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:px-4">
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
@@ -92,17 +92,15 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
                 Tornar ativa
               </button>
             ) : null}
-            {org.canManage ? (
-              <button
-                type="button"
-                onClick={() => setManageOpen(true)}
-                className="rounded-lg border border-aurora-border p-2 text-aurora-muted transition hover:bg-aurora-surface hover:text-aurora-fg"
-                aria-label="Gerenciar organizacao"
-                data-testid={`org-manage-${org.orgId}`}
-              >
-                <Settings2 className="h-4 w-4" />
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => setManageOpen(true)}
+              className="rounded-lg border border-aurora-border p-2 text-aurora-muted transition hover:bg-aurora-surface hover:text-aurora-fg"
+              aria-label={org.canManageMembers ? "Gerenciar organizacao" : "Ver organizacao"}
+              data-testid={`org-manage-${org.orgId}`}
+            >
+              <Settings2 className="h-4 w-4" />
+            </button>
           </div>
         </header>
 
@@ -150,7 +148,8 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
           orgId={org.orgId}
           orgName={org.name}
           logoUrl={org.logoUrl}
-          canManage={org.canManage}
+          canManageMembers={org.canManageMembers}
+          canManageIdentity={org.canManageIdentity}
           isOwner={org.isOwner}
           multiOwnerEnabled={org.multiOwnerEnabled}
           currentUserId={currentUserId}

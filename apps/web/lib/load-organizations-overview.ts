@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgId, listUserOrgs } from "@/lib/active-org";
-import { canManageOrg, isOrgOwnerRole } from "@/lib/org-member-roles";
+import {
+  canManageOrgIdentity,
+  canManageOrgMembers,
+  isOrgOwnerRole,
+} from "@/lib/org-member-roles";
 import type { OrgMemberRow } from "@nextgen/contracts";
 
 export type OrgOverviewBoard = {
@@ -27,6 +31,9 @@ export type OrgOverview = {
   role: string;
   isOwner: boolean;
   isActive: boolean;
+  canManageMembers: boolean;
+  canManageIdentity: boolean;
+  /** @deprecated use canManageMembers */
   canManage: boolean;
   canMoveBoards: boolean;
   boards: OrgOverviewBoard[];
@@ -80,29 +87,31 @@ export async function loadOrganizationsOverview(): Promise<OrganizationsOverview
     boardsByOrg.set(board.org_id, list);
   }
 
-  const adminOrgIds = userOrgs.filter((o) => canManageOrg(o.role)).map((o) => o.orgId);
+  const adminOrgIds = userOrgs.filter((o) => canManageOrgMembers(o.role)).map((o) => o.orgId);
 
   const orgs: OrgOverview[] = await Promise.all(
     userOrgs.map(async (org) => {
-      const canManage = canManageOrg(org.role);
+      const canManageMembers = canManageOrgMembers(org.role);
+      const canManageIdentity = canManageOrgIdentity(org.role);
       let members: OrgMemberRow[] = [];
       let pendingInvites: OrgPendingInvite[] = [];
       let multiOwnerEnabled = false;
 
-      if (canManage) {
-        const [{ data: orgRow }, { data: membersRaw }, { data: pendingRaw }] = await Promise.all([
-          supabase.from("organizations").select("multi_owner_enabled").eq("id", org.orgId).single(),
-          supabase.rpc("list_org_members", { p_org: org.orgId }),
-          supabase
-            .from("organization_invitations")
-            .select("id, email, role, expires_at")
-            .eq("org_id", org.orgId)
-            .is("accepted_at", null)
-            .gt("expires_at", new Date().toISOString())
-            .order("created_at", { ascending: false }),
-        ]);
-        multiOwnerEnabled = orgRow?.multi_owner_enabled ?? false;
-        members = (membersRaw ?? []) as OrgMemberRow[];
+      const [{ data: orgRow }, { data: membersRaw }] = await Promise.all([
+        supabase.from("organizations").select("multi_owner_enabled").eq("id", org.orgId).single(),
+        supabase.rpc("list_org_members", { p_org: org.orgId }),
+      ]);
+      multiOwnerEnabled = orgRow?.multi_owner_enabled ?? false;
+      members = (membersRaw ?? []) as OrgMemberRow[];
+
+      if (canManageMembers) {
+        const { data: pendingRaw } = await supabase
+          .from("organization_invitations")
+          .select("id, email, role, expires_at")
+          .eq("org_id", org.orgId)
+          .is("accepted_at", null)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false });
         pendingInvites = (pendingRaw ?? []) as OrgPendingInvite[];
       }
 
@@ -115,8 +124,10 @@ export async function loadOrganizationsOverview(): Promise<OrganizationsOverview
         role: org.role,
         isOwner: isOrgOwnerRole(org.role),
         isActive: org.orgId === activeOrgId,
-        canManage,
-        canMoveBoards: canManage,
+        canManageMembers,
+        canManageIdentity,
+        canManage: canManageMembers,
+        canMoveBoards: canManageMembers,
         boards: boardsByOrg.get(org.orgId) ?? [],
         members,
         pendingInvites,

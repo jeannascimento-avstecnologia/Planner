@@ -80,7 +80,7 @@ export function OrgInviteForm({
   const [results, setResults] = useState<OrgInviteBatchItemResult[] | null>(null);
 
   if (!canManage) {
-    return <p className="text-xs text-aurora-muted">Apenas administradores podem convidar membros.</p>;
+    return <p className="text-xs text-aurora-muted">Apenas proprietario ou gerente pode convidar membros.</p>;
   }
 
   const showOwnerRole = multiOwnerEnabled && currentUserIsOwner;

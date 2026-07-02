@@ -20,7 +20,7 @@ function TopbarTitleInner() {
   if (isBoardDetail) {
     const mode = parseBoardViewMode(searchParams.get("view"));
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
         {VIEW_LABELS[mode]}
       </span>
     );
@@ -28,7 +28,7 @@ function TopbarTitleInner() {
 
   if (pathname === "/boards") {
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
         Home
       </span>
     );
@@ -38,7 +38,7 @@ function TopbarTitleInner() {
     const layout = searchParams.get("layout");
     const label = layout === "list" ? "Lista" : "Projetos";
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
         {label}
       </span>
     );
@@ -46,7 +46,7 @@ function TopbarTitleInner() {
 
   if (pathname === "/calendar") {
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
         Calendario
       </span>
     );
@@ -54,7 +54,7 @@ function TopbarTitleInner() {
 
   if (pathname.startsWith("/settings/organizations")) {
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
         Organizacoes
       </span>
     );
@@ -62,7 +62,7 @@ function TopbarTitleInner() {
 
   if (pathname.startsWith("/settings/organization")) {
     return (
-      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 md:text-sm">
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
         Organizacao
       </span>
     );

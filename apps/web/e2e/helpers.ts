@@ -10,6 +10,11 @@ export const VIEWER_USER = {
   password: "password123",
 };
 
+export const ORG_ADMIN_USER = {
+  email: "orgadmin@nextgen.dev",
+  password: "password123",
+};
+
 export const SEED_BOARD_ID = "33333333-3333-3333-3333-333333333333";
 
 /** Tile de projeto na grade (modo hub usa botao). */
@@ -42,6 +47,14 @@ export async function loginAsViewer(page: Page): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(VIEWER_USER.email);
   await page.getByLabel("Senha").fill(VIEWER_USER.password);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
+}
+
+export async function loginAsOrgAdmin(page: Page): Promise<void> {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(ORG_ADMIN_USER.email);
+  await page.getByLabel("Senha").fill(ORG_ADMIN_USER.password);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
 }

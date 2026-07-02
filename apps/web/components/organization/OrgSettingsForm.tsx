@@ -21,7 +21,7 @@ export function OrgSettingsForm({ orgId, initialName, initialSlug, canManage }: 
   const [error, setError] = useState<string | null>(null);
 
   if (!canManage) {
-    return <p className="text-sm text-aurora-muted">Apenas administradores podem editar a organizacao.</p>;
+    return <p className="text-sm text-aurora-muted">Apenas o proprietario pode editar a organizacao.</p>;
   }
 
   function submit(e: FormEvent) {

@@ -21,28 +21,31 @@ Complementa multi-tenancy (`organizations` + `memberships`) com operacoes privil
 
 | Role | Permissoes |
 |------|------------|
-| `owner` | Tudo de admin + transferir ownership (modo single-owner) / chave multi-owner; nao pode sair sem transferir ou outro owner |
-| `admin` | Gerenciar membros, convites org, editar org |
-| `viewer` | Leitura (boards conforme ACL) |
-| `manager` | Reservado enum; sem uso org-level no MVP |
+| `owner` | Identidade da org (logo, nome/slug, excluir, multi-owner, transferencia) + gerenciar membros/convites/mover projetos |
+| `manager` | Gerenciar membros, convites org, mover projetos entre orgs |
+| `admin` | Leitura de membros da org; boards conforme ACL de projeto |
+| `viewer` | Leitura de membros da org; boards conforme ACL |
+
+> Migration `20260702160000`: `admin` org **nao** altera papeis, convida nem edita org. Funcao `app.can_manage_org_members` = owner \| manager.
 
 ## RPCs
 
 | RPC | Auth | Descricao |
 |-----|------|-----------|
 | `list_org_members(p_org uuid)` | membro org | Retorna user_id, full_name, avatar_url, role, created_at |
-| `update_membership_role(p_org, p_user, p_role)` | owner/admin | Nao altera owner diretamente |
-| `remove_org_member(p_org, p_user)` | owner/admin | Nao remove owner |
+| `update_membership_role(p_org, p_user, p_role)` | owner/gerente (+ owner para ops owner) | Nao altera owner diretamente |
+| `remove_org_member(p_org, p_user)` | owner/gerente (+ owner para remover owner) | Nao remove owner (single-owner) |
 | `leave_organization(p_org)` | membro | Owner bloqueado |
 | `transfer_org_ownership(p_org, p_new_owner)` | owner | Atomico |
 | `delete_organization(p_org)` | owner | Remove org + cascata |
 | `set_org_multi_owner(p_org, p_enabled)` | owner | Chave multiplos proprietarios |
-| `update_organization(p_org, p_name, p_slug)` | owner/admin | Slug unico |
-| `create_org_invitation(p_org, p_email, p_role)` | owner/admin | Retorna token plaintext |
+| `update_organization(p_org, p_name, p_slug)` | owner | Slug unico |
+| `update_org_logo(p_org, p_logo_url)` | owner | Logo URL |
+| `create_org_invitation(p_org, p_email, p_role)` | owner/gerente | Retorna token plaintext |
 | `resolve_org_invitation(p_token)` | anon/auth | status pending/accepted/expired/not_found |
 | `peek_org_invitation(p_token)` | anon | email para prefill signup |
 | `accept_org_invitation(p_token)` | auth | Insere membership; email deve bater |
-| `move_board_to_org(p_board, p_target_org)` | owner/admin origem+destino | Move board + cascata org_id |
+| `move_board_to_org(p_board, p_target_org)` | owner/gerente origem+destino | Move board + cascata org_id |
 
 ## Org ativa (cookie)
 
@@ -67,8 +70,8 @@ Complementa multi-tenancy (`organizations` + `memberships`) com operacoes privil
 | `cannot_remove_owner` | Transfira antes |
 | `invalid or expired invitation` | Convite invalido |
 | `email mismatch` | Entre com email convidado |
-| `forbidden_source` | Sem admin na org de origem |
-| `forbidden_target` | Sem admin na org de destino |
+| `forbidden_source` | Sem gerente/owner na org de origem |
+| `forbidden_target` | Sem gerente/owner na org de destino |
 | `same_org` | Projeto ja esta na org |
 | `board_not_found` | Projeto inexistente |
 
@@ -76,6 +79,6 @@ Complementa multi-tenancy (`organizations` + `memberships`) com operacoes privil
 
 | Spec | Codigo | Teste |
 |------|--------|-------|
-| list members | `settings/organization/actions.ts` | pgTAP 20, E2E org-management |
+| list members | `settings/organization/actions.ts` | pgTAP 20, 29, E2E org-management |
 | transfer ownership | RPC + `TransferOwnershipDialog` | pgTAP 21, E2E transfer |
 | org invite | RPC + `/invite/org` | pgTAP 23-24, E2E org-invite-flow |

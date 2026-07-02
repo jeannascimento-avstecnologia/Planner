@@ -3,33 +3,22 @@ import { orgRoleLabel } from "@/lib/org-member-roles";
 import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 import { OrgInviteForm } from "@/components/organization/OrgInviteForm";
 
-type PendingInviteRow = {
-  id: string;
-  email: string;
-  role: string;
-  expires_at: string;
-  created_at: string;
-};
-
 export default async function OrganizationInvitesPage() {
   const ctx = await loadOrgSettingsContext();
   if (!ctx) return null;
 
-  const supabase = await createClient();
-  const { data: pendingRaw } = await supabase
-    .from("organization_invitations")
-    .select("id, email, role, expires_at, created_at")
-    .eq("org_id", ctx.orgId)
-    .is("accepted_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false });
-
-  const pending = (pendingRaw ?? []) as PendingInviteRow[];
+  const pending = ctx.canManageMembers ? ctx.pendingInvites : [];
 
   return (
     <section className="space-y-6" data-testid="org-invites-page">
-      <OrgInviteForm orgId={ctx.orgId} canManage={ctx.canManage} />
+      <OrgInviteForm
+        orgId={ctx.orgId}
+        canManage={ctx.canManageMembers}
+        multiOwnerEnabled={ctx.multiOwnerEnabled}
+        currentUserIsOwner={ctx.isOwner}
+      />
 
+      {ctx.canManageMembers ? (
       <div className="space-y-3">
         <h2 className="text-lg font-semibold text-aurora-fg">Convites pendentes</h2>
         {pending.length === 0 ? (
@@ -59,6 +48,9 @@ export default async function OrganizationInvitesPage() {
           </div>
         )}
       </div>
+      ) : (
+        <p className="text-sm text-aurora-muted">Apenas proprietario ou gerente pode enviar convites.</p>
+      )}
     </section>
   );
 }

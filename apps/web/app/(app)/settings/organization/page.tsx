@@ -16,8 +16,10 @@ export default async function OrganizationMembersPage() {
       <OrgMembersTable
         orgId={ctx.orgId}
         members={ctx.members}
-        canManage={ctx.canManage}
+        canManage={ctx.canManageMembers}
         currentUserId={ctx.currentUserId}
+        currentUserIsOwner={ctx.isOwner}
+        multiOwnerEnabled={ctx.multiOwnerEnabled}
       />
     </section>
   );

@@ -97,6 +97,10 @@ insert into public.board_members (board_id, user_id, role)
 values ('33333333-3333-3333-3333-333333333333', '66666666-6666-6666-6666-666666666666', 'viewer')
 on conflict (board_id, user_id) do update set role = excluded.role;
 
+insert into public.memberships (org_id, user_id, role)
+values ('22222222-2222-2222-2222-222222222222', '66666666-6666-6666-6666-666666666666', 'viewer')
+on conflict (org_id, user_id) do update set role = excluded.role;
+
 -- Org admin demo (segundo membro para transfer ownership E2E): orgadmin@nextgen.dev / password123
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,

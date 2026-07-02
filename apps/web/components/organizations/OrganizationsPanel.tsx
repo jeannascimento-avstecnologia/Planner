@@ -25,6 +25,8 @@ function toOverview(org: CreatedOrganization, activeOrgId: string | null): OrgOv
     role: org.role,
     isOwner: true,
     isActive: org.orgId === activeOrgId,
+    canManageMembers: true,
+    canManageIdentity: true,
     canManage: true,
     canMoveBoards: true,
     boards: [],
@@ -73,7 +75,7 @@ export function OrganizationsPanel({ data }: Props) {
       .filter((org): org is OrgOverview => org !== null);
   }, [orgs, search]);
 
-  const adminOrgIds = orgs.filter((o) => o.canManage).map((o) => o.orgId);
+  const adminOrgIds = orgs.filter((o) => o.canManageMembers).map((o) => o.orgId);
 
   return (
     <div className="space-y-6" data-testid="organizations-panel">
@@ -85,7 +87,7 @@ export function OrganizationsPanel({ data }: Props) {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className={btnBoardPrimary + " inline-flex items-center gap-2"}
+          className={btnBoardPrimary + " inline-flex w-full items-center justify-center gap-2 sm:w-auto"}
           data-testid="create-org-button"
         >
           <Plus className="h-4 w-4" />

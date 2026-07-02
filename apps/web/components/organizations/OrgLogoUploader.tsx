@@ -32,7 +32,7 @@ export function OrgLogoUploader({ orgId, orgName, logoUrl, canManage }: Props) {
     return (
       <div className="flex items-center gap-3">
         <OrgLogo name={orgName} logoUrl={draftUrl || null} size="lg" />
-        <p className="text-sm text-aurora-muted">Apenas administradores podem alterar a logo.</p>
+        <p className="text-sm text-aurora-muted">Apenas o proprietario pode alterar a logo.</p>
       </div>
     );
   }
