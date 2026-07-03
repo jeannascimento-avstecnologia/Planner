@@ -3,21 +3,32 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { updateOrganizationAction } from "@/app/(app)/settings/organization/actions";
+import { formatCnpj, normalizeCnpj } from "@/lib/org-slug";
 import { btnPrimary, inputClass } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
 
 type Props = {
   orgId: string;
-  initialName: string;
+  initialLegalName: string;
+  initialDisplayName: string;
+  initialCnpj: string;
   initialSlug: string;
   canManage: boolean;
 };
 
-export function OrgSettingsForm({ orgId, initialName, initialSlug, canManage }: Props) {
+export function OrgSettingsForm({
+  orgId,
+  initialLegalName,
+  initialDisplayName,
+  initialCnpj,
+  initialSlug,
+  canManage,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [name, setName] = useState(initialName);
-  const [slug, setSlug] = useState(initialSlug);
+  const [legalName, setLegalName] = useState(initialLegalName);
+  const [displayName, setDisplayName] = useState(initialDisplayName);
+  const [cnpj, setCnpj] = useState(initialCnpj ? formatCnpj(initialCnpj) : "");
   const [error, setError] = useState<string | null>(null);
 
   if (!canManage) {
@@ -28,7 +39,14 @@ export function OrgSettingsForm({ orgId, initialName, initialSlug, canManage }: 
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const res = await updateOrganizationAction({ orgId, name: name.trim(), slug: slug.trim() });
+      const res = await updateOrganizationAction({
+        orgId,
+        legalName: legalName.trim(),
+        displayName: displayName.trim(),
+        cnpj: normalizeCnpj(cnpj),
+        previousDisplayName: initialDisplayName,
+        currentSlug: initialSlug,
+      });
       if (!res.ok) {
         setError(res.error);
         appToast.error(res.error);
@@ -42,30 +60,45 @@ export function OrgSettingsForm({ orgId, initialName, initialSlug, canManage }: 
   return (
     <form onSubmit={submit} className="max-w-lg space-y-4 rounded-xl border border-aurora-border bg-aurora-surface p-6" data-testid="org-settings-form">
       <div className="space-y-1">
-        <label htmlFor="org-name" className="text-sm font-medium text-aurora-fg">
-          Nome da organizacao
+        <label htmlFor="org-legal-name" className="text-sm font-medium text-aurora-fg">
+          Nome da empresa
         </label>
         <input
-          id="org-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          id="org-legal-name"
+          value={legalName}
+          onChange={(e) => setLegalName(e.target.value)}
           className={inputClass}
-          data-testid="org-settings-name"
+          placeholder="Razao social ou nome interno"
+          data-testid="org-settings-legal-name"
         />
       </div>
       <div className="space-y-1">
-        <label htmlFor="org-slug" className="text-sm font-medium text-aurora-fg">
-          Slug (URL)
+        <label htmlFor="org-display-name" className="text-sm font-medium text-aurora-fg">
+          Nome de Exibição
         </label>
         <input
-          id="org-slug"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value.toLowerCase())}
-          pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          id="org-display-name"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
           className={inputClass}
-          data-testid="org-settings-slug"
+          placeholder="Como aparece no menu e na Home"
+          required
+          data-testid="org-settings-display-name"
         />
-        <p className="text-xs text-aurora-muted">Apenas letras minusculas, numeros e hifens.</p>
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="org-cnpj" className="text-sm font-medium text-aurora-fg">
+          CNPJ
+        </label>
+        <input
+          id="org-cnpj"
+          value={cnpj}
+          onChange={(e) => setCnpj(formatCnpj(e.target.value))}
+          className={inputClass}
+          placeholder="00.000.000/0000-00"
+          inputMode="numeric"
+          data-testid="org-settings-cnpj"
+        />
       </div>
       {error ? <p className="text-sm text-aurora-danger">{error}</p> : null}
       <button type="submit" disabled={pending} className={btnPrimary} data-testid="org-settings-save">

@@ -13,9 +13,9 @@ export type Database = {
   public: {
     Tables: {
       organizations: {
-        Row: { id: string; name: string; slug: string; logo_url: string | null; multi_owner_enabled: boolean; created_at: string; updated_at: string };
-        Insert: { id?: string; name: string; slug: string; logo_url?: string | null; multi_owner_enabled?: boolean; created_at?: string; updated_at?: string };
-        Update: { id?: string; name?: string; slug?: string; logo_url?: string | null; multi_owner_enabled?: boolean; created_at?: string; updated_at?: string };
+        Row: { id: string; name: string; slug: string; legal_name: string | null; cnpj: string | null; logo_url: string | null; multi_owner_enabled: boolean; created_at: string; updated_at: string };
+        Insert: { id?: string; name: string; slug: string; legal_name?: string | null; cnpj?: string | null; logo_url?: string | null; multi_owner_enabled?: boolean; created_at?: string; updated_at?: string };
+        Update: { id?: string; name?: string; slug?: string; legal_name?: string | null; cnpj?: string | null; logo_url?: string | null; multi_owner_enabled?: boolean; created_at?: string; updated_at?: string };
         Relationships: [];
       };
       profiles: {
@@ -229,7 +229,7 @@ export type Database = {
     Views: Record<string, never>;
     Functions: {
       create_organization: {
-        Args: { p_name: string; p_slug: string };
+        Args: { p_name: string; p_slug: string; p_legal_name?: string | null; p_cnpj?: string | null };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
       accept_board_invitation: {
@@ -298,7 +298,7 @@ export type Database = {
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
       update_organization: {
-        Args: { p_org: string; p_name: string; p_slug: string };
+        Args: { p_org: string; p_name: string; p_slug: string; p_legal_name?: string | null; p_cnpj?: string | null };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
       update_org_logo: {

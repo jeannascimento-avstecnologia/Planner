@@ -50,7 +50,7 @@ export default async function ProjectsPage() {
         <div className="mt-1 flex items-center gap-2 text-sm text-aurora-muted">
           {orgName ? (
             <>
-              <OrgLogo name={orgName} logoUrl={activeOrgLogoUrl} size="xs" />
+              <OrgLogo name={orgName} logoUrl={activeOrgLogoUrl} size="sm" />
               <span>{orgName}</span>
             </>
           ) : null}

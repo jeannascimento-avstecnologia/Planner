@@ -87,7 +87,7 @@ export default async function BoardsPage() {
           <div className="mt-1 flex items-center gap-2 text-sm text-aurora-muted">
             {activeOrgName ? (
               <>
-                <OrgLogo name={activeOrgName} logoUrl={activeOrgLogoUrl} size="xs" />
+                <OrgLogo name={activeOrgName} logoUrl={activeOrgLogoUrl} size="sm" />
                 <span>Org ativa: {activeOrgName}</span>
               </>
             ) : (

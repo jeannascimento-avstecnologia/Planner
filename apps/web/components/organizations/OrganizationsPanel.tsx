@@ -20,6 +20,8 @@ function toOverview(org: CreatedOrganization, activeOrgId: string | null): OrgOv
   return {
     orgId: org.orgId,
     name: org.name,
+    legalName: "",
+    cnpj: "",
     slug: org.slug,
     logoUrl: org.logoUrl,
     role: org.role,

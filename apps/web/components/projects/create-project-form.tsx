@@ -101,7 +101,7 @@ export function CreateProjectForm({ orgOptions, defaultOrgId, defaultDepartmentI
             <span className="text-sm font-medium text-aurora-fg">Organizacao</span>
             <div className="flex items-center gap-2">
               {selectedOrg ? (
-                <OrgLogo name={selectedOrg.name} logoUrl={selectedOrg.logoUrl} size="sm" />
+                <OrgLogo name={selectedOrg.name} logoUrl={selectedOrg.logoUrl} size="md" />
               ) : null}
               <select
                 name="orgId"

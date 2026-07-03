@@ -26,6 +26,8 @@ export type OrgPendingInvite = {
 export type OrgOverview = {
   orgId: string;
   name: string;
+  legalName: string;
+  cnpj: string;
   slug: string;
   logoUrl: string | null;
   multiOwnerEnabled: boolean;
@@ -147,7 +149,7 @@ export async function loadOrganizationsOverview(): Promise<OrganizationsOverview
       let multiOwnerEnabled = false;
 
       const [{ data: orgRow }, { data: membersRaw }] = await Promise.all([
-        supabase.from("organizations").select("multi_owner_enabled").eq("id", org.orgId).single(),
+        supabase.from("organizations").select("multi_owner_enabled, legal_name, cnpj").eq("id", org.orgId).single(),
         supabase.rpc("list_org_members", { p_org: org.orgId }),
       ]);
       multiOwnerEnabled = orgRow?.multi_owner_enabled ?? false;
@@ -167,6 +169,8 @@ export async function loadOrganizationsOverview(): Promise<OrganizationsOverview
       return {
         orgId: org.orgId,
         name: org.name,
+        legalName: orgRow?.legal_name ?? "",
+        cnpj: orgRow?.cnpj ?? "",
         slug: org.slug,
         logoUrl: org.logoUrl,
         multiOwnerEnabled,

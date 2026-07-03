@@ -23,7 +23,9 @@ export default async function OrganizationSettingsPage() {
         <h2 className="text-lg font-semibold text-aurora-fg">Dados da organizacao</h2>
         <OrgSettingsForm
           orgId={ctx.orgId}
-          initialName={ctx.orgName}
+          initialLegalName={ctx.orgLegalName}
+          initialDisplayName={ctx.orgName}
+          initialCnpj={ctx.orgCnpj}
           initialSlug={ctx.orgSlug}
           canManage={ctx.canManageIdentity}
         />

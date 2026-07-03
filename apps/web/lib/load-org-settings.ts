@@ -10,6 +10,8 @@ import type { OrgMemberRow } from "@nextgen/contracts";
 export type OrgSettingsContext = {
   orgId: string;
   orgName: string;
+  orgLegalName: string;
+  orgCnpj: string;
   orgSlug: string;
   orgLogoUrl: string | null;
   multiOwnerEnabled: boolean;
@@ -44,7 +46,7 @@ export async function loadOrgSettingsContext(): Promise<OrgSettingsContext | nul
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("id, name, slug, logo_url, multi_owner_enabled")
+    .select("id, name, slug, legal_name, cnpj, logo_url, multi_owner_enabled")
     .eq("id", orgId)
     .single();
   if (!org) return null;
@@ -68,6 +70,8 @@ export async function loadOrgSettingsContext(): Promise<OrgSettingsContext | nul
   return {
     orgId: org.id,
     orgName: org.name,
+    orgLegalName: org.legal_name ?? "",
+    orgCnpj: org.cnpj ?? "",
     orgSlug: org.slug,
     orgLogoUrl: org.logo_url,
     multiOwnerEnabled: org.multi_owner_enabled ?? false,

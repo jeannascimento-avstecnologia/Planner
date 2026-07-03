@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
+import { slugifyOrgDisplayName, normalizeCnpj } from "@/lib/org-slug";
+
+function slugify(value: string): string {
+  const base = slugifyOrgDisplayName(value).slice(0, 40);
+  return (base || "org") + "-" + Math.random().toString(36).slice(2, 6);
+}
 
 export type OrgHubActionResult = { ok: true } | { ok: false; error: string };
 
@@ -14,16 +20,6 @@ export type CreatedOrganization = {
   logoUrl: string | null;
   role: "owner";
 };
-
-function slugify(value: string): string {
-  const base = value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 40);
-  return (base || "org") + "-" + Math.random().toString(36).slice(2, 6);
-}
 
 function cookieOptions() {
   return {
@@ -73,10 +69,16 @@ export async function setActiveOrgAction(orgId: string): Promise<OrgHubActionRes
 export async function createOrganizationHubAction(input: {
   name: string;
   displayName?: string;
+  cnpj?: string;
 }): Promise<OrgHubActionResult & { org?: CreatedOrganization }> {
   const legalName = input.name.trim();
   const displayName = input.displayName?.trim() || legalName;
   if (!legalName) return { ok: false, error: "Nome obrigatorio." };
+
+  const cnpjDigits = input.cnpj ? normalizeCnpj(input.cnpj) : "";
+  if (cnpjDigits && cnpjDigits.length !== 14) {
+    return { ok: false, error: "CNPJ invalido." };
+  }
 
   const supabase = await createClient();
   const {
@@ -88,6 +90,8 @@ export async function createOrganizationHubAction(input: {
   const { data: org, error } = await supabase.rpc("create_organization", {
     p_name: displayName,
     p_slug: slug,
+    p_legal_name: legalName,
+    p_cnpj: cnpjDigits || null,
   });
   if (error || !org?.id) return { ok: false, error: "Nao foi possivel criar a organizacao." };
 

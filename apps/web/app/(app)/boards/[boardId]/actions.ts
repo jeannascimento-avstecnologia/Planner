@@ -82,6 +82,23 @@ export async function createColumn(formData: FormData): Promise<void> {
   });
   if (!parsed.success) return;
 
+  // #region agent log
+  const invokeId = crypto.randomUUID();
+  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+    body: JSON.stringify({
+      sessionId: "fa60ca",
+      runId: "pre-fix",
+      hypothesisId: "H4",
+      location: "actions.ts:createColumn",
+      message: "createColumn server invoke",
+      data: { invokeId, boardId: parsed.data.boardId, nameLen: parsed.data.name.length },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
   const supabase = await createClient();
   const { data: board } = await supabase
     .from("boards")
@@ -160,6 +177,23 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
     assigneeId: formData.get("assigneeId") || undefined,
   });
   if (!parsed.success) return { error: "Dados invalidos." };
+
+  // #region agent log
+  const invokeId = crypto.randomUUID();
+  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+    body: JSON.stringify({
+      sessionId: "fa60ca",
+      runId: "pre-fix",
+      hypothesisId: "H4",
+      location: "actions.ts:createCard",
+      message: "createCard server invoke",
+      data: { invokeId, boardId: parsed.data.boardId, columnId: parsed.data.columnId, titleLen: parsed.data.title.length },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   let startDate = parsed.data.startDate ?? null;
   const dueDate = parsed.data.dueDate ?? null;

@@ -20,6 +20,8 @@ import type { DepartmentOverview } from "@/components/departments/DepartmentsPan
 type Props = {
   orgId: string;
   orgName: string;
+  orgLegalName: string;
+  orgCnpj: string;
   orgSlug: string;
   logoUrl: string | null;
   canManageMembers: boolean;
@@ -38,6 +40,8 @@ type Tab = "identity" | "members" | "invites" | "departments" | "advanced";
 export function OrgQuickManageModal({
   orgId,
   orgName,
+  orgLegalName,
+  orgCnpj,
   orgSlug,
   logoUrl,
   canManageMembers,
@@ -65,7 +69,7 @@ export function OrgQuickManageModal({
       subtitle={canManageMembers ? "Gerenciar organizacao" : "Visualizar organizacao"}
       size="lg"
       testId="org-quick-manage-modal"
-      headerExtra={<OrgLogo name={orgName} logoUrl={logoUrl} size="sm" />}
+      headerExtra={<OrgLogo name={orgName} logoUrl={logoUrl} size="md" />}
     >
       <div className="space-y-4">
         <div className="-mx-1 flex gap-2 overflow-x-auto border-b border-aurora-border px-1 pb-2">
@@ -102,7 +106,9 @@ export function OrgQuickManageModal({
           <div className="space-y-4">
             <OrgSettingsForm
               orgId={orgId}
-              initialName={orgName}
+              initialLegalName={orgLegalName}
+              initialDisplayName={orgName}
+              initialCnpj={orgCnpj}
               initialSlug={orgSlug}
               canManage={canManageIdentity}
             />
@@ -110,7 +116,7 @@ export function OrgQuickManageModal({
           </div>
         ) : tab === "identity" ? (
           <div className="flex items-center gap-3">
-            <OrgLogo name={orgName} logoUrl={logoUrl} size="lg" />
+            <OrgLogo name={orgName} logoUrl={logoUrl} size="xl" />
             <p className="text-sm text-aurora-muted">Apenas o proprietario pode alterar a identidade da organizacao.</p>
           </div>
         ) : tab === "members" ? (

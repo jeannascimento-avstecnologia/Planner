@@ -8,30 +8,41 @@ import { resolveOrgLogoDisplayUrl } from "@/lib/org-logo-url";
 type Props = {
   name: string;
   logoUrl?: string | null;
-  size?: "xs" | "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
   priority?: boolean;
 };
 
 const BOX_CLASS: Record<NonNullable<Props["size"]>, string> = {
-  xs: "h-6 w-6 rounded-md",
-  sm: "h-8 w-8 rounded-lg",
-  md: "h-10 w-10 rounded-lg",
-  lg: "h-14 w-14 rounded-xl",
+  xs: "h-8 w-8 rounded-md",
+  sm: "h-11 w-11 rounded-lg",
+  md: "h-14 w-14 rounded-lg",
+  lg: "h-20 w-20 rounded-xl",
+  xl: "h-28 w-28 rounded-2xl",
 };
 
 const IMAGE_SIZE: Record<NonNullable<Props["size"]>, number> = {
-  xs: 24,
-  sm: 32,
-  md: 40,
-  lg: 56,
+  xs: 32,
+  sm: 44,
+  md: 56,
+  lg: 80,
+  xl: 112,
 };
 
 const FALLBACK_TEXT: Record<NonNullable<Props["size"]>, string> = {
-  xs: "text-[10px]",
+  xs: "text-[11px]",
   sm: "text-xs",
   md: "text-sm",
-  lg: "text-base",
+  lg: "text-lg",
+  xl: "text-xl",
+};
+
+const FALLBACK_ICON: Record<NonNullable<Props["size"]>, string> = {
+  xs: "h-4 w-4",
+  sm: "h-5 w-5",
+  md: "h-6 w-6",
+  lg: "h-7 w-7",
+  xl: "h-9 w-9",
 };
 
 function initialsFromName(name: string): string {
@@ -59,7 +70,7 @@ function FallbackLogo({
       aria-hidden
       data-testid="org-logo-fallback"
     >
-      {initials.length <= 2 ? initials : <Building2 className="h-4 w-4" />}
+      {initials.length <= 2 ? initials : <Building2 className={FALLBACK_ICON[size]} />}
     </span>
   );
 }
@@ -80,7 +91,7 @@ export function OrgLogo({ name, logoUrl, size = "md", className = "", priority =
           alt={`Logo ${name}`}
           width={px}
           height={px}
-          className="max-h-full max-w-full object-contain"
+          className="h-full w-full object-contain p-0.5"
           data-testid="org-logo-image"
           priority={priority}
           unoptimized={url.startsWith("/api/")}

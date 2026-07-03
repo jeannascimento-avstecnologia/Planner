@@ -7,6 +7,7 @@ import { createOrganizationHubAction } from "@/app/(app)/settings/organizations/
 import type { CreatedOrganization } from "@/app/(app)/settings/organizations/actions";
 import { AuroraModal } from "@/components/ui/aurora-modal";
 import { btnBoardPrimary, btnBoardSecondary, inputClass } from "@/lib/ui-classes";
+import { formatCnpj } from "@/lib/org-slug";
 import { appToast } from "@/lib/toast";
 
 type Props = {
@@ -19,6 +20,7 @@ export function CreateOrganizationDialog({ open, onClose, onCreated }: Props) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [cnpj, setCnpj] = useState("");
   const [pending, startTransition] = useTransition();
 
   function submit() {
@@ -26,6 +28,7 @@ export function CreateOrganizationDialog({ open, onClose, onCreated }: Props) {
       const res = await createOrganizationHubAction({
         name,
         displayName: displayName || undefined,
+        cnpj: cnpj || undefined,
       });
       if (!res.ok) {
         appToast.error(res.error);
@@ -37,6 +40,7 @@ export function CreateOrganizationDialog({ open, onClose, onCreated }: Props) {
       if (res.org) onCreated?.(res.org);
       setName("");
       setDisplayName("");
+      setCnpj("");
       onClose();
       router.refresh();
     });
@@ -87,6 +91,17 @@ export function CreateOrganizationDialog({ open, onClose, onCreated }: Props) {
             data-testid="create-org-display-name"
           />
           <p className="text-xs text-aurora-muted">Se vazio, usa o nome da empresa.</p>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium text-aurora-fg">CNPJ (opcional)</span>
+          <input
+            value={cnpj}
+            onChange={(e) => setCnpj(formatCnpj(e.target.value))}
+            className={inputClass}
+            placeholder="00.000.000/0000-00"
+            inputMode="numeric"
+            data-testid="create-org-cnpj"
+          />
         </label>
       </div>
     </AuroraModal>

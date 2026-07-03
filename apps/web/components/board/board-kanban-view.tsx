@@ -146,10 +146,17 @@ export function BoardKanbanView({
   }, [cardsByColumn, extraCards]);
 
   const handleCardCreated = useCallback((cardId: string, title: string, columnId: string) => {
+    if (itemsRef.current[columnId]?.includes(cardId)) return;
+
     const card = stubCard(cardId, title, columnId);
-    setExtraCards((prev) => new Map(prev).set(cardId, card));
+    setExtraCards((prev) => {
+      if (prev.has(cardId)) return prev;
+      return new Map(prev).set(cardId, card);
+    });
     setItems((prev) => {
-      const next = { ...prev, [columnId]: [...(prev[columnId] ?? []), cardId] };
+      const col = prev[columnId] ?? [];
+      if (col.includes(cardId)) return prev;
+      const next = { ...prev, [columnId]: [...col, cardId] };
       itemsRef.current = next;
       return next;
     });

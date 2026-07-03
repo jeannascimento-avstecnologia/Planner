@@ -60,7 +60,7 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
           >
             {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>
-          <OrgLogo name={org.name} logoUrl={org.logoUrl} size="sm" />
+          <OrgLogo name={org.name} logoUrl={org.logoUrl} size="md" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-semibold text-aurora-fg">{org.name}</h2>
@@ -147,6 +147,8 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
         <OrgQuickManageModal
           orgId={org.orgId}
           orgName={org.name}
+          orgLegalName={org.legalName}
+          orgCnpj={org.cnpj}
           orgSlug={org.slug}
           logoUrl={org.logoUrl}
           canManageMembers={org.canManageMembers}

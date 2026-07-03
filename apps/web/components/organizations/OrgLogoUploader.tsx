@@ -31,7 +31,7 @@ export function OrgLogoUploader({ orgId, orgName, logoUrl, canManage }: Props) {
   if (!canManage) {
     return (
       <div className="flex items-center gap-3">
-        <OrgLogo name={orgName} logoUrl={draftUrl || null} size="lg" />
+        <OrgLogo name={orgName} logoUrl={draftUrl || null} size="xl" />
         <p className="text-sm text-aurora-muted">Apenas o proprietario pode alterar a logo.</p>
       </div>
     );
@@ -75,7 +75,7 @@ export function OrgLogoUploader({ orgId, orgName, logoUrl, canManage }: Props) {
   return (
     <div className="space-y-3 rounded-lg border border-aurora-border bg-aurora-surface-2 p-4" data-testid="org-logo-uploader">
       <div className="flex flex-wrap items-start gap-4">
-        <OrgLogo name={orgName} logoUrl={draftUrl || null} size="lg" />
+        <OrgLogo name={orgName} logoUrl={draftUrl || null} size="xl" />
         <div className="min-w-0 flex-1 space-y-2">
           <p className="text-sm font-medium text-aurora-fg">Logo da empresa</p>
           <p className="text-xs text-aurora-muted">Exibida na Home, menu de organizacoes e no topo do app.</p>

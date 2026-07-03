@@ -42,7 +42,13 @@ export type DeleteOrganizationInput = z.infer<typeof deleteOrganizationInput>;
 
 export const updateOrganizationInput = z.object({
   orgId: uuid,
-  name: z.string().min(1).max(120),
+  legalName: z.string().max(120).optional(),
+  displayName: z.string().min(1).max(120),
+  cnpj: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.replace(/\D/g, "") : ""))
+    .refine((v) => v === "" || v.length === 14, { message: "CNPJ invalido." }),
   slug: z.string().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
 });
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationInput>;

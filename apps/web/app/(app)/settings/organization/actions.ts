@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidateOrgIdentity, revalidateHomeProjects, revalidateOrgSettings } from "@/lib/revalidation";
+import { slugifyOrgDisplayName } from "@/lib/org-slug";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
@@ -207,11 +208,28 @@ export async function setOrgMultiOwnerAction(input: {
 
 export async function updateOrganizationAction(input: {
   orgId: string;
-  name: string;
-  slug: string;
+  legalName?: string;
+  displayName: string;
+  cnpj?: string;
+  previousDisplayName: string;
+  currentSlug: string;
 }): Promise<OrgActionResult> {
-  const parsed = updateOrganizationInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+  const slug =
+    input.displayName.trim() !== input.previousDisplayName.trim()
+      ? slugifyOrgDisplayName(input.displayName)
+      : input.currentSlug;
+
+  const parsed = updateOrganizationInput.safeParse({
+    orgId: input.orgId,
+    legalName: input.legalName,
+    displayName: input.displayName,
+    cnpj: input.cnpj,
+    slug,
+  });
+  if (!parsed.success) {
+    const cnpjIssue = parsed.error.issues.find((i) => i.path.includes("cnpj"));
+    return { ok: false, error: cnpjIssue?.message ?? "Dados invalidos." };
+  }
 
   const access = await assertOrgOwner(parsed.data.orgId);
   if (!access.ok) return access;
@@ -219,8 +237,10 @@ export async function updateOrganizationAction(input: {
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_organization", {
     p_org: parsed.data.orgId,
-    p_name: parsed.data.name,
+    p_name: parsed.data.displayName,
     p_slug: parsed.data.slug,
+    p_legal_name: parsed.data.legalName?.trim() || null,
+    p_cnpj: parsed.data.cnpj || null,
   });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 

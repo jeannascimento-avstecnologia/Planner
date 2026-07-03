@@ -248,7 +248,7 @@ function BoardViewInner({
               </Link>
               <span className="shrink-0">/</span>
               <span className="hidden min-w-0 items-center gap-1.5 truncate sm:inline-flex">
-                <OrgLogo name={orgName} logoUrl={orgLogoUrl} size="xs" />
+                <OrgLogo name={orgName} logoUrl={orgLogoUrl} size="sm" />
                 <span className="truncate">{orgName}</span>
               </span>
               <span className="hidden shrink-0 sm:inline">/</span>
