@@ -22,5 +22,9 @@ export default defineConfig({
     url: BASE_URL,
     reuseExistingServer: true,
     timeout: 120_000,
+    env: {
+      ...process.env,
+      TIFLUX_SKIP_TOKEN_VALIDATION: "true",
+    },
   },
 });

@@ -19,14 +19,29 @@ type TicketBody = {
   requestorTelephone?: string;
 };
 
+async function resolveBoardTifluxToken(
+  service: ReturnType<typeof createClient>,
+  boardId: string,
+): Promise<{ token: string; baseUrl: string } | null> {
+  const { data, error } = await service.rpc("get_board_tiflux_token", { p_board: boardId });
+  if (error || !data?.length || !data[0]?.token) {
+    const legacy = Deno.env.get("TIFLUX_API_TOKEN");
+    if (!legacy) return null;
+    return {
+      token: legacy,
+      baseUrl: (Deno.env.get("TIFLUX_API_URL") ?? "https://api.tiflux.com/api/v2").replace(/\/$/, ""),
+    };
+  }
+  return {
+    token: data[0].token,
+    baseUrl: (data[0].api_url ?? "https://api.tiflux.com/api/v2").replace(/\/$/, ""),
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const token = Deno.env.get("TIFLUX_API_TOKEN");
-    const baseUrl = Deno.env.get("TIFLUX_API_URL") ?? "https://api.tiflux.com/api/v2";
-    if (!token) throw new Error("TIFLUX_API_TOKEN ausente.");
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Nao autenticado.");
 
@@ -44,8 +59,6 @@ Deno.serve(async (req) => {
       .single();
     if (!board?.tiflux_enabled) throw new Error("Projeto sem Tiflux.");
 
-    // Garante que o card pertence ao board acessivel (RLS) antes do update via service role.
-    // Sem isso, um usuario autenticado poderia sobrescrever campos tiflux_* de cards de outro tenant.
     const { data: ownedCard } = await supabase
       .from("cards")
       .select("id")
@@ -54,10 +67,18 @@ Deno.serve(async (req) => {
       .single();
     if (!ownedCard) throw new Error("Card nao encontrado.");
 
-    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/tickets`, {
+    const service = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const creds = await resolveBoardTifluxToken(service, body.boardId);
+    if (!creds) throw new Error("Integracao Tiflux nao configurada neste projeto.");
+
+    const res = await fetch(`${creds.baseUrl}/tickets`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${creds.token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -89,10 +110,6 @@ Deno.serve(async (req) => {
     const ticketId = String(nested.id ?? nested.ticket_id ?? "");
     const ticketNumber = String(nested.number ?? nested.ticket_number ?? ticketId);
 
-    const service = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
     await service
       .from("cards")
       .update({

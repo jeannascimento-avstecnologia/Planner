@@ -17,6 +17,7 @@ export function parseBoardIntegrations(raw: unknown): BoardIntegrations {
       responsibleName: typeof t.responsibleName === "string" ? t.responsibleName : undefined,
       requestorName: typeof t.requestorName === "string" ? t.requestorName : undefined,
       requestorEmail: typeof t.requestorEmail === "string" ? t.requestorEmail : undefined,
+      configured: t.configured === true,
     },
   };
 }
@@ -26,4 +27,8 @@ export function mergeTifluxDefaults(
   defaults: BoardTifluxDefaults,
 ): BoardIntegrations {
   return { ...integrations, tiflux: { ...integrations.tiflux, ...defaults } };
+}
+
+export function isTifluxConfigured(integrations: unknown): boolean {
+  return parseBoardIntegrations(integrations).tiflux?.configured === true;
 }

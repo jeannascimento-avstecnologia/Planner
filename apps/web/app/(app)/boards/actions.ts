@@ -11,6 +11,7 @@ import type { Database } from "@nextgen/contracts";
 import { canCreateInDepartment } from "@/lib/department-roles";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 import { getActiveOrgId } from "@/lib/active-org";
+import { mapTifluxApiErrorForSettings, validateTifluxApiToken } from "@/lib/tiflux-api";
 
 function slugify(value: string): string {
   const base = value
@@ -126,7 +127,30 @@ export async function updateBoardAppearance(formData: FormData): Promise<void> {
 
 export type BoardSettingsResult = { ok: true } | { error: string };
 
+export async function getBoardTifluxStatusAction(
+  boardId: string,
+): Promise<{ configured: boolean }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { configured: false };
+
+  const { data, error } = await supabase.rpc("board_tiflux_status", { p_board: boardId });
+  if (error) return { configured: false };
+  return { configured: Boolean(data) };
+}
+
+function mapTifluxTokenRpcError(message: string): string {
+  if (message.includes("forbidden")) return "Sem permissao para configurar Tiflux.";
+  if (message.includes("invalid_token")) return "Codigo de API invalido (minimo 8 caracteres).";
+  if (message.includes("not_authenticated")) return "Nao autenticado.";
+  return "Nao foi possivel salvar o codigo de API do Tiflux.";
+}
+
 export async function updateBoardSettings(formData: FormData): Promise<BoardSettingsResult> {
+  const tokenRaw = String(formData.get("tifluxApiToken") ?? "").trim();
+
   const parsed = updateBoardSettingsInput.safeParse({
     boardId: formData.get("boardId"),
     name: formData.get("name") || undefined,
@@ -135,10 +159,47 @@ export async function updateBoardSettings(formData: FormData): Promise<BoardSett
     color: formData.has("color") ? formData.get("color") || null : undefined,
     archived: formData.has("archived") ? formData.get("archived") === "true" : undefined,
     tifluxEnabled: formData.has("tifluxEnabled") ? formData.get("tifluxEnabled") === "true" : undefined,
+    tifluxApiToken: tokenRaw.length > 0 ? tokenRaw : undefined,
   });
   if (!parsed.success) return { error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado." };
+
+  const boardId = parsed.data.boardId;
+
+  if (parsed.data.tifluxEnabled === false) {
+    const { error: clearErr } = await supabase.rpc("clear_board_tiflux_token", { p_board: boardId });
+    if (clearErr) return { error: "Nao foi possivel desvincular o Tiflux." };
+  } else if (parsed.data.tifluxEnabled === true) {
+    const { data: configured, error: statusErr } = await supabase.rpc("board_tiflux_status", {
+      p_board: boardId,
+    });
+    if (statusErr) return { error: "Nao foi possivel verificar integracao Tiflux." };
+
+    const token = parsed.data.tifluxApiToken;
+    if (!token && !configured) {
+      return { error: "Informe o codigo de API do Tiflux." };
+    }
+    if (token) {
+      if (process.env.TIFLUX_SKIP_TOKEN_VALIDATION !== "true") {
+        try {
+          await validateTifluxApiToken(token);
+        } catch (err) {
+          return { error: mapTifluxApiErrorForSettings(err) };
+        }
+      }
+      const { error: setErr } = await supabase.rpc("set_board_tiflux_token", {
+        p_board: boardId,
+        p_token: token,
+        p_api_url: null,
+      });
+      if (setErr) return { error: mapTifluxTokenRpcError(setErr.message) };
+    }
+  }
 
   const patch: Database["public"]["Tables"]["boards"]["Update"] = {};
   if (parsed.data.name !== undefined) patch.name = parsed.data.name;
@@ -148,11 +209,11 @@ export async function updateBoardSettings(formData: FormData): Promise<BoardSett
   if (parsed.data.archived !== undefined) patch.archived = parsed.data.archived;
   if (parsed.data.tifluxEnabled !== undefined) patch.tiflux_enabled = parsed.data.tifluxEnabled;
 
-  const { error } = await supabase.from("boards").update(patch).eq("id", parsed.data.boardId);
+  const { error } = await supabase.from("boards").update(patch).eq("id", boardId);
   if (error) return { error: "Nao foi possivel salvar as configuracoes." };
 
   revalidateHomeProjects();
-  revalidateBoard(parsed.data.boardId);
+  revalidateBoard(boardId);
   return { ok: true };
 }
 

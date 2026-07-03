@@ -362,6 +362,22 @@ export type Database = {
         Args: { p_dept: string; p_user: string };
         Returns: undefined;
       };
+      set_board_tiflux_token: {
+        Args: { p_board: string; p_token: string; p_api_url?: string | null };
+        Returns: undefined;
+      };
+      clear_board_tiflux_token: {
+        Args: { p_board: string };
+        Returns: undefined;
+      };
+      board_tiflux_status: {
+        Args: { p_board: string };
+        Returns: boolean;
+      };
+      get_board_tiflux_token: {
+        Args: { p_board: string };
+        Returns: { token: string; api_url: string }[];
+      };
     };
     Enums: {
       membership_role: "admin" | "viewer" | "manager" | "owner";

@@ -14,12 +14,17 @@ export type TifluxOption = {
 
 const DEFAULT_BASE_URL = "https://api.tiflux.com/api/v2";
 
-function baseUrl(): string {
-  return (process.env.TIFLUX_API_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+function resolveBaseUrl(apiBaseUrl?: string): string {
+  return (apiBaseUrl ?? process.env.TIFLUX_API_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
 }
 
-async function tifluxFetch(path: string, token: string, init?: RequestInit): Promise<unknown> {
-  const url = `${baseUrl()}${path}`;
+async function tifluxFetch(
+  path: string,
+  token: string,
+  init?: RequestInit,
+  apiBaseUrl?: string,
+): Promise<unknown> {
+  const url = `${resolveBaseUrl(apiBaseUrl)}${path}`;
   const method = (init?.method ?? "GET").toUpperCase();
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const hasBody = init?.body != null && init.body !== "";
@@ -89,28 +94,60 @@ function page(offset = 1, limit = 30): { offset: number; limit: number } {
   return { offset, limit: Math.min(limit, 200) };
 }
 
-export async function searchTifluxClients(token: string, query?: string): Promise<TifluxOption[]> {
+export function mapTifluxApiErrorForSettings(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/\b401\b/.test(msg) || /\b403\b/.test(msg) || /unauthorized/i.test(msg) || /forbidden/i.test(msg)) {
+    return "Codigo de API invalido ou sem permissao no Tiflux.";
+  }
+  if (/fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(msg)) {
+    return "Nao foi possivel conectar ao Tiflux. Tente novamente mais tarde.";
+  }
+  return "Nao foi possivel validar o codigo de API do Tiflux.";
+}
+
+/** Probe leve para validar credencial antes de persistir. */
+export async function validateTifluxApiToken(token: string, apiBaseUrl?: string): Promise<void> {
+  await tifluxFetch(`/clients${encode({ active: true, ...page(1, 1) })}`, token, undefined, apiBaseUrl);
+}
+
+export async function searchTifluxClients(
+  token: string,
+  query?: string,
+  apiBaseUrl?: string,
+): Promise<TifluxOption[]> {
   const body = await tifluxFetch(
     `/clients${encode({ active: true, ...page(1, 30), ...(query ? { name: query } : {}) })}`,
     token,
+    undefined,
+    apiBaseUrl,
   );
   return extractList(body)
     .map((c) => ({ value: str(c.id), label: str(c.name ?? c.social ?? c.id) }))
     .filter((o) => o.value);
 }
 
-export async function searchTifluxDesks(token: string, query?: string): Promise<TifluxOption[]> {
+export async function searchTifluxDesks(
+  token: string,
+  query?: string,
+  apiBaseUrl?: string,
+): Promise<TifluxOption[]> {
   const body = await tifluxFetch(
     `/desks${encode({ active: true, ...page(1, 50), ...(query ? { name: query } : {}) })}`,
     token,
+    undefined,
+    apiBaseUrl,
   );
   return extractList(body)
     .map((d) => ({ value: str(d.id), label: str(d.display_name ?? d.name ?? d.id) }))
     .filter((o) => o.value);
 }
 
-export async function listTifluxDeskPriorities(token: string, deskId: number): Promise<TifluxOption[]> {
-  const body = await tifluxFetch(`/desks/${deskId}/priorities${encode(page(1, 100))}`, token);
+export async function listTifluxDeskPriorities(
+  token: string,
+  deskId: number,
+  apiBaseUrl?: string,
+): Promise<TifluxOption[]> {
+  const body = await tifluxFetch(`/desks/${deskId}/priorities${encode(page(1, 100))}`, token, undefined, apiBaseUrl);
   return extractList(body)
     .map((p) => ({ value: str(p.id), label: str(p.name ?? p.id) }))
     .filter((o) => o.value);
@@ -120,10 +157,13 @@ export async function listTifluxServicesCatalogItems(
   token: string,
   deskId: number,
   query?: string,
+  apiBaseUrl?: string,
 ): Promise<TifluxOption[]> {
   const body = await tifluxFetch(
     `/desks/${deskId}/services-catalogs-items${encode({ ...page(1, 50), ...(query ? { name: query } : {}) })}`,
     token,
+    undefined,
+    apiBaseUrl,
   );
   return extractList(body)
     .map((i) => ({ value: str(i.id), label: str(i.name ?? i.title ?? i.id) }))
@@ -131,8 +171,12 @@ export async function listTifluxServicesCatalogItems(
 }
 
 /** /users nao aceita filtro por nome â€” busca paginada + filtro client-side. */
-export async function searchTifluxUsers(token: string, query?: string): Promise<TifluxOption[]> {
-  const body = await tifluxFetch(`/users${encode({ active: true, ...page(1, 200) })}`, token);
+export async function searchTifluxUsers(
+  token: string,
+  query?: string,
+  apiBaseUrl?: string,
+): Promise<TifluxOption[]> {
+  const body = await tifluxFetch(`/users${encode({ active: true, ...page(1, 200) })}`, token, undefined, apiBaseUrl);
   let list = extractList(body);
   if (query?.trim()) {
     const q = query.trim().toLowerCase();
@@ -152,12 +196,13 @@ export async function searchTifluxRequestors(
   token: string,
   query?: string,
   clientId?: number,
+  apiBaseUrl?: string,
 ): Promise<TifluxOption[]> {
   const params = { ...page(1, 30), ...(query ? { name: query } : {}) };
   const path = clientId
     ? `/clients/${clientId}/requestors${encode(params)}`
     : `/requestors${encode(params)}`;
-  const body = await tifluxFetch(path, token);
+  const body = await tifluxFetch(path, token, undefined, apiBaseUrl);
   return extractList(body)
     .map((r) => ({
       value: str(r.id),
@@ -172,10 +217,13 @@ export async function searchTifluxParentTickets(
   token: string,
   deskId: number,
   query?: string,
+  apiBaseUrl?: string,
 ): Promise<TifluxOption[]> {
   const body = await tifluxFetch(
     `/tickets${encode({ desk_ids: deskId, is_closed: false, ...page(1, 30) })}`,
     token,
+    undefined,
+    apiBaseUrl,
   );
   let list = extractList(body);
   if (query?.trim()) {
@@ -241,20 +289,24 @@ function extractTicket(data: unknown): TifluxTicketResult {
 export async function getTifluxTicketByNumber(
   token: string,
   ticketNumber: number,
+  apiBaseUrl?: string,
 ): Promise<TifluxTicketResult> {
-  const body = await tifluxFetch(`/tickets/${ticketNumber}`, token);
+  const body = await tifluxFetch(`/tickets/${ticketNumber}`, token, undefined, apiBaseUrl);
   return extractTicket(body);
 }
 
 export async function createTifluxTicket(
   input: CreateTifluxTicketInput,
   token: string,
+  apiBaseUrl?: string,
 ): Promise<TifluxTicketResult> {
   const payload = toApiPayload(input);
   const form = toMultipartForm(payload);
-  const body = await tifluxFetch("/tickets", token, {
-    method: "POST",
-    body: form,
-  });
+  const body = await tifluxFetch(
+    "/tickets",
+    token,
+    { method: "POST", body: form },
+    apiBaseUrl,
+  );
   return extractTicket(body);
 }

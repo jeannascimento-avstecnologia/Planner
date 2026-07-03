@@ -152,6 +152,23 @@ function Test-SeedUserExists {
   return ($count -match "^\s*1\s*$")
 }
 
+function Ensure-MigrationsApplied {
+  Write-Host "==> Aplicando migrations pendentes (local)..." -ForegroundColor Cyan
+  $result = Invoke-SupabaseCommand "migration up --local"
+  $text = $result.Output -join "`n"
+  if ($result.ExitCode -ne 0) {
+    Write-Host $text
+    Write-Host "ERRO: supabase migration up falhou." -ForegroundColor Red
+    return $false
+  }
+  if ($text -match "Applying migration") {
+    Write-Host "==> Migrations novas aplicadas." -ForegroundColor Green
+  } else {
+    Write-Host "==> Migrations locais em dia." -ForegroundColor Green
+  }
+  return $true
+}
+
 function Ensure-DatabaseSeeded {
   if (Test-SeedUserExists) {
     Write-Host "==> Seed OK ($seedEmail existe)." -ForegroundColor Green
@@ -221,6 +238,8 @@ if (-not (Test-SupabaseHealthy)) {
 } else {
   Write-Host "==> Supabase local ja esta rodando." -ForegroundColor Green
 }
+
+if (-not (Ensure-MigrationsApplied)) { exit 1 }
 
 if (-not (Ensure-DatabaseSeeded)) { exit 1 }
 

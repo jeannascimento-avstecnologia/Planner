@@ -38,3 +38,6 @@ Thumbs.db
 
 # security
 docs/security_audit_log.md
+
+# notas/comandos locais (nao versionar)
+.local/

@@ -2,9 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteBoard, updateBoardSettings } from "@/app/(app)/boards/actions";
+import {
+  deleteBoard,
+  getBoardTifluxStatusAction,
+  updateBoardSettings,
+} from "@/app/(app)/boards/actions";
 import { setBoardDepartmentAction, getBoardDepartmentContextAction } from "@/app/(app)/settings/departments/actions";
 import type { BoardDepartmentContext } from "@/lib/load-board-department-context";
+import { isTifluxConfigured } from "@/lib/board-integrations";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -32,6 +37,8 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deptContext, setDeptContext] = useState<BoardDepartmentContext | null>(null);
   const [departmentId, setDepartmentId] = useState<string>("general");
+  const [tifluxEnabled, setTifluxEnabled] = useState(board.tiflux_enabled);
+  const [tifluxConfigured, setTifluxConfigured] = useState(isTifluxConfigured(board.integrations));
   const userBoardRole = members.find((m) => m.user_id === currentUserId)?.role ?? null;
   const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
 
@@ -47,11 +54,36 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
     };
   }, [board.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getBoardTifluxStatusAction(board.id).then((status) => {
+      if (cancelled) return;
+      setTifluxConfigured(status.configured);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [board.id, board.integrations, board.tiflux_enabled]);
+
+  const showTifluxTokenInput = tifluxEnabled && !tifluxConfigured;
+
   function save(fd: FormData) {
     setError(null);
     fd.set("boardId", board.id);
     fd.set("archived", fd.get("archived") === "on" ? "true" : "false");
-    fd.set("tifluxEnabled", fd.get("tifluxEnabled") === "on" ? "true" : "false");
+    fd.set("tifluxEnabled", tifluxEnabled ? "true" : "false");
+    if (!tifluxEnabled || tifluxConfigured) {
+      fd.delete("tifluxApiToken");
+    }
+    if (showTifluxTokenInput) {
+      const token = String(fd.get("tifluxApiToken") ?? "").trim();
+      if (!token) {
+        const msg = "Informe o codigo de API do Tiflux.";
+        setError(msg);
+        appToast.error(msg);
+        return;
+      }
+    }
     startTransition(async () => {
       const result = await updateBoardSettings(fd);
       if ("error" in result) {
@@ -76,6 +108,11 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
       }
 
       appToast.success("Projeto atualizado");
+      if (!tifluxEnabled) {
+        setTifluxConfigured(false);
+      } else if (showTifluxTokenInput) {
+        setTifluxConfigured(true);
+      }
       router.refresh();
       onClose();
     });
@@ -148,9 +185,48 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
           <fieldset className="rounded-lg border border-aurora-border p-3">
             <legend className="px-1 text-sm font-medium text-aurora-fg">Integracoes</legend>
             <label className="mt-1 flex items-center gap-2 text-sm text-aurora-fg">
-              <input type="checkbox" name="tifluxEnabled" defaultChecked={board.tiflux_enabled} />
+              <input
+                type="checkbox"
+                name="tifluxEnabled"
+                checked={tifluxEnabled}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setTifluxEnabled(checked);
+                  if (!checked) {
+                    setTifluxConfigured(false);
+                  }
+                }}
+                data-testid="project-settings-tiflux-enabled"
+              />
               Vincular ao Tiflux
             </label>
+            {showTifluxTokenInput ? (
+              <label className="mt-3 block space-y-1">
+                <span className="text-xs font-medium text-aurora-muted">Codigo de API</span>
+                <input
+                  type="password"
+                  name="tifluxApiToken"
+                  required
+                  minLength={8}
+                  autoComplete="off"
+                  data-1p-ignore
+                  placeholder="Cole o token Bearer do Tiflux"
+                  className={inputClass}
+                  data-testid="project-settings-tiflux-token"
+                />
+                <p className="text-xs text-aurora-muted">
+                  O token e validado no Tiflux antes de salvar e nao sera exibido novamente.
+                </p>
+              </label>
+            ) : null}
+            {tifluxEnabled && tifluxConfigured ? (
+              <p className="mt-3 text-sm text-aurora-fg" data-testid="project-settings-tiflux-configured">
+                API configurada
+                <span className="mt-1 block text-xs text-aurora-muted">
+                  Para alterar o token, desmarque e marque novamente, informe o novo codigo e salve.
+                </span>
+              </p>
+            ) : null}
           </fieldset>
 
           {error ? <p className="text-sm text-aurora-danger">{error}</p> : null}
@@ -163,7 +239,7 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
             ) : (
               <span />
             )}
-            <button type="submit" disabled={pending} className={btnPrimary}>
+            <button type="submit" disabled={pending} className={btnPrimary} data-testid="project-settings-save">
               {pending ? "Salvando..." : "Salvar"}
             </button>
           </div>

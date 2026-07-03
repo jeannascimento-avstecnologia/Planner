@@ -73,6 +73,7 @@ export const boardTifluxDefaultsSchema = z.object({
   responsibleName: z.string().max(200).optional(),
   requestorName: z.string().max(200).optional(),
   requestorEmail: z.string().email().optional(),
+  configured: z.boolean().optional(),
 });
 export type BoardTifluxDefaults = z.infer<typeof boardTifluxDefaultsSchema>;
 
@@ -84,6 +85,7 @@ export const updateBoardSettingsInput = z.object({
   color: hexColor.nullable().optional(),
   archived: z.coerce.boolean().optional(),
   tifluxEnabled: z.coerce.boolean().optional(),
+  tifluxApiToken: z.string().min(8).max(500).optional(),
   tifluxDefaults: boardTifluxDefaultsSchema.optional(),
 });
 export type UpdateBoardSettingsInput = z.infer<typeof updateBoardSettingsInput>;

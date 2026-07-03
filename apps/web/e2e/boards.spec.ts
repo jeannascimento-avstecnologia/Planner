@@ -30,8 +30,8 @@ test.describe("Boards / Kanban", () => {
     await projectLink(page, /Roadmap/).click();
     await expect(page).toHaveURL(/\/boards\/[0-9a-f-]+/);
     const headers = page.locator('input[aria-label="Nome da coluna"]');
-    await expect(headers.nth(0)).toHaveValue("To Do");
-    await expect(headers.nth(1)).toHaveValue("Doing");
+    await expect(headers.nth(0)).toHaveValue("To Start");
+    await expect(headers.nth(1)).toHaveValue("On Going");
     await expect(headers.nth(2)).toHaveValue("Done");
   });
 

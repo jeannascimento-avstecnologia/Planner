@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-03 — Tiflux: token por projeto
+
+### Added
+- Migration `20260703180000_board_tiflux_secrets.sql`: credencial criptografada por board + RPCs set/clear/status
+- UI configuracoes: checkbox Tiflux + input API (oculto apos salvar; reabre ao desativar/ativar)
+- `resolveBoardTifluxToken` server-side; Edge Function usa token do board
+- pgTAP `05_board_tiflux_secrets_test.sql`; E2E `tiflux-settings.spec.ts`
+
 ## 2026-07-03 — Departamentos (subdivisoes org)
 
 ### Added

@@ -26,8 +26,36 @@ import {
   type InviteBoardBatchInput,
 } from "@nextgen/contracts";
 import { lexoPosition } from "@/lib/fractional";
+import { normalizeBoardItemName } from "@/lib/board-item-names";
 import { resolveCardDateRange } from "@/lib/parse-date-br";
 import { sanitizeName } from "@/lib/sanitize";
+
+const DUPLICATE_COLUMN_MSG = "Ja existe uma coluna com este nome neste projeto.";
+const DUPLICATE_CARD_MSG = "Ja existe um card com este nome neste projeto.";
+
+async function boardHasColumnName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boardId: string,
+  name: string,
+): Promise<boolean> {
+  const target = normalizeBoardItemName(name);
+  const { data } = await supabase.from("columns").select("name").eq("board_id", boardId);
+  return (data ?? []).some((row) => normalizeBoardItemName(row.name) === target);
+}
+
+async function boardHasCardTitle(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boardId: string,
+  title: string,
+): Promise<boolean> {
+  const target = normalizeBoardItemName(title);
+  const { data } = await supabase.from("cards").select("title").eq("board_id", boardId);
+  return (data ?? []).some((row) => normalizeBoardItemName(row.title) === target);
+}
+
+function isUniqueViolation(error: { code?: string } | null): boolean {
+  return error?.code === "23505";
+}
 import { TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { getAppUrl } from "@/lib/app-url";
 import type { EmailSendErrorCode } from "@/lib/email";
@@ -49,6 +77,9 @@ import {
   listTifluxServicesCatalogItems,
   type TifluxOption,
 } from "@/lib/tiflux-api";
+import { resolveBoardTifluxToken } from "@/lib/tiflux-credentials";
+
+const TIFLUX_NOT_CONFIGURED_MSG = "Integracao Tiflux nao configurada neste projeto.";
 
 async function emitEvent(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -75,29 +106,14 @@ async function emitEvent(
   });
 }
 
-export async function createColumn(formData: FormData): Promise<void> {
+export type CreateColumnResult = { ok: true } | { error: string };
+
+export async function createColumn(formData: FormData): Promise<CreateColumnResult> {
   const parsed = createColumnInput.safeParse({
     boardId: formData.get("boardId"),
     name: formData.get("name"),
   });
-  if (!parsed.success) return;
-
-  // #region agent log
-  const invokeId = crypto.randomUUID();
-  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-    body: JSON.stringify({
-      sessionId: "fa60ca",
-      runId: "pre-fix",
-      hypothesisId: "H4",
-      location: "actions.ts:createColumn",
-      message: "createColumn server invoke",
-      data: { invokeId, boardId: parsed.data.boardId, nameLen: parsed.data.name.length },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+  if (!parsed.success) return { error: "Dados invalidos." };
 
   const supabase = await createClient();
   const { data: board } = await supabase
@@ -105,15 +121,23 @@ export async function createColumn(formData: FormData): Promise<void> {
     .select("org_id")
     .eq("id", parsed.data.boardId)
     .single();
-  if (!board) return;
+  if (!board) return { error: "Projeto nao encontrado." };
 
-  await supabase.from("columns").insert({
+  if (await boardHasColumnName(supabase, parsed.data.boardId, parsed.data.name)) {
+    return { error: DUPLICATE_COLUMN_MSG };
+  }
+
+  const { error } = await supabase.from("columns").insert({
     board_id: parsed.data.boardId,
     org_id: board.org_id,
     name: parsed.data.name,
     position: lexoPosition(),
   });
+  if (isUniqueViolation(error)) return { error: DUPLICATE_COLUMN_MSG };
+  if (error) return { error: "Nao foi possivel criar a coluna." };
+
   revalidateBoard(parsed.data.boardId);
+  return { ok: true };
 }
 
 export async function updateColumn(formData: FormData): Promise<void> {
@@ -178,23 +202,6 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
   });
   if (!parsed.success) return { error: "Dados invalidos." };
 
-  // #region agent log
-  const invokeId = crypto.randomUUID();
-  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-    body: JSON.stringify({
-      sessionId: "fa60ca",
-      runId: "pre-fix",
-      hypothesisId: "H4",
-      location: "actions.ts:createCard",
-      message: "createCard server invoke",
-      data: { invokeId, boardId: parsed.data.boardId, columnId: parsed.data.columnId, titleLen: parsed.data.title.length },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   let startDate = parsed.data.startDate ?? null;
   const dueDate = parsed.data.dueDate ?? null;
   const resolved = resolveCardDateRange(startDate, dueDate);
@@ -219,13 +226,18 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
     .single();
   if (!board) return { error: "Projeto nao encontrado." };
 
+  const sanitizedTitle = sanitizeName(parsed.data.title, 500);
+  if (await boardHasCardTitle(supabase, parsed.data.boardId, sanitizedTitle)) {
+    return { error: DUPLICATE_CARD_MSG };
+  }
+
   const { data: card, error } = await supabase
     .from("cards")
     .insert({
       board_id: parsed.data.boardId,
       column_id: parsed.data.columnId,
       org_id: board.org_id,
-      title: sanitizeName(parsed.data.title, 500),
+      title: sanitizedTitle,
       priority: parsed.data.priority,
       due_date: dueDate,
       start_date: startDate,
@@ -236,6 +248,7 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
     .select("id")
     .single();
 
+  if (isUniqueViolation(error)) return { error: DUPLICATE_CARD_MSG };
   if (error || !card) return { error: "Nao foi possivel criar o card." };
 
   await emitEvent(supabase, {
@@ -872,25 +885,26 @@ export async function searchTifluxOptions(input: {
     .single();
   if (!board?.tiflux_enabled) return { error: "Projeto nao vinculado ao Tiflux." };
 
-  const token = process.env.TIFLUX_API_TOKEN;
-  if (!token) return { error: "Integracao Tiflux nao configurada no servidor." };
+  const creds = await resolveBoardTifluxToken(parsed.data.boardId);
+  if (!creds) return { error: TIFLUX_NOT_CONFIGURED_MSG };
 
   const { kind, query, deskId, clientId } = parsed.data;
+  const { token, apiUrl } = creds;
   try {
     let options: TifluxOption[] = [];
-    if (kind === "client") options = await searchTifluxClients(token, query);
-    else if (kind === "desk") options = await searchTifluxDesks(token, query);
-    else if (kind === "requestor") options = await searchTifluxRequestors(token, query, clientId);
-    else if (kind === "user") options = await searchTifluxUsers(token, query);
+    if (kind === "client") options = await searchTifluxClients(token, query, apiUrl);
+    else if (kind === "desk") options = await searchTifluxDesks(token, query, apiUrl);
+    else if (kind === "requestor") options = await searchTifluxRequestors(token, query, clientId, apiUrl);
+    else if (kind === "user") options = await searchTifluxUsers(token, query, apiUrl);
     else if (kind === "priority") {
       if (!deskId) return { error: "Selecione a mesa primeiro." };
-      options = await listTifluxDeskPriorities(token, deskId);
+      options = await listTifluxDeskPriorities(token, deskId, apiUrl);
     } else if (kind === "services_catalog_item") {
       if (!deskId) return { error: "Selecione a mesa primeiro." };
-      options = await listTifluxServicesCatalogItems(token, deskId, query);
+      options = await listTifluxServicesCatalogItems(token, deskId, query, apiUrl);
     } else if (kind === "parent_ticket") {
       if (!deskId) return { error: "Selecione a mesa primeiro." };
-      options = await searchTifluxParentTickets(token, deskId, query);
+      options = await searchTifluxParentTickets(token, deskId, query, apiUrl);
     }
     return { ok: true, options };
   } catch (e) {
@@ -941,12 +955,12 @@ export async function createTifluxTicket(formData: FormData): Promise<TifluxTick
   if (!card) return { error: "Card nao encontrado." };
   if (card.tiflux_ticket_number) return { error: "Este card ja possui chamado Tiflux." };
 
-  const token = process.env.TIFLUX_API_TOKEN;
-  if (!token) return { error: "Integracao Tiflux nao configurada no servidor." };
+  const creds = await resolveBoardTifluxToken(parsed.data.boardId);
+  if (!creds) return { error: TIFLUX_NOT_CONFIGURED_MSG };
 
   let ticket: { ticketId: string; ticketNumber: string; raw: unknown };
   try {
-    ticket = await callTifluxApi(parsed.data, token);
+    ticket = await callTifluxApi(parsed.data, creds.token, creds.apiUrl);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao criar chamado no Tiflux." };
   }
@@ -999,12 +1013,12 @@ export async function linkTifluxTicket(formData: FormData): Promise<TifluxTicket
   if (!card) return { error: "Card nao encontrado." };
   if (card.tiflux_ticket_number) return { error: "Este card ja possui chamado Tiflux." };
 
-  const token = process.env.TIFLUX_API_TOKEN;
-  if (!token) return { error: "Integracao Tiflux nao configurada no servidor." };
+  const creds = await resolveBoardTifluxToken(parsed.data.boardId);
+  if (!creds) return { error: TIFLUX_NOT_CONFIGURED_MSG };
 
   let ticket: { ticketId: string; ticketNumber: string; raw: unknown };
   try {
-    ticket = await getTifluxTicketByNumber(token, parsed.data.ticketNumber);
+    ticket = await getTifluxTicketByNumber(creds.token, parsed.data.ticketNumber, creds.apiUrl);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Chamado nao encontrado no Tiflux." };
   }

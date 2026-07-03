@@ -5,7 +5,9 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { createColumn } from "@/app/(app)/boards/[boardId]/actions";
 import { acquireInFlightLock, releaseInFlightLock } from "@/lib/in-flight-submit";
+import { columnInFlightLockKey } from "@/lib/board-item-names";
 import { btnBoardPrimarySm, inputBoardClassSm } from "@/lib/ui-classes";
+import { appToast } from "@/lib/toast";
 import { ColumnHeader } from "./column-header";
 import { CreateCardForm } from "./create-card-form";
 import { SortableCardTile } from "./sortable-card-tile";
@@ -101,52 +103,20 @@ export function NewColumnSection({ boardId }: { boardId: string }) {
   const [pending, startTransition] = useTransition();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const submittingRef = useRef(false);
-  const submitSeqRef = useRef(0);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const seq = ++submitSeqRef.current;
     const blockedBeforeRef = submittingRef.current || pending || isSubmitting;
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-      body: JSON.stringify({
-        sessionId: "fa60ca",
-        runId: "pre-fix",
-        hypothesisId: "H1-H2",
-        location: "kanban-column.tsx:NewColumnSection:entry",
-        message: "create column submit entry",
-        data: { seq, blockedBeforeRef, pending, submittingRef: submittingRef.current, isSubmitting },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     if (blockedBeforeRef) return;
 
+    setError(null);
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    const lockKey = `column:${boardId}`;
-    if (!acquireInFlightLock(lockKey)) {
-      // #region agent log
-      fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-        body: JSON.stringify({
-          sessionId: "fa60ca",
-          runId: "post-fix",
-          hypothesisId: "H6",
-          location: "kanban-column.tsx:NewColumnSection:module-lock-blocked",
-          message: "create column blocked by module lock",
-          data: { seq, lockKey },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      return;
-    }
+    const lockKey = columnInFlightLockKey(boardId, trimmed);
+    if (!acquireInFlightLock(lockKey)) return;
 
     const fd = new FormData();
     fd.set("boardId", boardId);
@@ -154,26 +124,17 @@ export function NewColumnSection({ boardId }: { boardId: string }) {
 
     submittingRef.current = true;
     setIsSubmitting(true);
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-      body: JSON.stringify({
-        sessionId: "fa60ca",
-        runId: "pre-fix",
-        hypothesisId: "H1",
-        location: "kanban-column.tsx:NewColumnSection:lock-acquired",
-        message: "create column lock acquired",
-        data: { seq, name: trimmed },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     setName("");
 
     startTransition(async () => {
       try {
-        await createColumn(fd);
+        const result = await createColumn(fd);
+        if ("error" in result) {
+          setName(trimmed);
+          setError(result.error);
+          appToast.error(result.error);
+          return;
+        }
       } finally {
         releaseInFlightLock(lockKey);
         submittingRef.current = false;
@@ -193,22 +154,8 @@ export function NewColumnSection({ boardId }: { boardId: string }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              // #region agent log
-              fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-                body: JSON.stringify({
-                  sessionId: "fa60ca",
-                  runId: "pre-fix",
-                  hypothesisId: "H3",
-                  location: "kanban-column.tsx:NewColumnSection:Enter",
-                  message: "Enter key on column name input",
-                  data: { submittingRef: submittingRef.current, pending, isSubmitting },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion
+            if (e.key === "Enter" && (submittingRef.current || pending || isSubmitting)) {
+              e.preventDefault();
             }
           }}
           placeholder="Nome da coluna"
@@ -219,6 +166,7 @@ export function NewColumnSection({ boardId }: { boardId: string }) {
         <button type="submit" disabled={disabled} className={`w-full ${btnBoardPrimarySm}`}>
           {disabled ? "Adicionando..." : "Adicionar coluna"}
         </button>
+        {error ? <p className="text-xs text-aurora-danger">{error}</p> : null}
       </form>
     </section>
   );
