@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Settings } from "lucide-react";
+import { useGuardedNavigate } from "@/lib/client-url-state";
 import { BoardIcon } from "@/components/board/board-icon";
 import { canEditBoardUI } from "@/lib/board-member-roles";
 import { DEFAULT_BOARD_COLOR, tileInteractive, tileSelected } from "@/lib/ui-classes";
@@ -31,6 +32,8 @@ export function ProjectBoardTile({
   selected = false,
   onSelect,
 }: Props) {
+  const { onNavigateClick } = useGuardedNavigate();
+  const boardHref = `/boards/${board.id}`;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const tint = board.color || DEFAULT_BOARD_COLOR;
   const userBoardRole = members.find((m) => m.user_id === currentUserId)?.role ?? null;
@@ -43,6 +46,13 @@ export function ProjectBoardTile({
     }
   };
 
+  function handleNavigate(e: React.MouseEvent) {
+    if (hubMode && onSelect) {
+      openBoard(e);
+      return;
+    }
+    onNavigateClick(e, boardHref);
+  }
   if (variant === "list") {
     const nameContent = (
       <>
@@ -73,10 +83,11 @@ export function ProjectBoardTile({
             </button>
           ) : (
             <Link
-              href={`/boards/${board.id}`}
+              href={boardHref}
+              prefetch={false}
+              onClick={handleNavigate}
               className="flex flex-1 items-center gap-2 font-medium text-aurora-fg hover:text-aurora-accent"
-            >
-              {nameContent}
+            >              {nameContent}
             </Link>
           )}
           {canEdit ? (
@@ -146,11 +157,12 @@ export function ProjectBoardTile({
           </button>
         ) : (
           <Link
-            href={`/boards/${board.id}`}
+            href={boardHref}
+            prefetch={false}
+            onClick={handleNavigate}
             className={tileClass}
             style={{ borderLeft: `4px solid ${tint}` }}
-          >
-            {tileBody}
+          >            {tileBody}
           </Link>
         )}
         {canEdit ? (

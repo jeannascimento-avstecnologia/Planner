@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Calendar, ChartGantt, Columns3, Table } from "lucide-react";
 import { viewSwitcherBoardActiveClass } from "@/lib/ui-classes";
 import type { BoardViewMode } from "./types";
@@ -12,19 +11,47 @@ const MODES: { id: BoardViewMode; label: string; icon: typeof Columns3 }[] = [
   { id: "table", label: "Tabela", icon: Table },
 ];
 
-type Props = { value: BoardViewMode };
+type Props = {
+  value: BoardViewMode;
+  onChange: (mode: BoardViewMode) => void;
+};
 
-export function BoardViewSwitcher({ value }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
+export function BoardViewSwitcher({ value, onChange }: Props) {
   function setView(mode: BoardViewMode) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (mode === "kanban") params.delete("view");
-    else params.set("view", mode);
-    const q = params.toString();
-    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    if (value === mode) {
+      // #region agent log
+      fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+        body: JSON.stringify({
+          sessionId: "fa60ca",
+          runId: "post-fix-v2",
+          hypothesisId: "B",
+          location: "board-view-switcher.tsx:setView",
+          message: "setView skipped (already active)",
+          data: { mode },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return;
+    }
+    // #region agent log
+    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+      body: JSON.stringify({
+        sessionId: "fa60ca",
+        runId: "post-fix-v2",
+        hypothesisId: "B",
+        location: "board-view-switcher.tsx:setView",
+        message: "setView client-only",
+        data: { from: value, to: mode },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    onChange(mode);
   }
 
   return (

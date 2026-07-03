@@ -1,10 +1,14 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useClientSearchParamState } from "@/lib/client-url-state";
 import { ProjectsGridView } from "./projects-grid-view";
 import { ProjectsListView } from "./projects-list-view";
-import { ProjectsViewSwitcher, parseProjectsLayout } from "./projects-view-switcher";
+import {
+  ProjectsViewSwitcher,
+  parseProjectsLayout,
+  projectsLayoutToParam,
+} from "./projects-view-switcher";
 import { useProjectHubSelect } from "./projects-hub-shell";
 import type { ProjectBoardRow } from "./types";
 import type { BoardMember } from "@/components/board/share-project-panel";
@@ -23,12 +27,14 @@ function ProjectsViewsInner({
   boardMembersByBoardId,
   isOrgAdmin,
   hubMode = true,
-  hubBasePath = "/projects",
   currentUserId,
 }: Props) {
-  const searchParams = useSearchParams();
-  const layout = parseProjectsLayout(searchParams.get("layout"));
-  const { selectedBoardId, selectBoard } = useProjectHubSelect(hubBasePath);
+  const [layout, setLayout] = useClientSearchParamState(
+    "layout",
+    parseProjectsLayout,
+    projectsLayoutToParam,
+  );
+  const { selectedBoardId, selectBoard } = useProjectHubSelect();
 
   const viewProps = {
     boards,
@@ -42,7 +48,7 @@ function ProjectsViewsInner({
 
   return (
     <div className="space-y-3">
-      <ProjectsViewSwitcher value={layout} />
+      <ProjectsViewSwitcher value={layout} onChange={setLayout} />
       {layout === "list" ? <ProjectsListView {...viewProps} /> : <ProjectsGridView {...viewProps} />}
     </div>
   );

@@ -48,6 +48,20 @@ export function BoardCardTile({
   const cardStyle = stage ? stageCardStyle(stage.color) : undefined;
 
   function openCard() {
+    // #region agent log
+    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+      body: JSON.stringify({
+        sessionId: "fa60ca",
+        hypothesisId: "C",
+        location: "board-card-tile.tsx:openCard",
+        message: "kanban card click",
+        data: { cardId: card.id },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     onSelect(card.id);
   }
 

@@ -3,10 +3,11 @@
 import dynamic from "next/dynamic";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { UserPlus, Settings } from "lucide-react";
 import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { btnBoardSecondary } from "@/lib/ui-classes";
+import { applySearchParamUpdates, replaceClientUrl } from "@/lib/client-url-state";
 import { BoardKanbanView } from "./board-kanban-view";
 import { BoardSkeleton } from "@/components/ui/skeleton";
 import { BoardViewSwitcher } from "./board-view-switcher";
@@ -100,11 +101,34 @@ function BoardViewInner({
   isOrgAdmin,
   currentUserId,
 }: Props) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const viewMode = parseBoardViewMode(searchParams.get("view"));
+  const viewModeRef = useRef(parseBoardViewMode(searchParams.get("view")));
+  const [viewMode, setViewMode] = useState(viewModeRef.current);
+  const selectedCardIdRef = useRef<string | null>(null);
   const urlCardOpened = useRef(false);
+
+  useEffect(() => {
+    const fromUrl = parseBoardViewMode(searchParams.get("view"));
+    if (fromUrl !== viewModeRef.current) {
+      viewModeRef.current = fromUrl;
+      setViewMode(fromUrl);
+    }
+  }, [searchParams]);
+
+  const changeViewMode = useCallback(
+    (mode: ReturnType<typeof parseBoardViewMode>) => {
+      if (mode === viewModeRef.current) return;
+      viewModeRef.current = mode;
+      setViewMode(mode);
+      const params = new URLSearchParams(searchParams.toString());
+      if (mode === "kanban") params.delete("view");
+      else params.set("view", mode);
+      const qs = params.toString();
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
+    },
+    [pathname, searchParams],
+  );
 
   const safeCards = useMemo(
     () =>
@@ -138,6 +162,7 @@ function BoardViewInner({
     const cardId = searchParams.get("cardId");
     if (!cardId) return;
     if (safeCards.some((c) => c.id === cardId)) {
+      selectedCardIdRef.current = cardId;
       setSelectedCardId(cardId);
       urlCardOpened.current = true;
     }
@@ -145,24 +170,57 @@ function BoardViewInner({
 
   const selectCard = useCallback(
     (id: string) => {
+      if (id === selectedCardIdRef.current) {
+        // #region agent log
+        fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+          body: JSON.stringify({
+            sessionId: "fa60ca",
+            runId: "post-fix",
+            hypothesisId: "C",
+            location: "board-view.tsx:selectCard",
+            message: "selectCard skipped (already selected)",
+            data: { cardId: id },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        return;
+      }
+      // #region agent log
+      fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+        body: JSON.stringify({
+          sessionId: "fa60ca",
+          hypothesisId: "B",
+          location: "board-view.tsx:selectCard",
+          message: "selectCard called",
+          data: {
+            cardId: id,
+            prevSelected: selectedCardIdRef.current,
+            pathname,
+            searchParamsStr: searchParams.toString(),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      selectedCardIdRef.current = id;
       setSelectedCardId(id);
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("stageColor");
-      params.set("cardId", id);
-      const qs = params.toString();
-      window.history.replaceState(null, "", `${pathname}?${qs}`);
+      const params = applySearchParamUpdates(searchParams, { cardId: id, stageColor: null });
+      replaceClientUrl(pathname, params);
     },
     [pathname, searchParams],
   );
 
   const closeCard = useCallback(() => {
+    selectedCardIdRef.current = null;
     setSelectedCardId(null);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("cardId");
-    params.delete("stageColor");
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
+    const params = applySearchParamUpdates(searchParams, { cardId: null, stageColor: null });
+    replaceClientUrl(pathname, params);
+  }, [pathname, searchParams]);
 
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
 
@@ -275,7 +333,7 @@ function BoardViewInner({
         onClear={() => setFilters(EMPTY_FILTERS)}
       />
 
-      <BoardViewSwitcher value={viewMode} />
+      <BoardViewSwitcher value={viewMode} onChange={changeViewMode} />
 
       {viewMode === "kanban" ? (
         <label className="flex w-fit items-center gap-2 text-sm text-aurora-muted">

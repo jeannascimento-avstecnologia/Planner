@@ -27,7 +27,31 @@ async function BoardPageContent({ boardId }: { boardId: string }) {
   const supabase = await createClient();
   const user = await getSessionUser();
 
-  const { data: board } = await supabase.from("boards").select(BOARD_SELECT).eq("id", boardId).single();
+  const { data: board, error: boardError } = await supabase
+    .from("boards")
+    .select(BOARD_SELECT)
+    .eq("id", boardId)
+    .single();
+  // #region agent log
+  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+    body: JSON.stringify({
+      sessionId: "fa60ca",
+      hypothesisId: "D",
+      location: "boards/[boardId]/page.tsx:BoardPageContent",
+      message: "board page server fetch",
+      data: {
+        boardId,
+        hasBoard: Boolean(board),
+        errorCode: boardError?.code ?? null,
+        errorMessage: boardError?.message ?? null,
+        userId: user?.id ?? null,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   if (!board) notFound();
 
   const [

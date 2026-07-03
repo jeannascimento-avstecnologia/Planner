@@ -1,24 +1,19 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LayoutGrid, List } from "lucide-react";
 import { viewSwitcherActiveClass, viewSwitcherMotion } from "@/lib/ui-classes";
 
 export type ProjectsLayout = "grid" | "list";
 
-type Props = { value: ProjectsLayout };
+type Props = {
+  value: ProjectsLayout;
+  onChange: (layout: ProjectsLayout) => void;
+};
 
-export function ProjectsViewSwitcher({ value }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
+export function ProjectsViewSwitcher({ value, onChange }: Props) {
   function setLayout(layout: ProjectsLayout) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (layout === "grid") params.delete("layout");
-    else params.set("layout", layout);
-    const q = params.toString();
-    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    if (value === layout) return;
+    onChange(layout);
   }
 
   const modes = [
@@ -52,4 +47,8 @@ export function ProjectsViewSwitcher({ value }: Props) {
 
 export function parseProjectsLayout(raw: string | null): ProjectsLayout {
   return raw === "list" ? "list" : "grid";
+}
+
+export function projectsLayoutToParam(layout: ProjectsLayout): string | null {
+  return layout === "grid" ? null : layout;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { useClientSearchParamState } from "@/lib/client-url-state";
 import { DeadlineTiles, type DeadlineTileItem } from "@/components/home/deadline-tiles";
 import type { BoardMember } from "@/components/board/share-project-panel";
 import { ProjectHubDetail, type UpcomingTask } from "./project-hub-detail";
@@ -20,6 +20,14 @@ type Props = {
   basePath?: string;
 };
 
+function parseBoardParam(raw: string | null): string | null {
+  return raw;
+}
+
+function boardParamToUrl(raw: string | null): string | null {
+  return raw;
+}
+
 function ProjectsHubLayoutInner({
   boards,
   boardMembersByBoardId,
@@ -29,11 +37,12 @@ function ProjectsHubLayoutInner({
   children,
   showDeadlines = false,
   deadlineItems = [],
-  basePath = "/projects",
 }: Props) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const selectedBoardId = searchParams.get("board");
+  const [selectedBoardId, setSelectedBoardId] = useClientSearchParamState(
+    "board",
+    parseBoardParam,
+    boardParamToUrl,
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const selectedBoard = useMemo(
@@ -53,12 +62,9 @@ function ProjectsHubLayoutInner({
     return members.find((m) => m.user_id === currentUserId)?.role ?? null;
   }, [boardMembersByBoardId, currentUserId, selectedBoardId]);
 
-  function clearSelection() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("board");
-    const q = params.toString();
-    router.push(q ? `${basePath}?${q}` : basePath, { scroll: false });
-  }
+  const clearSelection = useCallback(() => {
+    setSelectedBoardId(null);
+  }, [setSelectedBoardId]);
 
   return (
     <>
@@ -103,15 +109,19 @@ export function ProjectsHubLayout(props: Props) {
   );
 }
 
-export function useProjectHubSelect(basePath = "/projects") {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export function useProjectHubSelect() {
+  const [selectedBoardId, setSelectedBoardId] = useClientSearchParamState(
+    "board",
+    parseBoardParam,
+    boardParamToUrl,
+  );
 
-  function selectBoard(id: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("board", id);
-    router.push(`${basePath}?${params.toString()}`, { scroll: false });
-  }
+  const selectBoard = useCallback(
+    (id: string) => {
+      setSelectedBoardId(id);
+    },
+    [setSelectedBoardId],
+  );
 
-  return { selectedBoardId: searchParams.get("board"), selectBoard };
+  return { selectedBoardId, selectBoard };
 }

@@ -1,11 +1,15 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { useClientSearchParamState } from "@/lib/client-url-state";
 import { ProjectsGridView } from "@/components/projects/projects-grid-view";
 import { ProjectsListView } from "@/components/projects/projects-list-view";
-import { ProjectsViewSwitcher, parseProjectsLayout } from "@/components/projects/projects-view-switcher";
+import {
+  ProjectsViewSwitcher,
+  parseProjectsLayout,
+  projectsLayoutToParam,
+} from "@/components/projects/projects-view-switcher";
 import { DepartmentIcon } from "@/components/departments/DepartmentIcon";
 import type { OrgProjectSection } from "@/lib/load-org-projects";
 import { OrgLogo } from "@/components/organizations/OrgLogo";
@@ -20,8 +24,11 @@ type Props = {
 };
 
 function HomeProjectsGroupedInner({ sections, boardMembersByBoardId, currentUserId }: Props) {
-  const searchParams = useSearchParams();
-  const layout = parseProjectsLayout(searchParams.get("layout"));
+  const [layout, setLayout] = useClientSearchParamState(
+    "layout",
+    parseProjectsLayout,
+    projectsLayoutToParam,
+  );
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [deptFilter, setDeptFilter] = useState<string>("all");
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
@@ -57,7 +64,7 @@ function HomeProjectsGroupedInner({ sections, boardMembersByBoardId, currentUser
 
   return (
     <div className="space-y-6">
-      <ProjectsViewSwitcher value={layout} />
+      <ProjectsViewSwitcher value={layout} onChange={setLayout} />
 
       {activeSection && filterOptions.length > 1 ? (
         <div className="flex flex-wrap gap-2" data-testid="home-dept-filter">

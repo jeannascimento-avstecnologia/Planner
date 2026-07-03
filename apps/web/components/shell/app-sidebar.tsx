@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight, FolderKanban, Home, X, Building2 } from "lucide-react";
+import { useGuardedNavigate } from "@/lib/client-url-state";
 import { RecentProjects } from "./recent-projects";
 import { AgifyLogo } from "./agify-logo";
 import { SignOutButton } from "./sign-out-button";
@@ -19,7 +20,7 @@ const COLLAPSE_KEY = "ngp:sidebar-collapsed";
 
 export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoardIds }: Props) {
   const pathname = usePathname();
-  const router = useRouter();
+  const { navigate, onNavigateClick } = useGuardedNavigate();
   const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
@@ -56,7 +57,8 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
       e.preventDefault();
       toggleCollapsed();
     } else {
-      router.push("/boards");
+      e.preventDefault();
+      navigate("/boards");
     }
   }
 
@@ -110,7 +112,11 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
             <Link
               key={label}
               href={href}
-              onClick={() => setMobileOpen(false)}
+              prefetch={false}
+              onClick={(e) => {
+                onNavigateClick(e, href);
+                setMobileOpen(false);
+              }}
               title={tight ? label : undefined}
               className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition ${
                 active
