@@ -77,6 +77,21 @@ test.describe("Boards / Kanban", () => {
     await expect(page.getByRole("button", { name: cardTitle })).toBeVisible();
   });
 
+  test("cria card sem duplicar tiles na coluna", async ({ page }) => {
+    await projectLink(page, /Roadmap/).click();
+    const cardTitle = "Card Dedupe " + Date.now();
+
+    const todo = page.locator("section[data-testid^='kanban-column-']").first();
+    await todo.getByPlaceholder("Novo card").fill(cardTitle);
+    await todo.getByRole("button", { name: "Adicionar", exact: true }).click();
+    await expect(todo.getByRole("button", { name: cardTitle })).toBeVisible({ timeout: 15_000 });
+
+    await expect(todo.getByRole("button", { name: cardTitle })).toHaveCount(1);
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: cardTitle })).toHaveCount(1);
+  });
+
   test("switcher oferece quatro modos de visualizacao", async ({ page }) => {
     await projectLink(page, /Roadmap/).click();
     await expect(page.getByRole("button", { name: "Kanban" })).toBeVisible();

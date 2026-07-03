@@ -16,21 +16,25 @@ export type CreateProjectOrgOption = {
   name: string;
   isActive: boolean;
   logoUrl: string | null;
+  departmentOptions: { id: string | null; label: string }[];
 };
 
 type Props = {
   orgOptions: CreateProjectOrgOption[];
   defaultOrgId: string;
+  defaultDepartmentId?: string | null;
 };
 
-export function CreateProjectForm({ orgOptions, defaultOrgId }: Props) {
+export function CreateProjectForm({ orgOptions, defaultOrgId, defaultDepartmentId = null }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
   const [selectedOrgId, setSelectedOrgId] = useState(defaultOrgId);
+  const [selectedDeptId, setSelectedDeptId] = useState<string>(defaultDepartmentId ?? "general");
 
   const selectedOrg = orgOptions.find((o) => o.orgId === selectedOrgId) ?? orgOptions[0];
+  const deptOptions = selectedOrg?.departmentOptions ?? [{ id: null, label: "Geral" }];
 
   function close() {
     setOpen(false);
@@ -102,7 +106,10 @@ export function CreateProjectForm({ orgOptions, defaultOrgId }: Props) {
               <select
                 name="orgId"
                 value={selectedOrgId}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedOrgId(e.target.value);
+                  setSelectedDeptId("general");
+                }}
                 className={inputClass + " flex-1"}
                 data-testid="create-project-org"
                 required
@@ -116,6 +123,23 @@ export function CreateProjectForm({ orgOptions, defaultOrgId }: Props) {
               </select>
             </div>
             <p className="text-xs text-aurora-muted">O projeto sera vinculado a esta organizacao.</p>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-aurora-fg">Departamento</span>
+            <select
+              name="departmentId"
+              value={selectedDeptId}
+              onChange={(e) => setSelectedDeptId(e.target.value)}
+              className={inputClass}
+              data-testid="create-project-department"
+            >
+              {deptOptions.map((d) => (
+                <option key={d.id ?? "general"} value={d.id ?? "general"}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="block space-y-1">

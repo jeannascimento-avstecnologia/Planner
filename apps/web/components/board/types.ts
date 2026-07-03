@@ -15,6 +15,7 @@ export type ProfileRow = { id: string; full_name: string | null };
 export type BoardCard = {
   id: string;
   column_id: string;
+  position: string;
   title: string;
   description: string | null;
   priority: CardPriority;

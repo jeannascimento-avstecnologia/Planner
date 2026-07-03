@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateOrgIdentity, revalidateHomeProjects, revalidateOrgSettings } from "@/lib/revalidation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
@@ -112,8 +112,7 @@ export async function updateOrgMemberRoleAction(input: {
   });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
+  revalidateOrgSettings(parsed.data.orgId);
   return { ok: true };
 }
 
@@ -131,8 +130,7 @@ export async function removeOrgMemberAction(input: { orgId: string; userId: stri
   });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
+  revalidateOrgSettings(parsed.data.orgId);
   return { ok: true };
 }
 
@@ -141,9 +139,7 @@ export async function leaveOrganizationAction(orgId: string): Promise<OrgActionR
   const { error } = await supabase.rpc("leave_organization", { p_org: orgId });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
-  revalidatePath("/boards");
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
+  revalidateOrgIdentity(orgId);
   return { ok: true };
 }
 
@@ -164,11 +160,7 @@ export async function transferOrgOwnershipAction(input: {
   });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
-  revalidatePath("/settings/organization/settings");
-  revalidatePath("/boards");
-  revalidatePath("/projects");
+  revalidateOrgIdentity(parsed.data.orgId);
   return { ok: true };
 }
 
@@ -188,10 +180,7 @@ export async function deleteOrganizationAction(orgId: string): Promise<OrgAction
     cookieStore.delete(ACTIVE_ORG_COOKIE);
   }
 
-  revalidatePath("/boards");
-  revalidatePath("/projects");
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
+  revalidateOrgIdentity(parsed.data.orgId);
   return { ok: true };
 }
 
@@ -212,9 +201,7 @@ export async function setOrgMultiOwnerAction(input: {
   });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
-  revalidatePath("/settings/organization/settings");
+  revalidateOrgSettings(parsed.data.orgId);
   return { ok: true };
 }
 
@@ -237,11 +224,7 @@ export async function updateOrganizationAction(input: {
   });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
-  revalidatePath("/settings/organization/settings");
-  revalidatePath("/boards");
-  revalidatePath("/projects");
+  revalidateOrgIdentity(parsed.data.orgId);
   return { ok: true };
 }
 
@@ -296,10 +279,7 @@ export async function updateOrgLogoAction(input: {
   });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
-  revalidatePath("/settings/organization");
-  revalidatePath("/settings/organizations");
-  revalidatePath("/boards");
-  revalidatePath("/projects");
+  revalidateOrgIdentity(parsed.data.orgId);
   return { ok: true };
 }
 
@@ -394,7 +374,7 @@ export async function inviteToOrgBatch(input: OrgInviteBatchInput): Promise<OrgI
     });
   }
 
-  revalidatePath("/settings/organization/invites");
+  revalidateOrgSettings(parsed.data.orgId);
   return { ok: true, results };
 }
 

@@ -3,15 +3,13 @@
 import { useState } from "react";
 import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
-import type { NotificationItem } from "./notification-bell";
 
 type Props = {
   userEmail: string;
   avatarUrl?: string;
   fullName?: string;
-  notifications: NotificationItem[];
-  unreadCount: number;
   accessibleBoardIds: string[];
+  notificationsSlot: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -19,9 +17,8 @@ export function AppShell({
   userEmail,
   avatarUrl,
   fullName,
-  notifications,
-  unreadCount,
   accessibleBoardIds,
+  notificationsSlot,
   children,
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -36,8 +33,7 @@ export function AppShell({
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <AppTopbar
-          notifications={notifications}
-          unreadCount={unreadCount}
+          notificationsSlot={notificationsSlot}
           avatarUrl={avatarUrl}
           fullName={fullName}
           onOpenMobileMenu={() => setMobileOpen(true)}

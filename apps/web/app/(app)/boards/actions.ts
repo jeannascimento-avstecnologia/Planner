@@ -1,11 +1,14 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateHomeProjects, revalidateBoard, revalidateOrgSettings } from "@/lib/revalidation";
+import { rateLimitAction } from "@/lib/rate-limit";
+import { sanitizeName } from "@/lib/sanitize";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
 import { createBoardInput, updateBoardAppearanceInput, updateBoardSettingsInput, deleteBoardInput } from "@nextgen/contracts";
 import type { Database } from "@nextgen/contracts";
+import { canCreateInDepartment } from "@/lib/department-roles";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 import { getActiveOrgId } from "@/lib/active-org";
 
@@ -34,8 +37,7 @@ export async function createOrganization(formData: FormData): Promise<void> {
       maxAge: 60 * 60 * 24 * 365,
     });
   }
-  revalidatePath("/boards");
-  revalidatePath("/projects");
+  revalidateHomeProjects();
 }
 
 export async function createBoard(formData: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -45,6 +47,10 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
     icon: formData.get("icon") || undefined,
     color: formData.get("color") || undefined,
     orgId: formData.get("orgId") || undefined,
+    departmentId:
+      formData.get("departmentId") === "" || formData.get("departmentId") === "general"
+        ? null
+        : formData.get("departmentId") || undefined,
   });
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
@@ -53,6 +59,9 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const rl = rateLimitAction(user.id, "createBoard", 20, 60_000);
+  if (!rl.ok) return { ok: false, error: "Muitas requisicoes. Aguarde alguns segundos." };
 
   const targetOrgId = parsed.data.orgId ?? (await getActiveOrgId());
   if (!targetOrgId) return { ok: false, error: "Selecione uma organizacao." };
@@ -63,23 +72,37 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
     .eq("org_id", targetOrgId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!isOrgAdminRole(membership?.role)) {
-    return { ok: false, error: "Sem permissao para criar projetos nesta organizacao." };
+
+  const deptId = parsed.data.departmentId ?? null;
+  let deptRole: string | null = null;
+  if (deptId) {
+    const { data: dm } = await supabase
+      .from("department_members")
+      .select("role")
+      .eq("department_id", deptId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    deptRole = dm?.role ?? null;
+  }
+
+  const isOwner = membership?.role === "owner";
+  if (!canCreateInDepartment(membership?.role, deptRole, isOwner)) {
+    return { ok: false, error: "Sem permissao para criar projetos neste escopo." };
   }
 
   const { error } = await supabase.from("boards").insert({
     org_id: targetOrgId,
-    name: parsed.data.name,
-    description: parsed.data.description ?? null,
+    name: sanitizeName(parsed.data.name, 120),
+    description: parsed.data.description ? sanitizeName(parsed.data.description, 2000) : null,
     icon: parsed.data.icon ?? null,
     color: parsed.data.color ?? null,
+    department_id: deptId,
     created_by: user.id,
   });
   if (error) return { ok: false, error: "Nao foi possivel criar o projeto." };
 
-  revalidatePath("/boards");
-  revalidatePath("/projects");
-  revalidatePath("/settings/organizations");
+  revalidateHomeProjects();
+  revalidateOrgSettings(targetOrgId);
   return { ok: true };
 }
 
@@ -97,9 +120,8 @@ export async function updateBoardAppearance(formData: FormData): Promise<void> {
     .update({ icon: parsed.data.icon ?? null, color: parsed.data.color ?? null })
     .eq("id", parsed.data.boardId);
 
-  revalidatePath("/boards");
-  revalidatePath("/projects");
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateHomeProjects();
+  revalidateBoard(parsed.data.boardId);
 }
 
 export type BoardSettingsResult = { ok: true } | { error: string };
@@ -129,9 +151,8 @@ export async function updateBoardSettings(formData: FormData): Promise<BoardSett
   const { error } = await supabase.from("boards").update(patch).eq("id", parsed.data.boardId);
   if (error) return { error: "Nao foi possivel salvar as configuracoes." };
 
-  revalidatePath("/boards");
-  revalidatePath("/projects");
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateHomeProjects();
+  revalidateBoard(parsed.data.boardId);
   return { ok: true };
 }
 
@@ -165,7 +186,6 @@ export async function deleteBoard(formData: FormData): Promise<BoardSettingsResu
   const { error } = await supabase.from("boards").delete().eq("id", parsed.data.boardId);
   if (error) return { error: "Nao foi possivel excluir o projeto." };
 
-  revalidatePath("/boards");
-  revalidatePath("/projects");
+  revalidateHomeProjects();
   return { ok: true };
 }

@@ -5,6 +5,7 @@ export type ProjectBoardRow = {
   description: string | null;
   icon: string | null;
   color: string | null;
+  department_id: string | null;
   archived: boolean;
   tiflux_enabled: boolean;
   integrations: Record<string, unknown>;

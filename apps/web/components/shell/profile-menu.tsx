@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -51,8 +52,7 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
         className={`${topbarIconBtn} ${avatarUrl ? "overflow-hidden p-0" : ""} ${active ? "ring-2 ring-white/50" : ""}`}
       >
         {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          <Image src={avatarUrl} alt="" width={36} height={36} className="h-full w-full object-cover" priority />
         ) : profileInitials(fullName) ? (
           <span className="text-xs font-semibold">{profileInitials(fullName)}</span>
         ) : (

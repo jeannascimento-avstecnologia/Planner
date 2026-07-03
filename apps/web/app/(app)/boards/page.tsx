@@ -1,13 +1,43 @@
+import { Suspense } from "react";
 import { createOrganization } from "./actions";
 import { inputClass, btnPrimary } from "@/lib/ui-classes";
 import { DeadlineTiles } from "@/components/home/deadline-tiles";
 import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { HomeProjectsGrouped } from "@/components/home/home-projects-grouped";
 import { CreateProjectForm } from "@/components/projects/create-project-form";
+import { loadDeadlinesCached, loadOrgProjectsCached } from "@/lib/loaders/cached-queries";
 import { loadOrgProjects } from "@/lib/load-org-projects";
+import { getSessionUser } from "@/lib/loaders/session";
+import type { OrgProjectSection } from "@/lib/load-org-projects";
+import type { BoardMember } from "@/components/board/share-project-panel";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const experimental_ppr = true;
+
+async function DeadlinesSection({ userId }: { userId: string }) {
+  const items = await loadDeadlinesCached(userId);
+  return <DeadlineTiles items={items} />;
+}
+
+type ProjectsSectionProps = {
+  sections: OrgProjectSection[];
+  boardMembersByBoardId: Record<string, BoardMember[]>;
+  currentUserId: string | null;
+};
+
+function ProjectsSection({ sections, boardMembersByBoardId, currentUserId }: ProjectsSectionProps) {
+  return (
+    <HomeProjectsGrouped
+      sections={sections}
+      boardMembersByBoardId={boardMembersByBoardId}
+      currentUserId={currentUserId}
+    />
+  );
+}
 
 export default async function BoardsPage() {
-  const result = await loadOrgProjects();
+  const user = await getSessionUser();
+  const result = user ? await loadOrgProjectsCached(user.id) : await loadOrgProjects();
 
   if (result.kind === "no-org") {
     return (
@@ -22,12 +52,32 @@ export default async function BoardsPage() {
     );
   }
 
-  const { activeOrgName, activeOrgLogoUrl, activeOrgId, sections, currentUserId, boardMembersByBoardId, deadlineItems } =
-    result.data;
+  const {
+    activeOrgName,
+    activeOrgLogoUrl,
+    activeOrgId,
+    sections,
+    currentUserId,
+    boardMembersByBoardId,
+    creatableDepartments,
+  } = result.data;
+
+  const creatableByOrg = new Map<string, { id: string | null; label: string }[]>();
+  for (const item of creatableDepartments) {
+    const list = creatableByOrg.get(item.orgId) ?? [];
+    list.push({ id: item.departmentId, label: item.departmentId ? item.label.split(" — ").slice(1).join(" — ") : "Geral" });
+    creatableByOrg.set(item.orgId, list);
+  }
 
   const creatableOrgs = sections
-    .filter((s) => s.isOrgAdmin)
-    .map((s) => ({ orgId: s.orgId, name: s.orgName, isActive: s.isActive, logoUrl: s.logoUrl }));
+    .filter((s) => creatableByOrg.has(s.orgId))
+    .map((s) => ({
+      orgId: s.orgId,
+      name: s.orgName,
+      isActive: s.isActive,
+      logoUrl: s.logoUrl,
+      departmentOptions: creatableByOrg.get(s.orgId) ?? [{ id: null, label: "Geral" }],
+    }));
 
   return (
     <div className="space-y-6">
@@ -47,7 +97,17 @@ export default async function BoardsPage() {
         </div>
       </div>
 
-      <DeadlineTiles items={deadlineItems} />
+      <Suspense
+        fallback={
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
+            ))}
+          </div>
+        }
+      >
+        <DeadlinesSection userId={user?.id ?? "anon"} />
+      </Suspense>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         {creatableOrgs.length > 0 ? (
@@ -60,7 +120,7 @@ export default async function BoardsPage() {
       </div>
 
       <div className="space-y-3">
-        <HomeProjectsGrouped
+        <ProjectsSection
           sections={sections}
           boardMembersByBoardId={boardMembersByBoardId}
           currentUserId={currentUserId}

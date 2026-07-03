@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/loaders/session";
 import { BoardView } from "@/components/board/board-view";
 import { BoardThemeScope } from "@/components/board/board-theme-scope";
 import { TrackRecentBoard } from "@/components/shell/track-recent-board";
+import { BoardSkeleton } from "@/components/ui/skeleton";
 import type { BoardCard, ProfileRow } from "@/components/board/types";
 import { parseTifluxCanceledTickets } from "@/lib/tiflux-canceled-tickets";
 import {
@@ -11,77 +14,87 @@ import {
   sortAssigneeProfiles,
 } from "@/lib/board-assignees";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
+import { dedupeCardsById } from "@/lib/dedupe-cards";
 
-export default async function BoardPage({
-  params,
-}: {
-  params: Promise<{ boardId: string }>;
-}) {
-  const { boardId } = await params;
+const BOARD_SELECT =
+  "id, org_id, name, icon, color, tiflux_enabled, department_id, archived, created_by";
+const CARD_SELECT =
+  "id, column_id, position, title, description, priority, due_date, start_date, assignee_id, completed_at, stage_id, tiflux_ticket_number, tiflux_ticket_id, tiflux_canceled_tickets";
+
+export const experimental_ppr = true;
+
+async function BoardPageContent({ boardId }: { boardId: string }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
-  const { data: board } = await supabase.from("boards").select("*").eq("id", boardId).single();
+  const { data: board } = await supabase.from("boards").select(BOARD_SELECT).eq("id", boardId).single();
   if (!board) notFound();
 
-  const { data: org } = await supabase
-    .from("organizations")
-    .select("name, logo_url")
-    .eq("id", board.org_id)
-    .maybeSingle();
-
-  const { data: myMembership } = user
-    ? await supabase
-        .from("memberships")
-        .select("role")
-        .eq("org_id", board.org_id)
-        .eq("user_id", user.id)
-        .maybeSingle()
-    : { data: null };
-  const isOrgAdmin = isOrgAdminRole(myMembership?.role);
-
   const [
+    { data: org },
+    { data: myMembership },
     { data: columns },
     { data: cardsRaw },
     { data: tags },
-    { data: cardTags },
-    { data: memberships },
     { data: boardMembers },
     { data: stages },
+    { data: memberships },
   ] = await Promise.all([
+    supabase.from("organizations").select("name, logo_url").eq("id", board.org_id).maybeSingle(),
+    user
+      ? supabase
+          .from("memberships")
+          .select("role")
+          .eq("org_id", board.org_id)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase.from("columns").select("id, name, default_stage_id").eq("board_id", boardId).order("position"),
-    supabase.from("cards").select("*").eq("board_id", boardId).order("position"),
+    supabase.from("cards").select(CARD_SELECT).eq("board_id", boardId).order("position"),
     supabase.from("tags").select("id, name, color").eq("board_id", board.id).order("name"),
-    supabase.from("card_tags").select("card_id, tag_id").eq("org_id", board.org_id),
-    supabase.from("memberships").select("user_id").eq("org_id", board.org_id),
     supabase.from("board_members").select("user_id, role").eq("board_id", boardId),
-    supabase.from("stages").select("id, name, color, position, is_system, system_key").eq("board_id", boardId).order("position"),
+    supabase
+      .from("stages")
+      .select("id, name, color, position, is_system, system_key")
+      .eq("board_id", boardId)
+      .order("position"),
+    supabase.from("memberships").select("user_id").eq("org_id", board.org_id),
   ]);
+
+  const isOrgAdmin = isOrgAdminRole(myMembership?.role);
+  const cardsUnique = dedupeCardsById(cardsRaw ?? []);
+  const cardIds = cardsUnique.map((c) => c.id);
 
   const assigneeIds = collectAssigneeUserIds(
     (memberships ?? []).map((m) => m.user_id),
-    (boardMembers ?? []).map((m) => m.user_id),
+    [
+      ...(boardMembers ?? []).map((m) => m.user_id),
+      ...cardsUnique.map((c) => c.assignee_id).filter((id): id is string => Boolean(id)),
+    ],
   );
-  const { data: profiles } = assigneeIds.length
-    ? await supabase.from("profiles").select("id, full_name").in("id", assigneeIds)
-    : { data: [] as ProfileRow[] };
+
+  const [{ data: cardTags }, { data: profiles }] = await Promise.all([
+    cardIds.length
+      ? supabase.from("card_tags").select("card_id, tag_id").in("card_id", cardIds)
+      : Promise.resolve({ data: [] as { card_id: string; tag_id: string }[] }),
+    assigneeIds.length
+      ? supabase.from("profiles").select("id, full_name").in("id", assigneeIds)
+      : Promise.resolve({ data: [] as ProfileRow[] }),
+  ]);
 
   const profilesById = buildProfilesById(profiles ?? []);
 
-  const tagsOnBoard = new Set((cardsRaw ?? []).map((c) => c.id));
   const tagIdsByCard = new Map<string, string[]>();
   for (const ct of cardTags ?? []) {
-    if (!tagsOnBoard.has(ct.card_id)) continue;
     const list = tagIdsByCard.get(ct.card_id) ?? [];
     list.push(ct.tag_id);
     tagIdsByCard.set(ct.card_id, list);
   }
 
-  const cards: BoardCard[] = (cardsRaw ?? []).map((c) => ({
+  const cards: BoardCard[] = cardsUnique.map((c) => ({
     id: c.id,
     column_id: c.column_id,
+    position: c.position,
     title: c.title,
     description: c.description,
     priority: c.priority,
@@ -133,5 +146,14 @@ export default async function BoardPage({
         />
       </BoardThemeScope>
     </>
+  );
+}
+
+export default async function BoardPage({ params }: { params: Promise<{ boardId: string }> }) {
+  const { boardId } = await params;
+  return (
+    <Suspense fallback={<BoardSkeleton />}>
+      <BoardPageContent boardId={boardId} />
+    </Suspense>
   );
 }

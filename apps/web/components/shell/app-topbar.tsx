@@ -2,22 +2,19 @@
 
 import { Menu } from "lucide-react";
 import { ThemeToggle } from "./theme-provider";
-import { NotificationBell, type NotificationItem } from "./notification-bell";
 import { TopbarTitle } from "./topbar-title";
 import { AgifyLogo } from "./agify-logo";
 import { ProfileMenu } from "./profile-menu";
 
 type Props = {
-  notifications: NotificationItem[];
-  unreadCount: number;
+  notificationsSlot: React.ReactNode;
   avatarUrl?: string;
   fullName?: string;
   onOpenMobileMenu?: () => void;
 };
 
 export function AppTopbar({
-  notifications,
-  unreadCount,
+  notificationsSlot,
   avatarUrl,
   fullName,
   onOpenMobileMenu,
@@ -48,7 +45,7 @@ export function AppTopbar({
       </div>
 
       <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-1.5 justify-self-end">
-        <NotificationBell notifications={notifications} unreadCount={unreadCount} variant="topbar" />
+        {notificationsSlot}
         <ThemeToggle variant="topbar" />
         <ProfileMenu avatarUrl={avatarUrl} fullName={fullName} />
       </div>

@@ -21,10 +21,22 @@ Painel lateral para editar card: titulo, descricao, prioridade, prazo, responsav
 - Titulo **Ver card**; campos somente leitura (texto + badges); sem Salvar/Excluir.
 - Componente: `card-drawer-readonly.tsx` (invocado por `CardDrawer`).
 
+## Excluir card
+
+- Footer **fixo** (fora do scroll): botoes Salvar e Excluir sempre visiveis.
+- Botao Excluir abre `ConfirmDialog` com contagens de impacto:
+  - Subtarefas (`cards.parent_id = cardId`)
+  - Dependencias (`card_dependencies` blocker ou blocked)
+- DB faz `ON DELETE CASCADE` em subtarefas e dependencias.
+- Server action `getCardDeleteImpact` retorna contagens antes da confirmacao.
+- `deleteCard` remove o card e revalida board + calendario.
+
 ## Criterios de aceite
 - Abre ao clicar no card no Kanban.
 - Salvar persiste via server action `updateCard` + `card_events`.
 - Tags orfaos nao aparecem no card ate selecao explicita no `+`.
+- Excluir exige confirmacao explicita citando subtarefas/dependencias afetadas.
+- Viewer (`readOnly`) nao ve botao Excluir.
 
 ## Codigo
 - `apps/web/components/board/card-drawer.tsx`

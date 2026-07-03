@@ -1,6 +1,9 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 import { securityHeaders } from "./lib/content-security-policy";
+
+const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "true" });
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -9,8 +12,18 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   transpilePackages: ["@nextgen/contracts"],
   reactStrictMode: true,
-  // Badge de dev (canto inferior esquerdo) sobrepoe a sidebar compacta; some so em dev.
   devIndicators: false,
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+  },
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "**.supabase.co" },
+      { protocol: "http", hostname: "127.0.0.1" },
+      { protocol: "http", hostname: "localhost" },
+    ],
+  },
   async headers() {
     const base = securityHeaders(isDev);
     return [
@@ -29,4 +42,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

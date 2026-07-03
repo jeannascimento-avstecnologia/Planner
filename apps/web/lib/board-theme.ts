@@ -30,6 +30,20 @@ function mixHex(base: string, accent: [number, number, number], ratio: number): 
   return `#${[r, g, bl].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
+/** Fundo sutil da subdivisao de departamento na Home (light/dark). */
+export function departmentGroupBackground(hex: string, mode: ThemeMode): string | null {
+  const rgb = parseHex(hex);
+  if (!rgb) return null;
+  const base = BASE[mode];
+  const mix = MIX[mode];
+  return mixHex(base.surface, rgb, mix.surface);
+}
+
+export function readThemeMode(): ThemeMode {
+  if (typeof document === "undefined") return "light";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
 /** CSS vars para `.board-theme-scope`. hex nulo => {} (fallback Aurora via @theme). */
 export function deriveBoardThemeVars(hex: string | null, mode: ThemeMode): CSSProperties {
   if (!hex) return {};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Clock, FolderPlus, UserPlus } from "lucide-react";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/(app)/notifications/actions";
@@ -55,11 +55,20 @@ export function NotificationBell({ notifications, unreadCount, variant = "sideba
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
+  const [optimisticNotifs, markReadOptimistic] = useOptimistic(
+    notifications,
+    (state, action: { type: "one"; id: string } | { type: "all" }) => {
+      const now = new Date().toISOString();
+      if (action.type === "all") return state.map((n) => ({ ...n, read_at: n.read_at ?? now }));
+      return state.map((n) => (n.id === action.id ? { ...n, read_at: n.read_at ?? now } : n));
+    },
+  );
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [badgePop, setBadgePop] = useState(false);
   const prevUnread = useRef(unreadCount);
+  const displayUnread = optimisticNotifs.filter((n) => !n.read_at).length;
 
   useEffect(() => {
     if (unreadCount > prevUnread.current) {
@@ -95,17 +104,19 @@ export function NotificationBell({ notifications, unreadCount, variant = "sideba
   function openItem(n: NotificationItem) {
     setOpen(false);
     startTransition(async () => {
-      if (!n.read_at) await markNotificationRead(n.id);
+      if (!n.read_at) {
+        markReadOptimistic({ type: "one", id: n.id });
+        await markNotificationRead(n.id);
+      }
       const href = targetHref(n);
       if (href) router.push(href);
-      router.refresh();
     });
   }
 
   function markAll() {
     startTransition(async () => {
+      markReadOptimistic({ type: "all" });
       await markAllNotificationsRead();
-      router.refresh();
     });
   }
 
@@ -120,21 +131,22 @@ export function NotificationBell({ notifications, unreadCount, variant = "sideba
         onClick={toggle}
         aria-label="Notificacoes"
         title="Notificacoes"
+        aria-busy={pending}
         className={
           isTopbar
-            ? `relative flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-white/90 text-aurora-fg dark:text-gray-900`
-            : "relative flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-aurora-sidebar-muted transition hover:bg-white/5 hover:text-aurora-sidebar-fg"
+            ? `relative flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-white/90 text-aurora-fg dark:text-gray-900 ${pending ? "opacity-70" : ""}`
+            : `relative flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-aurora-sidebar-muted transition hover:bg-white/5 hover:text-aurora-sidebar-fg ${pending ? "opacity-70" : ""}`
         }
       >
         <Bell className="h-4 w-4 shrink-0" />
         {!isTopbar ? <span>Notificacoes</span> : null}
-        {unreadCount > 0 ? (
+        {displayUnread > 0 ? (
           <span
             className={`flex h-4 min-w-4 items-center justify-center rounded-full bg-aurora-danger px-1 text-[10px] font-bold text-white ${badgePopClass} ${
               isTopbar ? "absolute -right-0.5 -top-0.5" : "ml-auto"
             }`}
           >
-            {unreadCount > 9 ? "9+" : unreadCount}
+            {displayUnread > 9 ? "9+" : displayUnread}
           </span>
         ) : null}
       </button>
@@ -149,20 +161,20 @@ export function NotificationBell({ notifications, unreadCount, variant = "sideba
         <div ref={panelRef}>
           <div className="mb-1 flex items-center justify-between px-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-aurora-muted">Notificacoes</p>
-            {unreadCount > 0 ? (
-              <button type="button" onClick={markAll} className="text-[11px] text-aurora-accent hover:underline">
+            {displayUnread > 0 ? (
+              <button type="button" onClick={markAll} disabled={pending} className="text-[11px] text-aurora-accent hover:underline disabled:opacity-60">
                 Marcar todas como lidas
               </button>
             ) : null}
           </div>
           <ul className="max-h-80 space-y-0.5 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {optimisticNotifs.length === 0 ? (
               <li className="flex flex-col items-center gap-2 px-2 py-6 text-center text-xs text-aurora-muted">
                 <Bell className="h-5 w-5 opacity-40" />
                 Sem notificacoes
               </li>
             ) : (
-              notifications.map((n) => {
+              optimisticNotifs.map((n) => {
                 const Icon = ICONS[n.type] ?? Bell;
                 return (
                   <li key={n.id}>

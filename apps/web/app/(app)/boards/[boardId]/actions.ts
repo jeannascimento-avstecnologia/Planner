@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateHomeProjects, revalidateBoard } from "@/lib/revalidation";
 import { acceptBoardInviteByToken } from "@/lib/accept-board-invite";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -9,12 +9,14 @@ import {
   createColumnInput,
   createTagInput,
   createTifluxTicketInput,
+  deleteColumnInput,
   deleteTagInput,
   deleteCardInput,
   detachTagInput,
   inviteBoardInput,
   inviteBoardBatchInput,
   linkTifluxTicketInput,
+  moveCardInput,
   tifluxSearchInput,
   updateBoardMemberRoleInput,
   removeBoardMemberInput,
@@ -25,6 +27,7 @@ import {
 } from "@nextgen/contracts";
 import { lexoPosition } from "@/lib/fractional";
 import { resolveCardDateRange } from "@/lib/parse-date-br";
+import { sanitizeName } from "@/lib/sanitize";
 import { TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { getAppUrl } from "@/lib/app-url";
 import type { EmailSendErrorCode } from "@/lib/email";
@@ -54,7 +57,9 @@ async function emitEvent(
     board_id: string;
     card_id: string;
     actor_id: string | null;
-    type: "created" | "updated" | "assigned" | "due_changed" | "priority_changed";
+    type: "created" | "updated" | "assigned" | "due_changed" | "priority_changed" | "moved";
+    from_column_id?: string | null;
+    to_column_id?: string | null;
     metadata?: Record<string, unknown>;
   },
 ) {
@@ -64,6 +69,8 @@ async function emitEvent(
     card_id: payload.card_id,
     actor_id: payload.actor_id,
     type: payload.type,
+    from_column_id: payload.from_column_id ?? null,
+    to_column_id: payload.to_column_id ?? null,
     metadata: (payload.metadata ?? {}) as Json,
   });
 }
@@ -89,7 +96,7 @@ export async function createColumn(formData: FormData): Promise<void> {
     name: parsed.data.name,
     position: lexoPosition(),
   });
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateBoard(parsed.data.boardId);
 }
 
 export async function updateColumn(formData: FormData): Promise<void> {
@@ -108,10 +115,37 @@ export async function updateColumn(formData: FormData): Promise<void> {
     .eq("board_id", parsed.data.boardId);
   if (error) return;
 
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateBoard(parsed.data.boardId);
 }
 
-export type CreateCardResult = { ok: true } | { error: string };
+export type DeleteColumnResult = { ok: true } | { error: string };
+
+export async function deleteColumn(formData: FormData): Promise<DeleteColumnResult> {
+  const parsed = deleteColumnInput.safeParse({
+    boardId: formData.get("boardId"),
+    columnId: formData.get("columnId"),
+  });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("columns")
+    .select("id", { count: "exact", head: true })
+    .eq("board_id", parsed.data.boardId);
+  if ((count ?? 0) <= 1) return { error: "Nao e possivel excluir a ultima coluna do projeto." };
+
+  const { error } = await supabase
+    .from("columns")
+    .delete()
+    .eq("id", parsed.data.columnId)
+    .eq("board_id", parsed.data.boardId);
+  if (error) return { error: "Nao foi possivel excluir a coluna." };
+
+  revalidateBoard(parsed.data.boardId, { calendar: true });
+  return { ok: true };
+}
+
+export type CreateCardResult = { ok: true; cardId: string } | { error: string };
 
 export async function createCard(formData: FormData): Promise<CreateCardResult> {
   const dueRaw = formData.get("dueDate");
@@ -157,7 +191,7 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
       board_id: parsed.data.boardId,
       column_id: parsed.data.columnId,
       org_id: board.org_id,
-      title: parsed.data.title,
+      title: sanitizeName(parsed.data.title, 500),
       priority: parsed.data.priority,
       due_date: dueDate,
       start_date: startDate,
@@ -185,8 +219,8 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
     p_entity_type: "board",
     p_entity_id: parsed.data.boardId,
   });
-  revalidatePath(`/boards/${parsed.data.boardId}`);
-  return { ok: true };
+  revalidateBoard(parsed.data.boardId, { calendar: Boolean(dueDate) });
+  return { ok: true, cardId: card.id };
 }
 
 export async function updateCard(formData: FormData): Promise<void> {
@@ -286,11 +320,35 @@ export async function updateCard(formData: FormData): Promise<void> {
     });
   }
 
-  revalidatePath(`/boards/${parsed.data.boardId}`);
-  revalidatePath("/calendar");
+  revalidateBoard(parsed.data.boardId, { calendar: true });
 }
 
 export type DeleteCardResult = { ok: true } | { error: string };
+
+export type CardDeleteImpact = { subtasks: number; dependencies: number };
+
+export async function getCardDeleteImpact(cardId: string, boardId: string): Promise<CardDeleteImpact> {
+  const supabase = await createClient();
+  const [{ count: subtasks }, { count: depsAsBlocker }, { count: depsAsBlocked }] = await Promise.all([
+    supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("parent_id", cardId)
+      .eq("board_id", boardId),
+    supabase
+      .from("card_dependencies")
+      .select("blocker_card_id", { count: "exact", head: true })
+      .eq("blocker_card_id", cardId),
+    supabase
+      .from("card_dependencies")
+      .select("blocked_card_id", { count: "exact", head: true })
+      .eq("blocked_card_id", cardId),
+  ]);
+  return {
+    subtasks: subtasks ?? 0,
+    dependencies: (depsAsBlocker ?? 0) + (depsAsBlocked ?? 0),
+  };
+}
 
 export async function deleteCard(formData: FormData): Promise<DeleteCardResult> {
   const parsed = deleteCardInput.safeParse({
@@ -311,8 +369,65 @@ export async function deleteCard(formData: FormData): Promise<DeleteCardResult> 
   const { error } = await supabase.from("cards").delete().eq("id", parsed.data.cardId);
   if (error) return { error: "Nao foi possivel excluir o card." };
 
-  revalidatePath(`/boards/${parsed.data.boardId}`);
-  revalidatePath("/calendar");
+  revalidateBoard(parsed.data.boardId, { calendar: true });
+  return { ok: true };
+}
+
+export type MoveCardResult = { ok: true } | { error: string };
+
+export async function moveCard(formData: FormData): Promise<MoveCardResult> {
+  const parsed = moveCardInput.safeParse({
+    cardId: formData.get("cardId"),
+    boardId: formData.get("boardId"),
+    columnId: formData.get("columnId"),
+    position: formData.get("position"),
+  });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("cards")
+    .select("id, org_id, column_id")
+    .eq("id", parsed.data.cardId)
+    .eq("board_id", parsed.data.boardId)
+    .single();
+  if (!existing) return { error: "Card nao encontrado." };
+
+  const { data: column } = await supabase
+    .from("columns")
+    .select("id")
+    .eq("id", parsed.data.columnId)
+    .eq("board_id", parsed.data.boardId)
+    .single();
+  if (!column) return { error: "Coluna invalida." };
+
+  const fromColumnId = existing.column_id;
+  const { error } = await supabase
+    .from("cards")
+    .update({ column_id: parsed.data.columnId, position: parsed.data.position })
+    .eq("id", parsed.data.cardId)
+    .eq("board_id", parsed.data.boardId);
+  if (error) {
+    return { error: "Nao foi possivel mover o card." };
+  }
+
+  if (fromColumnId !== parsed.data.columnId) {
+    await emitEvent(supabase, {
+      org_id: existing.org_id,
+      board_id: parsed.data.boardId,
+      card_id: parsed.data.cardId,
+      actor_id: user?.id ?? null,
+      type: "moved",
+      from_column_id: fromColumnId,
+      to_column_id: parsed.data.columnId,
+    });
+  }
+
+  revalidateBoard(parsed.data.boardId, { calendar: true });
   return { ok: true };
 }
 
@@ -342,7 +457,7 @@ export async function createTag(formData: FormData): Promise<CreateTagResult> {
     .select("id")
     .single();
 
-  revalidatePath(`/boards/${boardId}`);
+  revalidateBoard(boardId);
 
   if (error) {
     if (error.code === "23505") return { error: "Marcador ja existe." };
@@ -372,7 +487,7 @@ export async function attachTag(formData: FormData): Promise<void> {
     tag_id: parsed.data.tagId,
     org_id: card.org_id,
   });
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateBoard(parsed.data.boardId);
 }
 
 export async function detachTag(formData: FormData): Promise<void> {
@@ -389,7 +504,7 @@ export async function detachTag(formData: FormData): Promise<void> {
     .delete()
     .eq("card_id", parsed.data.cardId)
     .eq("tag_id", parsed.data.tagId);
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateBoard(parsed.data.boardId);
 }
 
 export type DeleteTagResult = { ok: true } | { error: string };
@@ -405,7 +520,7 @@ export async function deleteTag(formData: FormData): Promise<DeleteTagResult> {
   const { error } = await supabase.from("tags").delete().eq("id", parsed.data.tagId);
   if (error) return { error: "Nao foi possivel excluir o marcador." };
 
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateBoard(parsed.data.boardId);
   return { ok: true };
 }
 
@@ -585,9 +700,8 @@ export async function inviteToBoardBatch(input: InviteBoardBatchInput): Promise<
     });
   }
 
-  revalidatePath("/boards");
-  revalidatePath(`/boards/${parsed.data.boardId}`);
-  revalidatePath("/projects");
+  revalidateHomeProjects();
+  revalidateBoard(parsed.data.boardId);
 
   return { ok: true, results };
 }
@@ -623,8 +737,8 @@ export async function updateBoardMemberRole(formData: FormData): Promise<UpdateM
 
   if (error) return { ok: false, error: "Nao foi possivel atualizar o papel." };
 
-  revalidatePath("/boards");
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateHomeProjects();
+  revalidateBoard(parsed.data.boardId);
   return { ok: true };
 }
 
@@ -658,16 +772,15 @@ export async function removeBoardMember(formData: FormData): Promise<RemoveBoard
 
   if (error) return { ok: false, error: "Nao foi possivel remover o membro." };
 
-  revalidatePath("/boards");
-  revalidatePath(`/boards/${parsed.data.boardId}`);
-  revalidatePath("/projects");
+  revalidateHomeProjects();
+  revalidateBoard(parsed.data.boardId);
   return { ok: true };
 }
 
 export async function acceptInvite(token: string): Promise<{ boardId?: string; error?: string }> {
   const result = await acceptBoardInviteByToken(token);
   if (result.boardId) {
-    revalidatePath("/boards");
+    revalidateHomeProjects();
   }
   return result;
 }
@@ -816,7 +929,7 @@ export async function createTifluxTicket(formData: FormData): Promise<TifluxTick
 
   if (error) return { error: "Chamado criado, mas falha ao salvar no card." };
 
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateBoard(parsed.data.boardId);
   return { ok: true, ticketNumber: ticket.ticketNumber, ticketId: ticket.ticketId };
 }
 
@@ -885,6 +998,6 @@ export async function linkTifluxTicket(formData: FormData): Promise<TifluxTicket
 
   if (error) return { error: "Falha ao vincular chamado ao card." };
 
-  revalidatePath(`/boards/${parsed.data.boardId}`);
+  revalidateBoard(parsed.data.boardId);
   return { ok: true, ticketNumber: ticket.ticketNumber, ticketId: ticket.ticketId };
 }

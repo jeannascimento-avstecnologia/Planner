@@ -31,9 +31,21 @@ export type Database = {
         Relationships: [];
       };
       boards: {
-        Row: { id: string; org_id: string; name: string; description: string | null; icon: string | null; color: string | null; created_by: string | null; archived: boolean; tiflux_enabled: boolean; integrations: Json; created_at: string; updated_at: string };
-        Insert: { id?: string; org_id: string; name: string; description?: string | null; icon?: string | null; color?: string | null; created_by?: string | null; archived?: boolean; tiflux_enabled?: boolean; integrations?: Json; created_at?: string; updated_at?: string };
-        Update: { id?: string; org_id?: string; name?: string; description?: string | null; icon?: string | null; color?: string | null; created_by?: string | null; archived?: boolean; tiflux_enabled?: boolean; integrations?: Json; created_at?: string; updated_at?: string };
+        Row: { id: string; org_id: string; name: string; description: string | null; icon: string | null; color: string | null; department_id: string | null; created_by: string | null; archived: boolean; tiflux_enabled: boolean; integrations: Json; created_at: string; updated_at: string };
+        Insert: { id?: string; org_id: string; name: string; description?: string | null; icon?: string | null; color?: string | null; department_id?: string | null; created_by?: string | null; archived?: boolean; tiflux_enabled?: boolean; integrations?: Json; created_at?: string; updated_at?: string };
+        Update: { id?: string; org_id?: string; name?: string; description?: string | null; icon?: string | null; color?: string | null; department_id?: string | null; created_by?: string | null; archived?: boolean; tiflux_enabled?: boolean; integrations?: Json; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      departments: {
+        Row: { id: string; org_id: string; name: string; icon: string | null; color: string | null; created_by: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; org_id: string; name: string; icon?: string | null; color?: string | null; created_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; org_id?: string; name?: string; icon?: string | null; color?: string | null; created_by?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      department_members: {
+        Row: { id: string; department_id: string; org_id: string; user_id: string; role: Database["public"]["Enums"]["membership_role"]; created_at: string };
+        Insert: { id?: string; department_id: string; org_id: string; user_id: string; role?: Database["public"]["Enums"]["membership_role"]; created_at?: string };
+        Update: { id?: string; department_id?: string; org_id?: string; user_id?: string; role?: Database["public"]["Enums"]["membership_role"]; created_at?: string };
         Relationships: [];
       };
       board_members: {
@@ -312,6 +324,42 @@ export type Database = {
       };
       move_board_to_org: {
         Args: { p_board: string; p_target_org: string };
+        Returns: undefined;
+      };
+      create_department: {
+        Args: { p_org: string; p_name: string; p_icon?: string | null; p_color?: string | null };
+        Returns: Database["public"]["Tables"]["departments"]["Row"];
+      };
+      update_department: {
+        Args: { p_dept: string; p_name: string; p_icon?: string | null; p_color?: string | null };
+        Returns: Database["public"]["Tables"]["departments"]["Row"];
+      };
+      delete_department: {
+        Args: { p_dept: string };
+        Returns: undefined;
+      };
+      set_board_department: {
+        Args: { p_board: string; p_dept: string | null };
+        Returns: undefined;
+      };
+      add_department_member: {
+        Args: {
+          p_dept: string;
+          p_user: string;
+          p_role?: Database["public"]["Enums"]["membership_role"];
+        };
+        Returns: undefined;
+      };
+      set_department_member_role: {
+        Args: {
+          p_dept: string;
+          p_user: string;
+          p_role: Database["public"]["Enums"]["membership_role"];
+        };
+        Returns: undefined;
+      };
+      remove_department_member: {
+        Args: { p_dept: string; p_user: string };
         Returns: undefined;
       };
     };

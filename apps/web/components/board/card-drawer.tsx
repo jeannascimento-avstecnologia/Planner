@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import type { CardPriority } from "@nextgen/contracts";
-import { deleteCard, updateCard } from "@/app/(app)/boards/[boardId]/actions";
+import { deleteCard, getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/actions";
 import { inputBoardClassSm, btnBoardPrimarySm, btnBoardSecondary, btnDanger } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -49,10 +48,24 @@ export function CardDrawer({
   onOpenTifluxLink,
   onClose,
 }: Props) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteImpact, setDeleteImpact] = useState<{ subtasks: number; dependencies: number } | null>(null);
+
+  useEffect(() => {
+    if (readOnly || !deleteOpen) {
+      setDeleteImpact(null);
+      return;
+    }
+    let cancelled = false;
+    void getCardDeleteImpact(card.id, boardId).then((impact) => {
+      if (!cancelled) setDeleteImpact(impact);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [readOnly, deleteOpen, card.id, boardId]);
 
   if (readOnly) {
     return (
@@ -88,14 +101,36 @@ export function CardDrawer({
       }
       setDeleteOpen(false);
       onClose();
-      router.refresh();
     });
   }
 
   const cardFormId = `card-edit-${card.id}`;
 
+  function deleteConfirmMessage(): string {
+    const base = `Tem certeza que deseja excluir "${card.title}"? Esta acao nao pode ser desfeita.`;
+    if (!deleteImpact) return base;
+    const parts: string[] = [];
+    if (deleteImpact.subtasks > 0) {
+      parts.push(
+        deleteImpact.subtasks === 1
+          ? "1 subtarefa vinculada"
+          : `${deleteImpact.subtasks} subtarefas vinculadas`,
+      );
+    }
+    if (deleteImpact.dependencies > 0) {
+      parts.push(
+        deleteImpact.dependencies === 1
+          ? "1 dependencia vinculada"
+          : `${deleteImpact.dependencies} dependencias vinculadas`,
+      );
+    }
+    if (parts.length === 0) return base;
+    return `${base} Isso remove permanentemente ${parts.join(" e ")}.`;
+  }
+
   return (
     <AuroraDrawer onClose={onClose} showHeader={false} testId="card-drawer">
+      <div className="flex min-h-0 flex-1 flex-col">
       <header
           className="flex items-center justify-between border-b border-board-border px-4 py-3"
           style={headerStyle ? { backgroundColor: headerStyle.backgroundColor, color: headerStyle.color } : undefined}
@@ -125,7 +160,6 @@ export function CardDrawer({
             startTransition(async () => {
               await updateCard(fd);
               appToast.success("Card salvo");
-              router.refresh();
             })
           }
           className="flex flex-col gap-3 p-4 pb-2"
@@ -252,7 +286,7 @@ export function CardDrawer({
         </div>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-board-border px-4 py-3">
+        <div className="shrink-0 flex flex-col gap-2 border-t border-board-border px-4 py-3">
           <button
             type="submit"
             form={cardFormId}
@@ -278,13 +312,14 @@ export function CardDrawer({
       <ConfirmDialog
         open={deleteOpen}
         title="Excluir card"
-        message={`Tem certeza que deseja excluir "${card.title}"? Esta acao nao pode ser desfeita.`}
+        message={deleteConfirmMessage()}
         confirmLabel="Excluir"
         pending={pending}
         variant="board"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteOpen(false)}
       />
+      </div>
     </AuroraDrawer>
   );
 }

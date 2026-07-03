@@ -17,6 +17,9 @@ export type OrgMemberRole = z.infer<typeof orgMemberRole>;
 export const boardMemberRole = z.enum(["admin", "viewer", "manager"]);
 export type BoardMemberRole = z.infer<typeof boardMemberRole>;
 
+export const departmentMemberRole = z.enum(["admin", "viewer", "manager"]);
+export type DepartmentMemberRole = z.infer<typeof departmentMemberRole>;
+
 export const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
 // --- Auth ---
@@ -53,6 +56,7 @@ export const createBoardInput = z.object({
   icon: z.string().max(40).optional(),
   color: hexColor.optional(),
   orgId: uuid.optional(),
+  departmentId: uuid.nullable().optional(),
 });
 export type CreateBoardInput = z.infer<typeof createBoardInput>;
 
@@ -162,6 +166,12 @@ export const updateColumnInput = z.object({
 });
 export type UpdateColumnInput = z.infer<typeof updateColumnInput>;
 
+export const deleteColumnInput = z.object({
+  columnId: uuid,
+  boardId: uuid,
+});
+export type DeleteColumnInput = z.infer<typeof deleteColumnInput>;
+
 export const createCardInput = z.object({
   boardId: uuid,
   columnId: uuid,
@@ -191,6 +201,14 @@ export const deleteCardInput = z.object({
   boardId: uuid,
 });
 export type DeleteCardInput = z.infer<typeof deleteCardInput>;
+
+export const moveCardInput = z.object({
+  cardId: uuid,
+  boardId: uuid,
+  columnId: uuid,
+  position: z.string().min(1).max(64),
+});
+export type MoveCardInput = z.infer<typeof moveCardInput>;
 
 export const createTagInput = z.object({
   boardId: uuid,
@@ -306,3 +324,51 @@ export const setColumnDefaultStageInput = z.object({
   stageId: uuid.nullable(),
 });
 export type SetColumnDefaultStageInput = z.infer<typeof setColumnDefaultStageInput>;
+
+// --- Departments ---
+export const createDepartmentInput = z.object({
+  orgId: uuid,
+  name: z.string().min(1).max(120),
+  icon: z.string().max(40).optional(),
+  color: hexColor.optional(),
+});
+export type CreateDepartmentInput = z.infer<typeof createDepartmentInput>;
+
+export const updateDepartmentInput = z.object({
+  departmentId: uuid,
+  name: z.string().min(1).max(120),
+  icon: z.string().max(40).nullable().optional(),
+  color: hexColor.nullable().optional(),
+});
+export type UpdateDepartmentInput = z.infer<typeof updateDepartmentInput>;
+
+export const deleteDepartmentInput = z.object({
+  departmentId: uuid,
+});
+export type DeleteDepartmentInput = z.infer<typeof deleteDepartmentInput>;
+
+export const addDepartmentMemberInput = z.object({
+  departmentId: uuid,
+  userId: uuid,
+  role: departmentMemberRole.default("viewer"),
+});
+export type AddDepartmentMemberInput = z.infer<typeof addDepartmentMemberInput>;
+
+export const updateDepartmentMemberRoleInput = z.object({
+  departmentId: uuid,
+  userId: uuid,
+  role: departmentMemberRole,
+});
+export type UpdateDepartmentMemberRoleInput = z.infer<typeof updateDepartmentMemberRoleInput>;
+
+export const removeDepartmentMemberInput = z.object({
+  departmentId: uuid,
+  userId: uuid,
+});
+export type RemoveDepartmentMemberInput = z.infer<typeof removeDepartmentMemberInput>;
+
+export const setBoardDepartmentInput = z.object({
+  boardId: uuid,
+  departmentId: uuid.nullable(),
+});
+export type SetBoardDepartmentInput = z.infer<typeof setBoardDepartmentInput>;

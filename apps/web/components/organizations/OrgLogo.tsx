@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Building2 } from "lucide-react";
 import { resolveOrgLogoDisplayUrl } from "@/lib/org-logo-url";
 
@@ -9,6 +10,7 @@ type Props = {
   logoUrl?: string | null;
   size?: "xs" | "sm" | "md" | "lg";
   className?: string;
+  priority?: boolean;
 };
 
 const BOX_CLASS: Record<NonNullable<Props["size"]>, string> = {
@@ -16,6 +18,13 @@ const BOX_CLASS: Record<NonNullable<Props["size"]>, string> = {
   sm: "h-8 w-8 rounded-lg",
   md: "h-10 w-10 rounded-lg",
   lg: "h-14 w-14 rounded-xl",
+};
+
+const IMAGE_SIZE: Record<NonNullable<Props["size"]>, number> = {
+  xs: 24,
+  sm: 32,
+  md: 40,
+  lg: 56,
 };
 
 const FALLBACK_TEXT: Record<NonNullable<Props["size"]>, string> = {
@@ -55,22 +64,26 @@ function FallbackLogo({
   );
 }
 
-export function OrgLogo({ name, logoUrl, size = "md", className = "" }: Props) {
+export function OrgLogo({ name, logoUrl, size = "md", className = "", priority = false }: Props) {
   const [broken, setBroken] = useState(false);
   const url = resolveOrgLogoDisplayUrl(logoUrl);
+  const px = IMAGE_SIZE[size];
 
   if (url && !broken) {
     return (
       <span
-        className={`${BOX_CLASS[size]} flex shrink-0 items-center justify-center overflow-hidden ${className}`}
+        className={`${BOX_CLASS[size]} relative flex shrink-0 items-center justify-center overflow-hidden ${className}`}
         data-testid="org-logo-image-wrap"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={url}
           alt={`Logo ${name}`}
+          width={px}
+          height={px}
           className="max-h-full max-w-full object-contain"
           data-testid="org-logo-image"
+          priority={priority}
+          unoptimized={url.startsWith("/api/")}
           onError={() => setBroken(true)}
         />
       </span>

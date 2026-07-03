@@ -1,6 +1,15 @@
-// Posicao para ordenacao de colunas/cards.
-// MVP/S2: substituir por fractional indexing real (lib fractional-indexing)
-// para mover itens com 1 write O(1). Por ora gera chave monotonica estavel.
-export function lexoPosition(): string {
-  return "z" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+import { generateKeyBetween } from "fractional-indexing";
+
+/** Nova chave no fim da lista (criar card/coluna). */
+export function lexoPosition(after?: string | null): string {
+  return generateKeyBetween(after ?? null, null);
+}
+
+/** Chave entre dois vizinhos (DnD). Fallback se chaves legadas (formato antigo) forem invalidas. */
+export function positionBetween(before: string | null, after: string | null): string {
+  try {
+    return generateKeyBetween(before, after);
+  } catch {
+    return lexoPosition(before);
+  }
 }

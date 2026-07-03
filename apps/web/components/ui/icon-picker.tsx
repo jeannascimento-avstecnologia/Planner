@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { DEFAULT_BOARD_ICON, ICON_NAMES, getBoardIcon } from "@/lib/icon-catalog";
+
+const DEFAULT_ICON = "folder-kanban";
 
 type Props = {
   name: string;
@@ -10,10 +11,18 @@ type Props = {
   color?: string;
 };
 
-export function IconPicker({ name, defaultValue = DEFAULT_BOARD_ICON, color }: Props) {
+type CatalogModule = typeof import("@/lib/icon-catalog");
+
+export function IconPicker({ name, defaultValue = DEFAULT_ICON, color }: Props) {
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
+  const [catalog, setCatalog] = useState<CatalogModule | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || catalog) return;
+    void import("@/lib/icon-catalog").then(setCatalog);
+  }, [open, catalog]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -23,7 +32,7 @@ export function IconPicker({ name, defaultValue = DEFAULT_BOARD_ICON, color }: P
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  const Current = getBoardIcon(value);
+  const Current = catalog ? catalog.getBoardIcon(value) : null;
 
   return (
     <div className="relative" ref={ref}>
@@ -34,14 +43,18 @@ export function IconPicker({ name, defaultValue = DEFAULT_BOARD_ICON, color }: P
         aria-label="Escolher icone"
         className="flex items-center gap-2 rounded-md border border-aurora-border bg-aurora-surface px-2 py-1.5 text-sm text-aurora-fg hover:bg-aurora-accent-muted/30"
       >
-        <Current className="h-4 w-4" style={color ? { color } : undefined} />
+        {Current ? (
+          <Current className="h-4 w-4" style={color ? { color } : undefined} />
+        ) : (
+          <span className="h-4 w-4 rounded bg-aurora-surface-2" />
+        )}
         <ChevronDown className="h-3 w-3 text-aurora-muted" />
       </button>
 
-      {open ? (
+      {open && catalog ? (
         <div className="absolute left-0 top-full z-50 mt-1 grid max-h-56 w-64 grid-cols-8 gap-1 overflow-y-auto rounded-lg border border-aurora-border bg-aurora-surface p-2 shadow-lg">
-          {ICON_NAMES.map((n) => {
-            const I = getBoardIcon(n);
+          {catalog.ICON_NAMES.map((n) => {
+            const I = catalog.getBoardIcon(n);
             const on = n === value;
             return (
               <button

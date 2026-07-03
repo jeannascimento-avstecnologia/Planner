@@ -1,13 +1,17 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { ProjectsGridView } from "@/components/projects/projects-grid-view";
 import { ProjectsListView } from "@/components/projects/projects-list-view";
 import { ProjectsViewSwitcher, parseProjectsLayout } from "@/components/projects/projects-view-switcher";
+import { DepartmentIcon } from "@/components/departments/DepartmentIcon";
 import type { OrgProjectSection } from "@/lib/load-org-projects";
 import { OrgLogo } from "@/components/organizations/OrgLogo";
 import type { BoardMember } from "@/components/board/share-project-panel";
+import { btnBoardSecondary } from "@/lib/ui-classes";
+import { departmentGroupBackground, readThemeMode, type ThemeMode } from "@/lib/board-theme";
 
 type Props = {
   sections: OrgProjectSection[];
@@ -18,10 +22,62 @@ type Props = {
 function HomeProjectsGroupedInner({ sections, boardMembersByBoardId, currentUserId }: Props) {
   const searchParams = useSearchParams();
   const layout = parseProjectsLayout(searchParams.get("layout"));
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
+
+  useEffect(() => {
+    setThemeMode(readThemeMode());
+    const obs = new MutationObserver(() => setThemeMode(readThemeMode()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
+  const activeSection = sections.find((s) => s.isActive) ?? sections[0];
+  const filterOptions = useMemo(() => {
+    if (!activeSection) return [];
+    return [
+      { id: "all", label: "Todos" },
+      ...activeSection.departmentGroups.map((g) => ({
+        id: g.departmentId ?? "general",
+        label: g.name,
+      })),
+    ];
+  }, [activeSection]);
+
+  function toggleGroup(key: string) {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function matchesFilter(departmentId: string | null): boolean {
+    if (deptFilter === "all") return true;
+    if (deptFilter === "general") return !departmentId;
+    return departmentId === deptFilter;
+  }
 
   return (
     <div className="space-y-6">
       <ProjectsViewSwitcher value={layout} />
+
+      {activeSection && filterOptions.length > 1 ? (
+        <div className="flex flex-wrap gap-2" data-testid="home-dept-filter">
+          {filterOptions.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setDeptFilter(opt.id)}
+              className={
+                btnBoardSecondary +
+                " text-xs " +
+                (deptFilter === opt.id ? "border-aurora-accent text-aurora-accent" : "")
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {sections.length === 0 ? (
         <p className="text-sm text-aurora-muted">Nenhum projeto ainda. Crie o primeiro acima.</p>
       ) : (
@@ -46,24 +102,82 @@ function HomeProjectsGroupedInner({ sections, boardMembersByBoardId, currentUser
                 {section.boards.length} projeto{section.boards.length === 1 ? "" : "s"}
               </span>
             </header>
+
             {section.boards.length === 0 ? (
               <p className="text-sm text-aurora-muted">Nenhum projeto nesta organizacao.</p>
-            ) : layout === "list" ? (
-              <ProjectsListView
-                boards={section.boards}
-                boardMembersByBoardId={boardMembersByBoardId}
-                isOrgAdmin={section.isOrgAdmin}
-                hubMode={false}
-                currentUserId={currentUserId}
-              />
             ) : (
-              <ProjectsGridView
-                boards={section.boards}
-                boardMembersByBoardId={boardMembersByBoardId}
-                isOrgAdmin={section.isOrgAdmin}
-                hubMode={false}
-                currentUserId={currentUserId}
-              />
+              <div className="space-y-4">
+                {section.departmentGroups
+                  .filter((g) => matchesFilter(g.departmentId))
+                  .map((group) => {
+                    const groupKey = `${section.orgId}:${group.departmentId ?? "general"}`;
+                    const isCollapsed = collapsed[groupKey] ?? false;
+                    const pastelBg =
+                      group.departmentId && group.color
+                        ? departmentGroupBackground(group.color, themeMode)
+                        : null;
+                    return (
+                      <div
+                        key={groupKey}
+                        className="space-y-2 rounded-lg border border-transparent p-3"
+                        style={
+                          pastelBg
+                            ? {
+                                backgroundColor: pastelBg,
+                                borderColor: group.color ? `${group.color}33` : undefined,
+                              }
+                            : undefined
+                        }
+                        data-testid={`home-dept-group-${groupKey}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(groupKey)}
+                          className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-left hover:bg-aurora-surface-2"
+                        >
+                          {isCollapsed ? (
+                            <ChevronRight className="h-4 w-4 text-aurora-muted" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-aurora-muted" />
+                          )}
+                          {group.departmentId ? (
+                            <DepartmentIcon icon={group.icon} color={group.color} size="sm" />
+                          ) : null}
+                          <span className="font-medium text-aurora-fg">{group.name}</span>
+                          {!group.hasAccess && group.departmentId ? (
+                            <span className="rounded-full bg-aurora-surface-2 px-2 py-0.5 text-xs text-aurora-muted">
+                              Sem acesso
+                            </span>
+                          ) : null}
+                          <span className="text-xs text-aurora-muted">
+                            {group.boards.length} projeto{group.boards.length === 1 ? "" : "s"}
+                          </span>
+                        </button>
+                        {!isCollapsed ? (
+                          group.boards.length === 0 ? (
+                            <p className="pl-6 text-sm text-aurora-muted">Nenhum projeto neste departamento.</p>
+                          ) : layout === "list" ? (
+                            <ProjectsListView
+                              boards={group.boards}
+                              boardMembersByBoardId={boardMembersByBoardId}
+                              isOrgAdmin={section.isOrgAdmin}
+                              hubMode={false}
+                              currentUserId={currentUserId}
+                            />
+                          ) : (
+                            <ProjectsGridView
+                              boards={group.boards}
+                              boardMembersByBoardId={boardMembersByBoardId}
+                              isOrgAdmin={section.isOrgAdmin}
+                              hubMode={false}
+                              currentUserId={currentUserId}
+                            />
+                          )
+                        ) : null}
+                      </div>
+                    );
+                  })}
+              </div>
             )}
           </section>
         ))

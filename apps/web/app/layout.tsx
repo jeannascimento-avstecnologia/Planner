@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { QueryProvider } from "@/lib/query-provider";
 import { ThemeScript } from "@/components/shell/theme-provider";
 import { AuroraToaster } from "@/components/ui/sonner";
 import { PRODUCT_NAME } from "@/lib/brand";
@@ -27,10 +26,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeScript />
       </head>
       <body>
-        <QueryProvider>
-          {children}
-          <AuroraToaster />
-        </QueryProvider>
+        {children}
+        <AuroraToaster />
       </body>
     </html>
   );

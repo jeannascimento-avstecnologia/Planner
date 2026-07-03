@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteBoard, updateBoardSettings } from "@/app/(app)/boards/actions";
+import { setBoardDepartmentAction, getBoardDepartmentContextAction } from "@/app/(app)/settings/departments/actions";
+import type { BoardDepartmentContext } from "@/lib/load-board-department-context";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -27,8 +29,22 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deptContext, setDeptContext] = useState<BoardDepartmentContext | null>(null);
+  const [departmentId, setDepartmentId] = useState<string>("general");
   const userBoardRole = members.find((m) => m.user_id === currentUserId)?.role ?? null;
   const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getBoardDepartmentContextAction(board.id).then((ctx) => {
+      if (cancelled || !ctx) return;
+      setDeptContext(ctx);
+      setDepartmentId(ctx.currentDepartmentId ?? "general");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [board.id]);
 
   function save(fd: FormData) {
     setError(null);
@@ -40,11 +56,27 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
       if ("error" in result) {
         setError(result.error);
         appToast.error(result.error);
-      } else {
-        appToast.success("Projeto atualizado");
-        router.refresh();
-        onClose();
+        return;
       }
+
+      const nextDept = departmentId;
+      const currentDept = deptContext?.currentDepartmentId ?? null;
+      const normalizedNext = nextDept === "general" ? null : nextDept;
+      if (deptContext?.canMove && normalizedNext !== currentDept) {
+        const deptFd = new FormData();
+        deptFd.set("boardId", board.id);
+        deptFd.set("departmentId", nextDept);
+        const moveRes = await setBoardDepartmentAction(deptFd);
+        if (!moveRes.ok) {
+          setError(moveRes.error);
+          appToast.error(moveRes.error);
+          return;
+        }
+      }
+
+      appToast.success("Projeto atualizado");
+      router.refresh();
+      onClose();
     });
   }
 
@@ -88,6 +120,24 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
             <IconPicker name="icon" defaultValue={board.icon ?? undefined} />
             <ColorPicker name="color" defaultValue={board.color ?? undefined} />
           </div>
+
+          {deptContext?.canMove ? (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-aurora-muted">Departamento</span>
+              <select
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                className={inputClass}
+                data-testid="project-settings-department"
+              >
+                {deptContext.options.map((opt) => (
+                  <option key={opt.id ?? "general"} value={opt.id ?? "general"}>
+                    {opt.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
 
           <label className="flex items-center gap-2 text-sm text-aurora-fg">
             <input type="checkbox" name="archived" defaultChecked={board.archived} />

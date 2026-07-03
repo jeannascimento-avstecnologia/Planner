@@ -147,6 +147,7 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
         <OrgQuickManageModal
           orgId={org.orgId}
           orgName={org.name}
+          orgSlug={org.slug}
           logoUrl={org.logoUrl}
           canManageMembers={org.canManageMembers}
           canManageIdentity={org.canManageIdentity}
@@ -155,6 +156,7 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
           currentUserId={currentUserId}
           members={org.members}
           pendingInvites={org.pendingInvites}
+          departments={org.departments}
           onClose={() => setManageOpen(false)}
         />
       ) : null}

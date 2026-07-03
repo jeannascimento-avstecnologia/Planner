@@ -1,26 +1,55 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { UserPlus, Settings } from "lucide-react";
 import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { btnBoardSecondary } from "@/lib/ui-classes";
-import { CardDrawer } from "./card-drawer";
+import { BoardKanbanView } from "./board-kanban-view";
+import { BoardSkeleton } from "@/components/ui/skeleton";
+import { BoardViewSwitcher } from "./board-view-switcher";
+
+const BoardCalendarView = dynamic(
+  () => import("./board-calendar-view").then((m) => ({ default: m.BoardCalendarView })),
+  { loading: () => <BoardSkeleton /> },
+);
+const BoardTableView = dynamic(
+  () => import("./board-table-view").then((m) => ({ default: m.BoardTableView })),
+  { loading: () => <BoardSkeleton /> },
+);
+const BoardTimelineView = dynamic(
+  () => import("./board-timeline-view").then((m) => ({ default: m.BoardTimelineView })),
+  { loading: () => <BoardSkeleton /> },
+);
+const CardDrawer = dynamic(() => import("./card-drawer").then((m) => ({ default: m.CardDrawer })), {
+  ssr: false,
+});
+const StageManagerModal = dynamic(
+  () => import("./stage-manager-modal").then((m) => ({ default: m.StageManagerModal })),
+  { ssr: false },
+);
+const TifluxTicketModal = dynamic(
+  () => import("./tiflux-ticket-modal").then((m) => ({ default: m.TifluxTicketModal })),
+  { ssr: false },
+);
+const TifluxLinkTicketModal = dynamic(
+  () => import("./tiflux-link-ticket-modal").then((m) => ({ default: m.TifluxLinkTicketModal })),
+  { ssr: false },
+);
+const InviteMembersModal = dynamic(
+  () => import("./invite-members-modal").then((m) => ({ default: m.InviteMembersModal })),
+  { ssr: false },
+);
+const BoardAccessModal = dynamic(
+  () => import("./board-access-modal").then((m) => ({ default: m.BoardAccessModal })),
+  { ssr: false },
+);
 import { CardFilterBar } from "./card-filter-bar";
 import { canEditBoardUI, canManageBoardMembers, canWriteBoard } from "@/lib/board-member-roles";
-import { BoardAccessModal } from "./board-access-modal";
-import { InviteMembersModal } from "./invite-members-modal";
 import { BoardAppearanceEditor } from "./board-appearance-editor";
 import { BoardIcon } from "./board-icon";
-import { BoardKanbanView } from "./board-kanban-view";
-import { BoardCalendarView } from "./board-calendar-view";
-import { BoardTableView } from "./board-table-view";
-import { BoardTimelineView } from "./board-timeline-view";
-import { BoardViewSwitcher } from "./board-view-switcher";
-import { StageManagerModal } from "./stage-manager-modal";
-import { TifluxLinkTicketModal } from "./tiflux-link-ticket-modal";
-import { TifluxTicketModal } from "./tiflux-ticket-modal";
 import type { BoardMember } from "./board-member";
 import {
   EMPTY_FILTERS,
@@ -147,6 +176,9 @@ function BoardViewInner({
     for (const col of columns) map.set(col.id, []);
     if (!groupByAssignee) {
       for (const card of filtered) map.get(card.column_id)?.push(card);
+      for (const list of map.values()) {
+        list.sort((a, b) => a.position.localeCompare(b.position));
+      }
     }
     return map;
   }, [columns, filtered, groupByAssignee]);

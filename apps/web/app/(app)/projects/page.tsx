@@ -22,12 +22,26 @@ export default async function ProjectsPage() {
     );
   }
 
-  const { orgName, isOrgAdmin, currentUserId, sections, activeOrgId, activeOrgLogoUrl, boardMembersByBoardId, upcomingTasksByBoard } =
+  const { orgName, isOrgAdmin, currentUserId, sections, activeOrgId, activeOrgLogoUrl, boardMembersByBoardId, upcomingTasksByBoard, creatableDepartments } =
     result.data;
   const boards = sections.find((s) => s.orgId === activeOrgId)?.boards ?? [];
+
+  const creatableByOrg = new Map<string, { id: string | null; label: string }[]>();
+  for (const item of creatableDepartments) {
+    const list = creatableByOrg.get(item.orgId) ?? [];
+    list.push({ id: item.departmentId, label: item.departmentId ? item.label.split(" — ").slice(1).join(" — ") : "Geral" });
+    creatableByOrg.set(item.orgId, list);
+  }
+
   const creatableOrgs = sections
-    .filter((s) => s.isOrgAdmin)
-    .map((s) => ({ orgId: s.orgId, name: s.orgName, isActive: s.isActive, logoUrl: s.logoUrl }));
+    .filter((s) => creatableByOrg.has(s.orgId))
+    .map((s) => ({
+      orgId: s.orgId,
+      name: s.orgName,
+      isActive: s.isActive,
+      logoUrl: s.logoUrl,
+      departmentOptions: creatableByOrg.get(s.orgId) ?? [{ id: null, label: "Geral" }],
+    }));
 
   return (
     <div className="space-y-6">

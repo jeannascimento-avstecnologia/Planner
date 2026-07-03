@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
@@ -122,8 +123,7 @@ export function OrgMembersTable({
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {member.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={member.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                          <Image src={member.avatar_url} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
                         ) : (
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-aurora-surface-2 text-xs font-semibold">
                             {memberLabel(member).slice(0, 2).toUpperCase()}

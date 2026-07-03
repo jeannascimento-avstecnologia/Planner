@@ -10,13 +10,17 @@ import { OrgMembersTable } from "@/components/organization/OrgMembersTable";
 import { TransferOwnershipDialog } from "@/components/organization/TransferOwnershipDialog";
 import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { OrgLogoUploader } from "@/components/organizations/OrgLogoUploader";
+import { OrgSettingsForm } from "@/components/organization/OrgSettingsForm";
 import { orgRoleLabel } from "@/lib/org-member-roles";
 import type { OrgMemberRow } from "@nextgen/contracts";
 import type { OrgPendingInvite } from "@/lib/load-organizations-overview";
+import { DepartmentsPanel } from "@/components/departments/DepartmentsPanel";
+import type { DepartmentOverview } from "@/components/departments/DepartmentsPanel";
 
 type Props = {
   orgId: string;
   orgName: string;
+  orgSlug: string;
   logoUrl: string | null;
   canManageMembers: boolean;
   canManageIdentity: boolean;
@@ -25,14 +29,16 @@ type Props = {
   currentUserId: string;
   members: OrgMemberRow[];
   pendingInvites: OrgPendingInvite[];
+  departments: DepartmentOverview[];
   onClose: () => void;
 };
 
-type Tab = "identity" | "members" | "invites" | "advanced";
+type Tab = "identity" | "members" | "invites" | "departments" | "advanced";
 
 export function OrgQuickManageModal({
   orgId,
   orgName,
+  orgSlug,
   logoUrl,
   canManageMembers,
   canManageIdentity,
@@ -41,6 +47,7 @@ export function OrgQuickManageModal({
   currentUserId,
   members,
   pendingInvites,
+  departments,
   onClose,
 }: Props) {
   const [tab, setTab] = useState<Tab>("members");
@@ -70,6 +77,15 @@ export function OrgQuickManageModal({
           <button type="button" onClick={() => setTab("members")} className={tabClass(tab === "members")} data-testid="org-quick-tab-members">
             Membros
           </button>
+          {canManageIdentity ? (
+            <button type="button" onClick={() => setTab("departments")} className={tabClass(tab === "departments")} data-testid="org-quick-tab-departments">
+              Departamentos
+            </button>
+          ) : departments.some((d) => d.myRole === "manager") ? (
+            <button type="button" onClick={() => setTab("departments")} className={tabClass(tab === "departments")} data-testid="org-quick-tab-departments">
+              Departamentos
+            </button>
+          ) : null}
           {canManageMembers ? (
             <button type="button" onClick={() => setTab("invites")} className={tabClass(tab === "invites")} data-testid="org-quick-tab-invites">
               Convites
@@ -83,7 +99,15 @@ export function OrgQuickManageModal({
         </div>
 
         {tab === "identity" && canManageIdentity ? (
-          <OrgLogoUploader orgId={orgId} orgName={orgName} logoUrl={logoUrl} canManage={canManageIdentity} />
+          <div className="space-y-4">
+            <OrgSettingsForm
+              orgId={orgId}
+              initialName={orgName}
+              initialSlug={orgSlug}
+              canManage={canManageIdentity}
+            />
+            <OrgLogoUploader orgId={orgId} orgName={orgName} logoUrl={logoUrl} canManage={canManageIdentity} />
+          </div>
         ) : tab === "identity" ? (
           <div className="flex items-center gap-3">
             <OrgLogo name={orgName} logoUrl={logoUrl} size="lg" />
@@ -97,6 +121,14 @@ export function OrgQuickManageModal({
             currentUserId={currentUserId}
             currentUserIsOwner={isOwner}
             multiOwnerEnabled={multiOwnerEnabled}
+          />
+        ) : tab === "departments" ? (
+          <DepartmentsPanel
+            orgId={orgId}
+            canManageDepartments={canManageIdentity}
+            orgMembers={members}
+            currentUserId={currentUserId}
+            departments={departments}
           />
         ) : tab === "invites" && canManageMembers ? (
           <div className="space-y-4">

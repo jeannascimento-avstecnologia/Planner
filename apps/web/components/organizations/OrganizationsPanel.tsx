@@ -33,6 +33,7 @@ function toOverview(org: CreatedOrganization, activeOrgId: string | null): OrgOv
     members: [],
     pendingInvites: [],
     multiOwnerEnabled: false,
+    departments: [],
   };
 }
 

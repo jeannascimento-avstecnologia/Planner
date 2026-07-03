@@ -1,10 +1,26 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@nextgen/contracts";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const PROTECTED_PREFIXES = ["/boards", "/projects", "/calendar", "/profile"];
 
+const HTTP_LIMIT_IP = 120;
+const HTTP_LIMIT_USER = 60;
+const HTTP_WINDOW_MS = 60_000;
+
+function rateLimitResponse(retryAfterSec: number): NextResponse {
+  return new NextResponse("Too Many Requests", {
+    status: 429,
+    headers: { "Retry-After": String(retryAfterSec) },
+  });
+}
+
 export async function updateSession(request: NextRequest) {
+  const ip = getClientIp(request);
+  const ipRl = checkRateLimit(`http:ip:${ip}`, HTTP_LIMIT_IP, HTTP_WINDOW_MS);
+  if (!ipRl.ok) return rateLimitResponse(ipRl.retryAfterSec);
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
@@ -31,7 +47,6 @@ export async function updateSession(request: NextRequest) {
     error: authError,
   } = await supabase.auth.getUser();
 
-  // Apos db reset, cookies antigos geram refresh_token_not_found e quebram novo login.
   let sessionUser = user;
   if (
     authError &&
@@ -40,6 +55,11 @@ export async function updateSession(request: NextRequest) {
   ) {
     await supabase.auth.signOut();
     sessionUser = null;
+  }
+
+  if (sessionUser) {
+    const userRl = checkRateLimit(`http:user:${sessionUser.id}`, HTTP_LIMIT_USER, HTTP_WINDOW_MS);
+    if (!userRl.ok) return rateLimitResponse(userRl.retryAfterSec);
   }
 
   const path = request.nextUrl.pathname;
