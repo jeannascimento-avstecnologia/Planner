@@ -18,39 +18,7 @@ type Props = {
 
 export function BoardViewSwitcher({ value, onChange }: Props) {
   function setView(mode: BoardViewMode) {
-    if (value === mode) {
-      // #region agent log
-      fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-        body: JSON.stringify({
-          sessionId: "fa60ca",
-          runId: "post-fix-v2",
-          hypothesisId: "B",
-          location: "board-view-switcher.tsx:setView",
-          message: "setView skipped (already active)",
-          data: { mode },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      return;
-    }
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-      body: JSON.stringify({
-        sessionId: "fa60ca",
-        runId: "post-fix-v2",
-        hypothesisId: "B",
-        location: "board-view-switcher.tsx:setView",
-        message: "setView client-only",
-        data: { from: value, to: mode },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
+    if (value === mode) return;
     onChange(mode);
   }
 

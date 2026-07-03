@@ -23,37 +23,9 @@ export function useGuardedNavigate() {
     (href: string, opts?: { replace?: boolean; scroll?: boolean }) => {
       const pathOnly = pathFromHref(href);
       if (pathname === pathOnly || globalNavPathTarget === pathOnly) {
-        // #region agent log
-        fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-          body: JSON.stringify({
-            sessionId: "fa60ca",
-            runId: "post-fix-v5",
-            location: "client-url-state.ts:navigate",
-            message: "navigate skipped",
-            data: { href, pathname, globalNavPathTarget },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         return false;
       }
       globalNavPathTarget = pathOnly;
-      // #region agent log
-      fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-        body: JSON.stringify({
-          sessionId: "fa60ca",
-          runId: "post-fix-v5",
-          location: "client-url-state.ts:navigate",
-          message: "navigate once",
-          data: { href, pathname },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const scroll = opts?.scroll ?? false;
       if (opts?.replace) router.replace(href, { scroll });
       else router.push(href, { scroll });

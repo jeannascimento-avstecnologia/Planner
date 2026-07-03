@@ -170,43 +170,7 @@ function BoardViewInner({
 
   const selectCard = useCallback(
     (id: string) => {
-      if (id === selectedCardIdRef.current) {
-        // #region agent log
-        fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-          body: JSON.stringify({
-            sessionId: "fa60ca",
-            runId: "post-fix",
-            hypothesisId: "C",
-            location: "board-view.tsx:selectCard",
-            message: "selectCard skipped (already selected)",
-            data: { cardId: id },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-        return;
-      }
-      // #region agent log
-      fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-        body: JSON.stringify({
-          sessionId: "fa60ca",
-          hypothesisId: "B",
-          location: "board-view.tsx:selectCard",
-          message: "selectCard called",
-          data: {
-            cardId: id,
-            prevSelected: selectedCardIdRef.current,
-            pathname,
-            searchParamsStr: searchParams.toString(),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
+      if (id === selectedCardIdRef.current) return;
       selectedCardIdRef.current = id;
       setSelectedCardId(id);
       const params = applySearchParamUpdates(searchParams, { cardId: id, stageColor: null });
