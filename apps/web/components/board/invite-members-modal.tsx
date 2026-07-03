@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { AuroraModal } from "@/components/ui/aurora-modal";
+import { MODAL_BODY_CLASS } from "@/components/ui/aurora-surface";
 import { InviteEmailsPanel } from "./invite-emails-panel";
 import { btnBoardSecondary } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
@@ -38,7 +39,7 @@ export function InviteMembersModal({
       subtitle={boardName}
       size="lg"
       testId="invite-members-modal"
-      bodyClassName="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-4"
+      bodyClassName={`flex flex-col gap-5 ${MODAL_BODY_CLASS}`}
     >
       <InviteEmailsPanel boardId={boardId} canManageMembers={canManageMembers} />
 

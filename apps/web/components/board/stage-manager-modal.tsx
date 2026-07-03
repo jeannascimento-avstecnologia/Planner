@@ -10,6 +10,7 @@ import {
 } from "@/app/(app)/boards/[boardId]/stages/actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AuroraModal } from "@/components/ui/aurora-modal";
+import { MODAL_BODY_PADDED_CLASS } from "@/components/ui/aurora-surface";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { btnBoardPrimarySm, btnBoardSecondary, inputBoardClassSm } from "@/lib/ui-classes";
 import type { StageRow } from "./types";
@@ -94,7 +95,7 @@ export function StageManagerModal({ boardId, stages, onClose }: Props) {
         size="lg"
         showHairline={false}
         zIndex={200}
-        bodyClassName="overflow-y-auto px-5 py-4"
+        bodyClassName={MODAL_BODY_PADDED_CLASS}
         footer={
           <div className="flex justify-end">
             <button type="button" onClick={onClose} className={btnBoardSecondary}>

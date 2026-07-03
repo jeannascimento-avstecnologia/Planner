@@ -9,6 +9,7 @@ import { IconPicker } from "@/components/ui/icon-picker";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AuroraModal } from "@/components/ui/aurora-modal";
+import { MODAL_BODY_PADDED_CLASS } from "@/components/ui/aurora-surface";
 import { ShareProjectPanel, type BoardMember } from "@/components/board/share-project-panel";
 import { canManageBoardMembers } from "@/lib/board-member-roles";
 import { inputClass, btnPrimary, btnDanger } from "@/lib/ui-classes";
@@ -105,7 +106,7 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
         title={`Configuracoes — ${board.name}`}
         size="lg"
         testId="project-settings-modal"
-        bodyClassName="flex max-h-[70vh] flex-col gap-4 overflow-y-auto p-5"
+        bodyClassName={`flex flex-col gap-4 ${MODAL_BODY_PADDED_CLASS}`}
       >
         <form action={save} className="space-y-4">
           <div>

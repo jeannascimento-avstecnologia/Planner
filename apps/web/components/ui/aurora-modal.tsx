@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { AuroraOverlay } from "./aurora-overlay";
 import {
+  MODAL_BODY_CLASS,
   MODAL_SIZE_CLASS,
   surfacePanelClass,
   type AuroraModalSize,
@@ -42,7 +43,7 @@ export function AuroraModal({
   showHairline = variant === "app",
   headerExtra,
   zIndex = 50,
-  bodyClassName = "flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6",
+  bodyClassName = MODAL_BODY_CLASS,
   footer,
   showClose = true,
   role = "dialog",
@@ -69,7 +70,7 @@ export function AuroraModal({
         aria-modal="true"
         aria-labelledby={title ? "aurora-modal-title" : undefined}
         data-testid={testId}
-        className={`aurora-modal-enter flex max-h-[92vh] w-full flex-col ${MODAL_SIZE_CLASS[size]} ${surfacePanelClass(variant)}`}
+        className={`aurora-modal-enter flex max-h-[min(90dvh,920px)] w-full flex-col ${MODAL_SIZE_CLASS[size]} ${surfacePanelClass(variant)}`}
         onClick={(e) => e.stopPropagation()}
       >
         {showHairline ? <div className="aurora-modal-hairline shrink-0" aria-hidden /> : null}
@@ -98,7 +99,9 @@ export function AuroraModal({
             </div>
           </header>
         ) : null}
-        <div className={bodyClassName}>{children}</div>
+        <div className={bodyClassName}>
+          {children}
+        </div>
         {footer ? <footer className={`shrink-0 border-t ${borderClass} px-4 py-3 sm:px-6 sm:py-4`}>{footer}</footer> : null}
       </div>
     </AuroraOverlay>,

@@ -24,7 +24,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden">
+    <div className="flex min-h-screen">
       <AppSidebar
         userEmail={userEmail}
         mobileOpen={mobileOpen}

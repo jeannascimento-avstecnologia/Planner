@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { linkTifluxTicket } from "@/app/(app)/boards/[boardId]/actions";
 import { AuroraModal } from "@/components/ui/aurora-modal";
+import { MODAL_BODY_PADDED_CLASS } from "@/components/ui/aurora-surface";
 import { btnBoardPrimary } from "@/lib/ui-classes";
 import { TifluxCombobox, type TifluxOption } from "./tiflux-combobox";
 import type { BoardCard } from "./types";
@@ -70,7 +71,7 @@ export function TifluxLinkTicketModal({ boardId, card, onClose }: Props) {
       size="md"
       testId="tiflux-link-modal"
       zIndex={60}
-      bodyClassName="max-h-[70vh] overflow-y-auto px-5 py-4"
+      bodyClassName={MODAL_BODY_PADDED_CLASS}
     >
       {success ? (
         <div className="space-y-4">

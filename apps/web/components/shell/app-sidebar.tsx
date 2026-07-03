@@ -156,7 +156,7 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
 
       <aside
         data-mobile-open={mobileOpen ? "true" : "false"}
-        className={`aurora-sidebar-gradient aurora-sidebar-gradient--flow fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-y-auto border-r border-aurora-sidebar-border p-3 text-aurora-sidebar-fg transition-all md:sticky md:top-0 md:z-0 ${
+        className={`aurora-sidebar-gradient aurora-sidebar-gradient--flow fixed inset-y-0 left-0 z-50 flex h-[100dvh] shrink-0 flex-col overflow-y-auto border-r border-aurora-sidebar-border p-3 text-aurora-sidebar-fg transition-all md:sticky md:top-0 md:z-0 md:self-start ${
           collapsed ? "md:w-16" : "md:w-64"
         } ${mobileOpen ? "w-64 translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >

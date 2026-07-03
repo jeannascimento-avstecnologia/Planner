@@ -13,6 +13,7 @@ import {
 } from "@/app/(app)/calendar/actions";
 import { btnPrimary, btnSecondary, inputClassSm } from "@/lib/ui-classes";
 import { AuroraModal } from "@/components/ui/aurora-modal";
+import { MODAL_BODY_SCROLL_MAX } from "@/components/ui/aurora-surface";
 import { appToast } from "@/lib/toast";
 import { formatDateLabel, toDateInputValue } from "@/lib/calendar-grid";
 import type { CalendarEvent } from "@/app/(app)/calendar/calendar-client";
@@ -91,7 +92,7 @@ export function DeadlineAgendaModal({ date, orgId, boards, columns, dayEvents, o
       subtitle="Vincular card existente ou criar novo prazo."
       size="md"
       testId="deadline-agenda-modal"
-      bodyClassName="flex max-h-[70vh] flex-col overflow-y-auto px-6 py-4"
+      bodyClassName={`flex flex-col px-6 py-4 ${MODAL_BODY_SCROLL_MAX}`}
       footer={
         <button type="button" onClick={onClose} className={`w-full ${btnSecondary}`}>
           Fechar

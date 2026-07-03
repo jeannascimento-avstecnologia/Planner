@@ -26,7 +26,7 @@ export function AuroraDrawer({
   variant = "board",
   testId,
   zIndex = 50,
-  widthClass = "w-full max-w-md",
+  widthClass = "w-full max-w-xl",
   showHeader = true,
 }: Props) {
   useEffect(() => {
