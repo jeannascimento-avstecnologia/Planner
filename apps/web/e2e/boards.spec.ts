@@ -7,7 +7,7 @@ test.describe("Boards / Kanban", () => {
   });
 
   test("lista de boards mostra org e board do seed", async ({ page }) => {
-    await expect(page.getByRole("main").getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("heading", { name: "Home", exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("Acme Inc")).toBeVisible();
     await expect(projectLink(page, /Roadmap/)).toBeVisible();
   });

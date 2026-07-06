@@ -155,7 +155,7 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
   test("date picker abre mini calendario ao clicar", async ({ page }) => {
     await openSeedBoard(page);
     const todo = page.locator("section").filter({
-      has: page.getByRole("heading", { name: "To Do", exact: true }),
+      has: page.getByRole("heading", { name: "To Start", exact: true }),
     });
     await expect(todo.locator('input[type="date"]')).toHaveCount(0);
     await todo.getByRole("button", { name: /Adicionar prazo/i }).click();
@@ -221,7 +221,7 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
   test("botao Adicionar do kanban usa bg-board-accent", async ({ page }) => {
     await openSeedBoard(page);
     const todo = page.locator("section").filter({
-      has: page.getByRole("heading", { name: "To Do", exact: true }),
+      has: page.getByRole("heading", { name: "To Start", exact: true }),
     });
     await expect(todo.getByRole("button", { name: "Adicionar", exact: true })).toHaveClass(/bg-board-accent/);
   });
@@ -255,7 +255,7 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
   test("card no kanban exibe botoes Tiflux e abre modal criar", async ({ page }) => {
     await openSeedBoard(page);
     const todo = page.locator("section").filter({
-      has: page.getByRole("heading", { name: "To Do", exact: true }),
+      has: page.getByRole("heading", { name: "To Start", exact: true }),
     });
     const card = todo.getByRole("button", { name: /Walking skeleton de auth/i }).first();
     await expect(card).toBeVisible();

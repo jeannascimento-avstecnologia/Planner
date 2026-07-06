@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, FolderKanban, Home, X, Building2 } from "lucide-react";
-import { useGuardedNavigate } from "@/lib/client-url-state";
+import { Calendar, ChevronLeft, ChevronRight, FolderKanban, Home, X, Building2, BarChart3 } from "lucide-react";
 import { RecentProjects } from "./recent-projects";
 import { AgifyLogo } from "./agify-logo";
 import { SignOutButton } from "./sign-out-button";
@@ -20,7 +19,7 @@ const COLLAPSE_KEY = "ngp:sidebar-collapsed";
 
 export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoardIds }: Props) {
   const pathname = usePathname();
-  const { navigate, onNavigateClick } = useGuardedNavigate();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
@@ -50,6 +49,7 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
     { href: "/calendar", label: "Calendario", icon: Calendar },
     { href: "/projects", label: "Projetos", icon: FolderKanban },
     { href: "/settings/organizations", label: "Organizacoes", icon: Building2 },
+    { href: "/workload", label: "Carga", icon: BarChart3 },
   ];
 
   function handleLogoClick(e: React.MouseEvent) {
@@ -58,7 +58,7 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
       toggleCollapsed();
     } else {
       e.preventDefault();
-      navigate("/boards");
+      router.push("/boards");
     }
   }
 
@@ -114,7 +114,7 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
               href={href}
               prefetch={false}
               onClick={(e) => {
-                onNavigateClick(e, href);
+                if (pathname === href) e.preventDefault();
                 setMobileOpen(false);
               }}
               title={tight ? label : undefined}

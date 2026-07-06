@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Settings2 } from "lucide-react";
 import { OrgLogo } from "@/components/organizations/OrgLogo";
-import { setActiveOrgAction } from "@/app/(app)/settings/organizations/actions";
 import { orgRoleLabel } from "@/lib/org-member-roles";
-import { btnBoardSecondary, DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
-import { appToast } from "@/lib/toast";
+import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import type { OrgOverview } from "@/lib/load-organizations-overview";
-import { MoveProjectDialog } from "./MoveProjectDialog";
 import { OrgQuickManageModal } from "./OrgQuickManageModal";
 
 type OrgOption = { orgId: string; name: string };
@@ -23,27 +20,39 @@ type Props = {
 };
 
 export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: Props) {
-  const router = useRouter();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
-  const [moveBoard, setMoveBoard] = useState<{ id: string; name: string } | null>(null);
-  const [pendingActive, startActive] = useTransition();
 
   const targetOrgs = allOrgs.filter(
     (o) => o.orgId !== org.orgId && adminOrgIds.includes(o.orgId),
   );
 
-  function makeActive() {
-    startActive(async () => {
-      const res = await setActiveOrgAction(org.orgId);
-      if (!res.ok) {
-        appToast.error(res.error);
-        return;
-      }
-      appToast.success(`${org.name} definida como ativa`);
-      router.refresh();
-    });
-  }
+  useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
+      body: JSON.stringify({
+        sessionId: "fa60ca",
+        runId: "post-fix",
+        hypothesisId: "H2-H3",
+        location: "OrganizationCard.tsx:mount",
+        message: "organization card initial state",
+        data: {
+          orgId: org.orgId,
+          orgName: org.name,
+          isActive: org.isActive,
+          expandedInitial: false,
+          manageOpenInitial: false,
+          showsTornarAtivaOnCard: false,
+          showsMoveButtonsOnCard: false,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount snapshot only
+  }, []);
 
   return (
     <>
@@ -81,17 +90,6 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!org.isActive ? (
-              <button
-                type="button"
-                onClick={makeActive}
-                disabled={pendingActive}
-                className={btnBoardSecondary + " text-xs"}
-                data-testid={`set-active-org-${org.orgId}`}
-              >
-                Tornar ativa
-              </button>
-            ) : null}
             <button
               type="button"
               onClick={() => setManageOpen(true)}
@@ -111,7 +109,6 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
             ) : (
               org.boards.map((board) => {
                 const tint = board.color || DEFAULT_BOARD_COLOR;
-                const canMove = org.canMoveBoards && targetOrgs.length > 0;
                 return (
                   <li
                     key={board.id}
@@ -125,16 +122,6 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
                     >
                       <span className="truncate">{board.name}</span>
                     </Link>
-                    {canMove ? (
-                      <button
-                        type="button"
-                        onClick={() => setMoveBoard({ id: board.id, name: board.name })}
-                        className="rounded-md border border-aurora-danger/40 px-2 py-1 text-xs text-aurora-danger hover:bg-aurora-danger/10"
-                        data-testid={`move-project-${board.id}`}
-                      >
-                        Mover
-                      </button>
-                    ) : null}
                   </li>
                 );
               })
@@ -151,6 +138,10 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
           orgCnpj={org.cnpj}
           orgSlug={org.slug}
           logoUrl={org.logoUrl}
+          isActive={org.isActive}
+          boards={org.boards}
+          canMoveBoards={org.canMoveBoards}
+          targetOrgs={targetOrgs}
           canManageMembers={org.canManageMembers}
           canManageIdentity={org.canManageIdentity}
           isOwner={org.isOwner}
@@ -160,16 +151,6 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
           pendingInvites={org.pendingInvites}
           departments={org.departments}
           onClose={() => setManageOpen(false)}
-        />
-      ) : null}
-
-      {moveBoard ? (
-        <MoveProjectDialog
-          boardId={moveBoard.id}
-          boardName={moveBoard.name}
-          sourceOrgName={org.name}
-          targetOrgs={targetOrgs}
-          onClose={() => setMoveBoard(null)}
         />
       ) : null}
     </>

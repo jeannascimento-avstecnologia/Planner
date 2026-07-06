@@ -52,21 +52,6 @@ export async function assignDueDate(
   const { error } = await supabase.from("cards").update({ due_date: iso }).eq("id", cardId);
   if (error) return { ok: false, error: error.message };
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: card } = await supabase.from("cards").select("org_id").eq("id", cardId).single();
-  if (card) {
-    await supabase.from("card_events").insert({
-      org_id: card.org_id,
-      board_id: boardId,
-      card_id: cardId,
-      actor_id: user?.id ?? null,
-      type: "due_changed",
-      metadata: { due_date: iso },
-    });
-  }
-
   revalidatePath(`/boards/${boardId}`);
   revalidatePath("/calendar");
   revalidatePath("/boards");
@@ -110,16 +95,6 @@ export async function createDeadlineCard(
     .single();
 
   if (error || !card) return { ok: false, error: error?.message ?? "Falha ao criar." };
-
-  await supabase.from("card_events").insert({
-    org_id: board.org_id,
-    board_id: boardId,
-    card_id: card.id,
-    actor_id: user?.id ?? null,
-    type: "created",
-    to_column_id: columnId,
-    metadata: { due_date: parsed.data.dueDate },
-  });
 
   revalidatePath(`/boards/${boardId}`);
   revalidatePath("/calendar");

@@ -47,7 +47,7 @@ Searcher (pesquisa) -> Gerente (specs/ADRs) -> Mapper (estrutura/docs) -> Progra
 - **Comentarios**: SEMPRE no card. NUNCA substituir por "chat" (erro do Planner 2026).
 - **Notificacoes**: tabela `notifications` + preferencias por evento/canal; entrega in-app inbox + Web Push (VAPID/Serwist); digest/batch + Do-Not-Disturb no servidor.
 - **Calendario + iCal**: calendario nativo de prazos + feed iCal read-only assinado por Edge Function (token por usuario/board).
-- **Analytics event-sourced**: `card_events` append-only -> Materialized Views via `pg_cron` -> cache Upstash Redis. O mesmo `card_events` alimenta o audit log (fast-follow).
+- **Analytics event-sourced**: `card_events` append-only -> Materialized Views via `pg_cron` -> cache Upstash Redis. O mesmo `card_events` alimenta audit log F.1 e automacoes A (ADR-0011).
 - **Paridade ambientes**: migracoes versionadas = fonte de verdade. Dev usa **Supabase Cloud** (projeto remoto); web (Next.js) nunca sobe Postgres/Auth localmente. CI usa `supabase start` efemero apenas para pgTAP. Promocao: Supabase Branching por PR -> staging -> prod (`supabase db push`). Ver **ADR-0002**. `supabase gen types` commitado.
 
 ---
@@ -99,13 +99,23 @@ for select using (
 
 ---
 
-## 6. Escopo: MVP vs Fast-follow (NAO antecipar fast-follow)
+## 6. Escopo: MVP vs Fase 2 (NAO antecipar fora do plano)
 
-**MVP (S1-S8)**: Auth/Tenancy; Kanban Core; Colaboracao + subtarefas/dependencias; Anexos + Calendario/iCal; Notificacoes inteligentes; Dashboard por board; Whiteboard; Hardening/Launch.
+**MVP (S1-S8) — concluido**: Auth/Tenancy; Kanban Core; Colaboracao + subtarefas/dependencias; Anexos + Calendario/iCal; Notificacoes inteligentes; Dashboard por board; Whiteboard; Hardening/Launch.
 
-**Fast-follow (pos-MVP, NAO implementar antes)**: rollup analitico cross-board; audit log + permissao a nivel de campo; motor de automacao/regras (anti-Butler).
+**Fase 2 (pos-MVP, plano ativo em `.cursor/plans/fase2-epicos-comerciais.md`, ADR-0009)**:
+- F.1 Audit log (`card_events` append-only, ADR-0011)
+- F.2 Permissoes field-level
+- F.3 SAML/SSO (config + docs)
+- D Views interativas (Gantt/Calendario/Tabela bidirecionais)
+- E Workload / capacidade
+- C Whiteboard tldraw (ADR-0010)
+- B Multiplayer avancado (Presence + Yjs)
+- A Motor de automacao ECA (async, ADR-0010)
 
-Implementar item de fast-follow no MVP = violacao de escopo. Se necessario, proponha mudanca de plano primeiro.
+**Ainda fast-follow (fora Fase 2)**: rollup analitico cross-board; export audit CSV/PDF; DLP/E2EE.
+
+Implementar item fora do plano Fase 2 = violacao de escopo. Atualizar plano + ADR antes de codar.
 
 ---
 

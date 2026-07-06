@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AuroraModal } from "@/components/ui/aurora-modal";
 import { DeleteOrganizationSection } from "@/components/organization/DeleteOrganizationSection";
 import { MultiOwnerToggle } from "@/components/organization/MultiOwnerToggle";
@@ -11,11 +12,18 @@ import { TransferOwnershipDialog } from "@/components/organization/TransferOwner
 import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { OrgLogoUploader } from "@/components/organizations/OrgLogoUploader";
 import { OrgSettingsForm } from "@/components/organization/OrgSettingsForm";
+import { MoveProjectDialog } from "@/components/organizations/MoveProjectDialog";
+import { setActiveOrgAction } from "@/app/(app)/settings/organizations/actions";
 import { orgRoleLabel } from "@/lib/org-member-roles";
+import { btnBoardSecondary, DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
+import { appToast } from "@/lib/toast";
 import type { OrgMemberRow } from "@nextgen/contracts";
 import type { OrgPendingInvite } from "@/lib/load-organizations-overview";
 import { DepartmentsPanel } from "@/components/departments/DepartmentsPanel";
 import type { DepartmentOverview } from "@/components/departments/DepartmentsPanel";
+
+type OrgOption = { orgId: string; name: string };
+type BoardOverview = { id: string; name: string; color?: string | null };
 
 type Props = {
   orgId: string;
@@ -24,6 +32,10 @@ type Props = {
   orgCnpj: string;
   orgSlug: string;
   logoUrl: string | null;
+  isActive: boolean;
+  boards: BoardOverview[];
+  canMoveBoards: boolean;
+  targetOrgs: OrgOption[];
   canManageMembers: boolean;
   canManageIdentity: boolean;
   isOwner: boolean;
@@ -35,7 +47,7 @@ type Props = {
   onClose: () => void;
 };
 
-type Tab = "identity" | "members" | "invites" | "departments" | "advanced";
+type Tab = "identity" | "members" | "invites" | "departments" | "projects" | "advanced";
 
 export function OrgQuickManageModal({
   orgId,
@@ -44,6 +56,10 @@ export function OrgQuickManageModal({
   orgCnpj,
   orgSlug,
   logoUrl,
+  isActive,
+  boards,
+  canMoveBoards,
+  targetOrgs,
   canManageMembers,
   canManageIdentity,
   isOwner,
@@ -54,7 +70,24 @@ export function OrgQuickManageModal({
   departments,
   onClose,
 }: Props) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("members");
+  const [moveBoard, setMoveBoard] = useState<{ id: string; name: string } | null>(null);
+  const [pendingActive, startActive] = useTransition();
+  const showProjectsTab = boards.length > 0 || canMoveBoards;
+
+  function makeActive() {
+    startActive(async () => {
+      const res = await setActiveOrgAction(orgId);
+      if (!res.ok) {
+        appToast.error(res.error);
+        return;
+      }
+      appToast.success(`${orgName} definida como ativa`);
+      router.refresh();
+      onClose();
+    });
+  }
 
   const tabClass = (active: boolean) =>
     `rounded-md px-3 py-1.5 text-sm ${
@@ -62,6 +95,7 @@ export function OrgQuickManageModal({
     }`;
 
   return (
+    <>
     <AuroraModal
       open
       onClose={onClose}
@@ -72,6 +106,18 @@ export function OrgQuickManageModal({
       headerExtra={<OrgLogo name={orgName} logoUrl={logoUrl} size="md" />}
     >
       <div className="space-y-4">
+        {!isActive ? (
+          <button
+            type="button"
+            onClick={makeActive}
+            disabled={pendingActive}
+            className={btnBoardSecondary + " text-sm"}
+            data-testid={`set-active-org-${orgId}`}
+          >
+            Tornar ativa
+          </button>
+        ) : null}
+
         <div className="-mx-1 flex gap-2 overflow-x-auto border-b border-aurora-border px-1 pb-2">
           {canManageIdentity ? (
             <button type="button" onClick={() => setTab("identity")} className={tabClass(tab === "identity")} data-testid="org-quick-tab-identity">
@@ -93,6 +139,11 @@ export function OrgQuickManageModal({
           {canManageMembers ? (
             <button type="button" onClick={() => setTab("invites")} className={tabClass(tab === "invites")} data-testid="org-quick-tab-invites">
               Convites
+            </button>
+          ) : null}
+          {showProjectsTab ? (
+            <button type="button" onClick={() => setTab("projects")} className={tabClass(tab === "projects")} data-testid="org-quick-tab-projects">
+              Projetos
             </button>
           ) : null}
           {canManageIdentity ? (
@@ -167,6 +218,41 @@ export function OrgQuickManageModal({
               <p className="text-sm text-aurora-muted">Nenhum convite pendente.</p>
             )}
           </div>
+        ) : tab === "projects" ? (
+          <ul className="divide-y divide-aurora-border rounded-lg border border-aurora-border">
+            {boards.length === 0 ? (
+              <li className="px-4 py-4 text-sm text-aurora-muted">Nenhum projeto nesta organizacao.</li>
+            ) : (
+              boards.map((board) => {
+                const tint = board.color || DEFAULT_BOARD_COLOR;
+                const canMove = canMoveBoards && targetOrgs.length > 0;
+                return (
+                  <li
+                    key={board.id}
+                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                    data-testid={`org-project-row-${board.id}`}
+                  >
+                    <span
+                      className="truncate text-sm font-medium text-aurora-fg"
+                      style={{ borderLeft: `3px solid ${tint}`, paddingLeft: 8 }}
+                    >
+                      {board.name}
+                    </span>
+                    {canMove ? (
+                      <button
+                        type="button"
+                        onClick={() => setMoveBoard({ id: board.id, name: board.name })}
+                        className="rounded-md border border-aurora-danger/40 px-2 py-1 text-xs text-aurora-danger hover:bg-aurora-danger/10"
+                        data-testid={`move-project-${board.id}`}
+                      >
+                        Mover
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })
+            )}
+          </ul>
         ) : (
           <div className="space-y-4" data-testid="org-quick-advanced-panel">
             <MultiOwnerToggle orgId={orgId} enabled={multiOwnerEnabled} isOwner={isOwner} />
@@ -188,5 +274,16 @@ export function OrgQuickManageModal({
         )}
       </div>
     </AuroraModal>
+
+    {moveBoard ? (
+      <MoveProjectDialog
+        boardId={moveBoard.id}
+        boardName={moveBoard.name}
+        sourceOrgName={orgName}
+        targetOrgs={targetOrgs}
+        onClose={() => setMoveBoard(null)}
+      />
+    ) : null}
+  </>
   );
 }

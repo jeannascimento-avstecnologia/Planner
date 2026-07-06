@@ -18,9 +18,12 @@ test.describe("Move board between orgs", () => {
     await expect(page.getByTestId("create-org-dialog")).toBeHidden({ timeout: 15_000 });
 
     const acmeCard = page.getByTestId("org-card-22222222-2222-2222-2222-222222222222");
+    await acmeCard.getByRole("button", { name: "Expandir" }).click();
     await expect(acmeCard.getByTestId(`org-project-row-${SEED_BOARD_ID}`)).toBeVisible({ timeout: 15_000 });
 
-    await acmeCard.getByTestId(`move-project-${SEED_BOARD_ID}`).click();
+    await page.getByTestId("org-manage-22222222-2222-2222-2222-222222222222").click();
+    await page.getByTestId("org-quick-tab-projects").click();
+    await page.getByTestId(`move-project-${SEED_BOARD_ID}`).click();
     await expect(page.getByTestId("move-project-dialog")).toBeVisible();
 
     await page.getByTestId("move-project-target").selectOption({ label: destName });
@@ -31,14 +34,21 @@ test.describe("Move board between orgs", () => {
     await expect(page.getByTestId("move-project-dialog")).toBeHidden({ timeout: 15_000 });
 
     const destCard = page.locator("article").filter({ hasText: destName });
+    await destCard.getByRole("button", { name: "Expandir" }).click();
     await expect(destCard.getByTestId(`org-project-row-${SEED_BOARD_ID}`)).toBeVisible({ timeout: 15_000 });
     await expect(acmeCard.getByTestId(`org-project-row-${SEED_BOARD_ID}`)).toHaveCount(0);
 
-    await destCard.getByTestId(`move-project-${SEED_BOARD_ID}`).click();
+    await destCard.getByRole("button", { name: "Gerenciar organizacao" }).click();
+    await page.getByTestId("org-quick-tab-projects").click();
+    await page.getByTestId(`move-project-${SEED_BOARD_ID}`).click();
     await page.getByTestId("move-project-target").selectOption({ label: "Acme Inc" });
     await page.getByTestId("move-project-confirm").click();
     await page.getByTestId("move-project-checkbox").check();
     await page.getByTestId("move-project-confirm").click();
+    await expect(page.getByTestId("move-project-dialog")).toBeHidden({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Fechar" }).click();
+
+    await acmeCard.getByRole("button", { name: "Expandir" }).click();
     await expect(acmeCard.getByTestId(`org-project-row-${SEED_BOARD_ID}`)).toBeVisible({ timeout: 15_000 });
   });
 });

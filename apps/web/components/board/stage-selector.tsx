@@ -88,6 +88,7 @@ export function StageSelector({ boardId, cardId, currentStageId, stages }: Props
       <p className="mb-1 text-xs font-medium text-aurora-muted">Estagio</p>
       <button
         type="button"
+        data-testid="stage-selector-trigger"
         disabled={pending}
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-2 rounded-md border border-board-border bg-board-surface px-2 py-1.5 text-sm"
@@ -106,7 +107,10 @@ export function StageSelector({ boardId, cardId, currentStageId, stages }: Props
       </button>
 
       {open ? (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-board-border bg-board-surface p-1 shadow-lg">
+        <div
+          data-testid="stage-selector-menu"
+          className="absolute z-10 mt-1 w-full rounded-lg border border-board-border bg-board-surface p-1 shadow-lg"
+        >
           <ul>
             {sorted.map((stage) => (
               <li key={stage.id} className="flex items-center gap-1">

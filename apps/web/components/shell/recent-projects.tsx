@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useGuardedNavigate } from "@/lib/client-url-state";
 import { getRecentBoards, pruneRecentBoards, type RecentBoard } from "@/lib/recent-boards";
 
 type Props = { collapsed?: boolean; accessibleBoardIds: string[] };
 
 export function RecentProjects({ collapsed, accessibleBoardIds }: Props) {
   const pathname = usePathname();
-  const { onNavigateClick } = useGuardedNavigate();
   const [items, setItems] = useState<RecentBoard[]>([]);
 
   useEffect(() => {
@@ -41,7 +39,9 @@ export function RecentProjects({ collapsed, accessibleBoardIds }: Props) {
             <Link
               href={href}
               prefetch={false}
-              onClick={(e) => onNavigateClick(e, href)}
+              onClick={(e) => {
+                if (pathname === href) e.preventDefault();
+              }}
               className="block truncate rounded px-2 py-1 text-sm text-white/90 hover:bg-white/10 hover:text-white"
             >
               {b.name}

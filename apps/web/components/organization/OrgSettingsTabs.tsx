@@ -3,18 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
+const tabs: Array<{ href: string; label: string; exact?: boolean; adminOnly?: boolean }> = [
   { href: "/settings/organization", label: "Membros", exact: true },
   { href: "/settings/organization/invites", label: "Convites" },
   { href: "/settings/organization/settings", label: "Configuracoes" },
+  { href: "/settings/audit", label: "Auditoria", adminOnly: true },
+  { href: "/settings/permissions", label: "Permissoes", adminOnly: true },
 ];
 
-export function OrgSettingsTabs() {
+type Props = { showAdminTabs?: boolean };
+
+export function OrgSettingsTabs({ showAdminTabs = false }: Props) {
   const pathname = usePathname();
+  const visible = tabs.filter((t) => !t.adminOnly || showAdminTabs);
 
   return (
     <nav className="flex flex-wrap gap-2 border-b border-aurora-border pb-3" aria-label="Configuracoes da organizacao">
-      {tabs.map((tab) => {
+      {visible.map((tab) => {
         const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
         return (
           <Link

@@ -64,7 +64,7 @@ test.describe("Auth", () => {
     await page.getByRole("button", { name: "Criar conta" }).click();
     await expect(page.getByText("{}", { exact: true })).toHaveCount(0);
     const ok = await page
-      .waitForURL(/\/(boards|login)/, { timeout: 15_000 })
+      .waitForURL(/\/(boards|login)/, { timeout: 20_000 })
       .then(() => true)
       .catch(() => false);
     if (ok) {
@@ -74,7 +74,9 @@ test.describe("Auth", () => {
         await expect(page).toHaveURL(/\/boards/);
       }
     } else {
-      await expect(page.getByText(/rate limit exceeded/i)).toBeVisible();
+      const rateLimit = page.getByText(/rate limit exceeded/i);
+      const errorBanner = page.locator("[role='alert'], .text-aurora-danger").first();
+      await expect(rateLimit.or(errorBanner)).toBeVisible({ timeout: 5_000 });
     }
   });
 

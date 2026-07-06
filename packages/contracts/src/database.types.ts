@@ -19,9 +19,9 @@ export type Database = {
         Relationships: [];
       };
       profiles: {
-        Row: { id: string; full_name: string | null; avatar_url: string | null; backup_email: string | null; phone: string | null; locale: string; created_at: string; updated_at: string };
-        Insert: { id: string; full_name?: string | null; avatar_url?: string | null; backup_email?: string | null; phone?: string | null; locale?: string; created_at?: string; updated_at?: string };
-        Update: { id?: string; full_name?: string | null; avatar_url?: string | null; backup_email?: string | null; phone?: string | null; locale?: string; created_at?: string; updated_at?: string };
+        Row: { id: string; full_name: string | null; avatar_url: string | null; backup_email: string | null; phone: string | null; locale: string; weekly_capacity_hours: number; created_at: string; updated_at: string };
+        Insert: { id: string; full_name?: string | null; avatar_url?: string | null; backup_email?: string | null; phone?: string | null; locale?: string; weekly_capacity_hours?: number; created_at?: string; updated_at?: string };
+        Update: { id?: string; full_name?: string | null; avatar_url?: string | null; backup_email?: string | null; phone?: string | null; locale?: string; weekly_capacity_hours?: number; created_at?: string; updated_at?: string };
         Relationships: [];
       };
       memberships: {
@@ -74,6 +74,7 @@ export type Database = {
           stage_id: string | null;
           tiflux_ticket_number: string | null; tiflux_ticket_id: string | null; tiflux_payload: Json | null; tiflux_created_at: string | null;
           tiflux_canceled_tickets: Json;
+          estimated_hours: number | null; story_points: number | null;
           created_by: string | null; created_at: string; updated_at: string;
         };
         Insert: {
@@ -83,6 +84,7 @@ export type Database = {
           stage_id?: string | null;
           tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
           tiflux_canceled_tickets?: Json;
+          estimated_hours?: number | null; story_points?: number | null;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Update: {
@@ -92,6 +94,7 @@ export type Database = {
           stage_id?: string | null;
           tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
           tiflux_canceled_tickets?: Json;
+          estimated_hours?: number | null; story_points?: number | null;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Relationships: [];
@@ -104,20 +107,60 @@ export type Database = {
       };
       card_events: {
         Row: {
-          id: number; org_id: string; board_id: string; card_id: string; actor_id: string | null;
-          type: Database["public"]["Enums"]["card_event_type"]; from_column_id: string | null; to_column_id: string | null;
+          id: number; org_id: string; board_id: string | null; card_id: string | null; actor_id: string | null;
+          type: Database["public"]["Enums"]["card_event_type"] | null; from_column_id: string | null; to_column_id: string | null;
           metadata: Json; created_at: string;
+          event_scope: string; event_type: string; payload: Json; occurred_at: string;
+          automation_depth: number; root_event_id: number | null;
         };
         Insert: {
-          id?: number; org_id: string; board_id: string; card_id: string; actor_id?: string | null;
-          type: Database["public"]["Enums"]["card_event_type"]; from_column_id?: string | null; to_column_id?: string | null;
+          id?: number; org_id: string; board_id?: string | null; card_id?: string | null; actor_id?: string | null;
+          type?: Database["public"]["Enums"]["card_event_type"] | null; from_column_id?: string | null; to_column_id?: string | null;
           metadata?: Json; created_at?: string;
+          event_scope?: string; event_type?: string; payload?: Json; occurred_at?: string;
         };
         Update: {
-          id?: number; org_id?: string; board_id?: string; card_id?: string; actor_id?: string | null;
-          type?: Database["public"]["Enums"]["card_event_type"]; from_column_id?: string | null; to_column_id?: string | null;
+          id?: number; org_id?: string; board_id?: string | null; card_id?: string | null; actor_id?: string | null;
+          type?: Database["public"]["Enums"]["card_event_type"] | null; from_column_id?: string | null; to_column_id?: string | null;
           metadata?: Json; created_at?: string;
+          event_scope?: string; event_type?: string; payload?: Json; occurred_at?: string;
         };
+        Relationships: [];
+      };
+      field_permission_rules: {
+        Row: { id: string; org_id: string; role: Database["public"]["Enums"]["membership_role"]; resource: string; field_name: string; access: string };
+        Insert: { id?: string; org_id: string; role: Database["public"]["Enums"]["membership_role"]; resource?: string; field_name: string; access: string };
+        Update: { id?: string; org_id?: string; role?: Database["public"]["Enums"]["membership_role"]; resource?: string; field_name?: string; access?: string };
+        Relationships: [];
+      };
+      board_whiteboards: {
+        Row: { board_id: string; org_id: string; snapshot: Json; updated_at: string; updated_by: string | null };
+        Insert: { board_id: string; org_id: string; snapshot?: Json; updated_at?: string; updated_by?: string | null };
+        Update: { board_id?: string; org_id?: string; snapshot?: Json; updated_at?: string; updated_by?: string | null };
+        Relationships: [];
+      };
+      automation_rules: {
+        Row: {
+          id: string; org_id: string; board_id: string; name: string;
+          trigger_event: string; conditions: Json; actions: Json;
+          active: boolean; created_at: string; updated_at: string;
+        };
+        Insert: {
+          id?: string; org_id: string; board_id: string; name: string;
+          trigger_event: string; conditions?: Json; actions?: Json;
+          active?: boolean; created_at?: string; updated_at?: string;
+        };
+        Update: {
+          id?: string; org_id?: string; board_id?: string; name?: string;
+          trigger_event?: string; conditions?: Json; actions?: Json;
+          active?: boolean; created_at?: string; updated_at?: string;
+        };
+        Relationships: [];
+      };
+      org_sso_domains: {
+        Row: { id: string; org_id: string; domain: string };
+        Insert: { id?: string; org_id: string; domain: string };
+        Update: { id?: string; org_id?: string; domain?: string };
         Relationships: [];
       };
       tags: {
@@ -226,7 +269,12 @@ export type Database = {
         Relationships: [];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      workload_by_member_week: {
+        Row: { org_id: string; user_id: string; week_start: string; total_hours: number; total_points: number; card_count: number };
+        Relationships: [];
+      };
+    };
     Functions: {
       create_organization: {
         Args: { p_name: string; p_slug: string; p_legal_name?: string | null; p_cnpj?: string | null };
@@ -377,6 +425,21 @@ export type Database = {
       get_board_tiflux_token: {
         Args: { p_board: string };
         Returns: { token: string; api_url: string }[];
+      };
+      emit_audit_event: {
+        Args: {
+          p_org_id: string; p_event_scope: string; p_event_type: string; p_payload?: Json;
+          p_board_id?: string | null; p_card_id?: string | null;
+        };
+        Returns: number;
+      };
+      update_card_fields: {
+        Args: { p_card_id: string; p_patch: Json };
+        Returns: undefined;
+      };
+      upsert_whiteboard_snapshot: {
+        Args: { p_board_id: string; p_snapshot: Json };
+        Returns: undefined;
       };
     };
     Enums: {

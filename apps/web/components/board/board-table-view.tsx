@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { updateCardFieldsAction } from "@/app/(app)/boards/[boardId]/field-actions";
 import { PriorityBadge, TagChip } from "./badges";
 import { TifluxCardButton } from "./tiflux-card-button";
 import {
@@ -26,6 +28,7 @@ type Props = {
   profilesById: Record<string, ProfileRow>;
   tifluxEnabled: boolean;
   readOnlyTiflux?: boolean;
+  canEdit?: boolean;
   onSelectCard: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
   onOpenTifluxLink: (id: string) => void;
@@ -39,6 +42,7 @@ export function BoardTableView({
   profilesById,
   tifluxEnabled,
   readOnlyTiflux = false,
+  canEdit = false,
   onSelectCard,
   onOpenTifluxCreate,
   onOpenTifluxLink,
@@ -117,7 +121,23 @@ export function BoardTableView({
                 }`}
                 onClick={() => onSelectCard(c.id)}
               >
-                <td className="px-3 py-2 font-medium text-aurora-fg">{c.title}</td>
+                <td className="px-3 py-2 font-medium text-aurora-fg" onClick={(e) => e.stopPropagation()}>
+                  {canEdit ? (
+                    <input
+                      defaultValue={c.title}
+                      className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-board-border focus:border-board-accent"
+                      data-testid={`table-edit-title-${c.id}`}
+                      onBlur={async (e) => {
+                        const v = e.target.value.trim();
+                        if (!v || v === c.title) return;
+                        const r = await updateCardFieldsAction({ cardId: c.id, patch: { title: v } });
+                        if (!r.ok) toast.error(r.error);
+                      }}
+                    />
+                  ) : (
+                    c.title
+                  )}
+                </td>
                 {tifluxEnabled ? (
                   <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                     <TifluxCardButton

@@ -19,7 +19,7 @@ test.describe("Board Kanban DnD", () => {
     await expect(todoCol.getByRole("button", { name: cardTitle })).toBeVisible({ timeout: 15_000 });
 
     const cardRow = todoCol.getByTestId(/^sortable-card-/).filter({ hasText: cardTitle });
-    const handle = cardRow.getByRole("button", { name: "Mover card" });
+    const handle = cardRow.getByTestId(/^drag-handle-/);
     await handle.hover();
     await page.mouse.down();
     const targetBox = await doingCol.getByTestId(/^kanban-column-cards-/).boundingBox();

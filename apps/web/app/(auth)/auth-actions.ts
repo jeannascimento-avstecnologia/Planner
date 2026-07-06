@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { authPersistCookieOptions, AUTH_PERSIST_COOKIE } from "@/lib/supabase/auth-cookies";
 import { getConfiguredAppUrl } from "@/lib/app-url";
 import { signInInput, signUpInput, inviteSignUpInput, forgotPasswordInput, type SignUpInput } from "@nextgen/contracts";
 import { isInviteAuthNext } from "@/lib/invite-auth";
@@ -54,9 +56,11 @@ function safeAuthNext(raw: FormDataEntryValue | null): string {
 }
 
 export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const rememberMe = formData.get("rememberMe") === "true";
   const parsed = signInInput.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
+    rememberMe,
   });
   if (!parsed.success) return { error: "Email ou senha invalidos." };
 
@@ -72,12 +76,16 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
     await supabase.auth.signOut();
   }
 
-  const authClient = await createClient();
+  const authClient = await createClient({ sessionCookies: !rememberMe });
   const { error } = await authClient.auth.signInWithPassword({
     email: loginEmail,
     password: parsed.data.password,
   });
   if (error) return { error: mapAuthNetworkError(error.message, "Email ou senha incorretos.") };
+
+  const cookieStore = await cookies();
+  cookieStore.set(AUTH_PERSIST_COOKIE, rememberMe ? "1" : "0", authPersistCookieOptions(rememberMe));
+
   redirect(safeAuthNext(formData.get("next")));
 }
 
@@ -197,6 +205,8 @@ export async function signOut(formData: FormData): Promise<void> {
   const loginNext = typeof nextRaw === "string" ? safeInternalPath(nextRaw, "/boards") : null;
   const supabase = await createClient();
   await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete(AUTH_PERSIST_COOKIE);
   redirect(loginNext ? `/login?next=${encodeURIComponent(loginNext)}` : "/login");
 }
 
@@ -204,5 +214,7 @@ export async function signOutToPath(formData: FormData): Promise<void> {
   const next = safeAuthNext(formData.get("next"));
   const supabase = await createClient();
   await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete(AUTH_PERSIST_COOKIE);
   redirect(next);
 }

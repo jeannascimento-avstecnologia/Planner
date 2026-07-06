@@ -1,10 +1,30 @@
-import { test, expect } from "@playwright/test";
-import { loginAsStandard, projectLink } from "./helpers";
+import { test, expect, type Page } from "@playwright/test";
+import { loginAsStandard, openSeedBoard } from "./helpers";
+
+function closeStageManager(page: Page) {
+  return page
+    .getByRole("heading", { name: "Gerenciar estagios" })
+    .locator("xpath=ancestor::*[@role='dialog'][1]")
+    .getByRole("button", { name: "Fechar" })
+    .last();
+}
+
+function drawerRoot(page: Page) {
+  return page.getByTestId("card-drawer");
+}
+
+function drawerStageButton(page: Page) {
+  return drawerRoot(page).getByTestId("stage-selector-trigger");
+}
+
+function drawerStageOption(page: Page, name: string) {
+  return drawerRoot(page).getByTestId("stage-selector-menu").getByRole("button", { name, exact: true });
+}
 
 test.describe("Estagios", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsStandard(page);
-    await projectLink(page, /Roadmap/).click();
+    await openSeedBoard(page);
   });
 
   test("abre drawer ao clicar no card", async ({ page }) => {
@@ -26,11 +46,11 @@ test.describe("Estagios", () => {
     await page.getByTestId("manage-stages").click();
     await page.getByPlaceholder("Nome do estagio").fill(stageName);
     await page.getByRole("button", { name: "Criar estagio" }).click();
-    await page.getByRole("button", { name: "Fechar" }).click();
+    await closeStageManager(page).click();
 
     await page.getByRole("button", { name: "Walking skeleton de auth" }).click();
-    await page.getByRole("button", { name: /Alterar estagio|Parado|Em Progresso/ }).first().click();
-    await page.getByRole("button", { name: stageName }).click();
+    await drawerStageButton(page).click();
+    await drawerStageOption(page, stageName).click();
     await expect(page.getByText(stageName).first()).toBeVisible();
   });
 
@@ -38,21 +58,30 @@ test.describe("Estagios", () => {
     const stageName = "Filter Stage " + Date.now();
     await page.getByTestId("filter-stage-add").click();
     await page.getByPlaceholder("Novo estagio").fill(stageName);
-    await page.getByRole("button", { name: "Criar", exact: true }).click();
-    await expect(page.getByRole("button", { name: stageName })).toBeVisible({ timeout: 15_000 });
+    await page.getByPlaceholder("Novo estagio").press("Enter");
+    await expect(page.getByTestId(/^filter-stage-/).filter({ hasText: stageName })).toBeVisible({ timeout: 15_000 });
   });
 
   test("cria estagio inline no stage selector do card", async ({ page }) => {
     const stageName = "Drawer Stage " + Date.now();
     await page.getByRole("button", { name: "Walking skeleton de auth" }).click();
-    await page.getByRole("button", { name: /Alterar estagio|Parado|Em Progresso/ }).first().click();
+    await drawerStageButton(page).click();
     await page.getByTestId("stage-selector-add").click();
     await page.getByPlaceholder("Nome do estagio").fill(stageName);
-    await page.getByRole("button", { name: "Criar", exact: true }).click();
-    await expect(page.getByRole("button", { name: stageName })).toBeVisible({ timeout: 15_000 });
+    await drawerRoot(page).getByRole("button", { name: "Criar", exact: true }).click();
+    await expect(drawerStageOption(page, stageName)).toBeVisible({ timeout: 15_000 });
   });
 
   test("filtro por estagio Em Progresso", async ({ page }) => {
+    const clearBtn = page.getByRole("button", { name: "Limpar" });
+    if (await clearBtn.isVisible()) await clearBtn.click();
+
+    await page.getByRole("button", { name: "RLS + pgTAP" }).click();
+    await drawerStageButton(page).click();
+    await drawerStageOption(page, "Em Progresso").click();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "RLS + pgTAP" })).toBeVisible({ timeout: 10_000 });
+
     await page.getByTestId("filter-stage-em_progresso").click();
     await expect(page.getByRole("button", { name: "Walking skeleton de auth" })).toBeHidden();
     await expect(page.getByRole("button", { name: "RLS + pgTAP" })).toBeVisible();
@@ -74,15 +103,15 @@ test.describe("Estagios", () => {
     await page.getByTestId("manage-stages").click();
     await page.getByPlaceholder("Nome do estagio").fill(stageName);
     await page.getByRole("button", { name: "Criar estagio" }).click();
-    await page.getByRole("button", { name: "Fechar" }).click();
+    await closeStageManager(page).click();
 
     await page.getByRole("button", { name: "Walking skeleton de auth" }).click();
-    await page.getByRole("button", { name: /Alterar estagio|Parado|Em Progresso/ }).first().click();
-    await page.getByRole("button", { name: stageName }).click();
+    await drawerStageButton(page).click();
+    await drawerStageOption(page, stageName).click();
     await expect(page.getByText(stageName).first()).toBeVisible();
 
-    await page.getByRole("button", { name: /Alterar estagio|Parado|Em Progresso/ }).first().click();
-    await page.getByRole("button", { name: "Cancelado" }).click();
+    await drawerStageButton(page).click();
+    await drawerStageOption(page, "Cancelado").click();
     await expect(page.getByText("Card nao encontrado").first()).toBeHidden();
     await expect(page.getByText("Cancelado").first()).toBeVisible();
   });
@@ -103,8 +132,8 @@ test.describe("Estagios", () => {
 
   test("altera estagio para Cancelado com ticket tiflux sem dialog", async ({ page }) => {
     await page.getByRole("button", { name: "RLS + pgTAP" }).click();
-    await page.getByRole("button", { name: /Alterar estagio|Parado|Em Progresso|Concluido/ }).first().click();
-    await page.getByRole("button", { name: "Cancelado" }).click();
+    await drawerStageButton(page).click();
+    await drawerStageOption(page, "Cancelado").click();
     await expect(page.getByRole("heading", { name: "Cancelar ticket no Tiflux?" })).toBeHidden();
     await expect(page.getByText("Cancelado").first()).toBeVisible();
   });

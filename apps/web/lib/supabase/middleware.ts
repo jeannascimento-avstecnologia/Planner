@@ -2,8 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@nextgen/contracts";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { applyAuthSessionCookieOptions, isSessionOnlyAuth } from "@/lib/supabase/auth-cookies";
 
-const PROTECTED_PREFIXES = ["/boards", "/projects", "/calendar", "/profile"];
+const PROTECTED_PREFIXES = ["/boards", "/projects", "/calendar", "/profile", "/settings", "/workload"];
 
 const HTTP_LIMIT_IP = 120;
 const HTTP_LIMIT_USER = 60;
@@ -22,6 +23,7 @@ export async function updateSession(request: NextRequest) {
   if (!ipRl.ok) return rateLimitResponse(ipRl.retryAfterSec);
 
   let response = NextResponse.next({ request });
+  const sessionOnly = isSessionOnlyAuth(request.cookies);
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +37,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
+            response.cookies.set(name, value, applyAuthSessionCookieOptions(options, sessionOnly)),
           );
         },
       },

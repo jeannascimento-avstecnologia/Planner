@@ -139,16 +139,25 @@ insert into public.memberships (org_id, user_id, role)
 values ('22222222-2222-2222-2222-222222222222', '77777777-7777-7777-7777-777777777777', 'admin')
 on conflict (org_id, user_id) do update set role = excluded.role;
 
-insert into public.columns (id, board_id, org_id, name, position) values
-  ('44444444-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'To Start', 'a0'),
-  ('44444444-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'On Going', 'a1'),
-  ('44444444-0000-0000-0000-000000000003', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'Done', 'a2')
-on conflict (id) do update set name = excluded.name;
+-- Colunas padrao (To Start / On Going / Done) vem do trigger boards_seed_columns
 
-insert into public.cards (board_id, column_id, org_id, title, position, priority, start_date, due_date, created_by) values
-  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Configurar Supabase local', 'm0', 'high', (now() - interval '1 day'), (now() + interval '3 days'), '11111111-1111-1111-1111-111111111111'),
-  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Walking skeleton de auth', 'm1', 'medium', null, (now() + interval '7 days'), '11111111-1111-1111-1111-111111111111'),
-  ('33333333-3333-3333-3333-333333333333', '44444444-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'RLS + pgTAP', 'm0', 'urgent', (now() - interval '2 days'), (now() + interval '1 day'), '11111111-1111-1111-1111-111111111111')
+insert into public.cards (board_id, column_id, org_id, title, position, priority, start_date, due_date, created_by)
+select
+  '33333333-3333-3333-3333-333333333333',
+  c.id,
+  '22222222-2222-2222-2222-222222222222',
+  v.title,
+  v.position,
+  v.priority::public.card_priority,
+  v.start_date,
+  v.due_date,
+  '11111111-1111-1111-1111-111111111111'::uuid
+from (values
+  ('To Start', 'Configurar Supabase local', 'm0', 'high', (now() - interval '1 day'), (now() + interval '3 days')),
+  ('To Start', 'Walking skeleton de auth', 'm1', 'medium', null::timestamptz, (now() + interval '7 days')),
+  ('On Going', 'RLS + pgTAP', 'm0', 'urgent', (now() - interval '2 days'), (now() + interval '1 day'))
+) as v(col_name, title, position, priority, start_date, due_date)
+join public.columns c on c.board_id = '33333333-3333-3333-3333-333333333333' and c.name = v.col_name
 on conflict do nothing;
 
 insert into public.tags (id, org_id, board_id, name, color) values

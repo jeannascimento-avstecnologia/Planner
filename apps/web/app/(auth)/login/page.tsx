@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useActionState } from "react";
+import { Suspense, useActionState, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn, type AuthState } from "../auth-actions";
 import { AuthQueryAlert } from "@/components/auth/auth-query-alert";
 import { AuthOAuthDivider, GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { authInputClass, btnPrimary, authLinkClass } from "@/lib/ui-classes";
 import { safeInternalPath } from "@/lib/safe-internal-path";
 
@@ -15,10 +16,16 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = safeInternalPath(searchParams.get("next"), "");
   const [state, formAction, pending] = useActionState(signIn, initialState);
+  const [rememberMe, setRememberMe] = useState(true);
 
   return (
     <div className="space-y-4">
       <GoogleSignInButton next={next} />
+      {process.env.NEXT_PUBLIC_SSO_ENABLED === "true" ? (
+        <p className="text-center text-xs text-aurora-muted" data-testid="sso-hint">
+          SSO empresarial disponivel — use o email corporativo no Google ou contate o admin.
+        </p>
+      ) : null}
       <AuthOAuthDivider />
 
       <form action={formAction} className="space-y-4">
@@ -34,6 +41,20 @@ function LoginForm() {
             Senha
           </label>
           <input id="password" name="password" type="password" required autoComplete="current-password" className={authInputClass} />
+        </div>
+
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-aurora-border/80 bg-aurora-surface-2/50 px-3 py-2.5">
+          <label htmlFor="rememberMe" className="cursor-pointer select-none text-sm font-medium text-aurora-fg">
+            Lembre-me
+          </label>
+          <ToggleSwitch
+            id="rememberMe"
+            name="rememberMe"
+            checked={rememberMe}
+            onCheckedChange={setRememberMe}
+            aria-label="Lembre-me neste dispositivo"
+            testId="login-remember-me"
+          />
         </div>
 
         <Suspense fallback={null}>

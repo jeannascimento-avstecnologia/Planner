@@ -7,25 +7,15 @@ export function pathFromHref(href: string): string {
   return href.split("?")[0] ?? href;
 }
 
-/** Lock global: refs por componente nao bloqueiam cliques em outras instancias. */
-let globalNavPathTarget: string | null = null;
-
-/** Evita router.push/replace duplicado enquanto pathname/searchParams estao stale. */
+/** Evita router.push/replace quando ja estamos na rota alvo. */
 export function useGuardedNavigate() {
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => {
-    globalNavPathTarget = null;
-  }, [pathname]);
-
   const navigate = useCallback(
     (href: string, opts?: { replace?: boolean; scroll?: boolean }) => {
       const pathOnly = pathFromHref(href);
-      if (pathname === pathOnly || globalNavPathTarget === pathOnly) {
-        return false;
-      }
-      globalNavPathTarget = pathOnly;
+      if (pathname === pathOnly) return false;
       const scroll = opts?.scroll ?? false;
       if (opts?.replace) router.replace(href, { scroll });
       else router.push(href, { scroll });
@@ -37,7 +27,7 @@ export function useGuardedNavigate() {
   const onNavigateClick = useCallback(
     (e: MouseEvent, href: string, opts?: { replace?: boolean }) => {
       const pathOnly = pathFromHref(href);
-      if (pathname === pathOnly || globalNavPathTarget === pathOnly) {
+      if (pathname === pathOnly) {
         e.preventDefault();
         return;
       }

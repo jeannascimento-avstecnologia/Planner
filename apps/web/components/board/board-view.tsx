@@ -47,10 +47,16 @@ const BoardAccessModal = dynamic(
   () => import("./board-access-modal").then((m) => ({ default: m.BoardAccessModal })),
   { ssr: false },
 );
+const BoardAutomationsModal = dynamic(
+  () => import("./board-automations-modal").then((m) => ({ default: m.BoardAutomationsModal })),
+  { ssr: false },
+);
 import { CardFilterBar } from "./card-filter-bar";
 import { canEditBoardUI, canManageBoardMembers, canWriteBoard } from "@/lib/board-member-roles";
 import { BoardAppearanceEditor } from "./board-appearance-editor";
 import { BoardIcon } from "./board-icon";
+import { BoardPresenceLayer } from "./board-presence-layer";
+import { useBoardPresence } from "@/hooks/use-board-presence";
 import type { BoardMember } from "./board-member";
 import {
   EMPTY_FILTERS,
@@ -145,6 +151,7 @@ function BoardViewInner({
   const [shareOpen, setShareOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const [stagesOpen, setStagesOpen] = useState(false);
+  const [automationsOpen, setAutomationsOpen] = useState(false);
   const [filters, setFilters] = useState<CardFilters>(EMPTY_FILTERS);
   const [groupByAssignee, setGroupByAssignee] = useState(false);
 
@@ -223,6 +230,8 @@ function BoardViewInner({
   const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
   const canEditBoard = canEditBoardUI(isOrgAdmin, userBoardRole);
 
+  const canManageAutomations = canWriteBoard(isOrgAdmin, userBoardRole);
+
   const canRenameColumns = useMemo(() => {
     if (!canEditBoard) return false;
     const boardRole = boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
@@ -235,9 +244,16 @@ function BoardViewInner({
   const openTifluxCreate = canEditBoard ? setTifluxCreateCardId : undefined;
   const openTifluxLink = canEditBoard ? setTifluxLinkCardId : undefined;
   const tifluxCreateCard = safeCards.find((c) => c.id === tifluxCreateCardId) ?? null;
+  const displayName = currentUserId ? profilesById[currentUserId]?.full_name ?? "Usuario" : "Usuario";
+  const presenceCursors = useBoardPresence({
+    boardId: board.id,
+    userId: currentUserId ?? "anon",
+    displayName,
+  });
 
   return (
     <div className="space-y-4">
+      <BoardPresenceLayer cursors={presenceCursors} />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2">
           <BoardIcon icon={board.icon} color={board.color} size="sm" />
@@ -259,6 +275,19 @@ function BoardViewInner({
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canEditBoard ? (
             <BoardAppearanceEditor boardId={board.id} icon={board.icon} color={board.color} />
+          ) : null}
+          <Link href={`/boards/${board.id}/whiteboard`} className={btnBoardSecondary}>
+            Whiteboard
+          </Link>
+          {canManageAutomations ? (
+            <button
+              type="button"
+              onClick={() => setAutomationsOpen(true)}
+              className={btnBoardSecondary}
+              data-testid="board-automations-button"
+            >
+              Automacoes
+            </button>
           ) : null}
           {canManageMembers ? (
             <button
@@ -360,6 +389,7 @@ function BoardViewInner({
           onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
           onOpenTifluxLink={openTifluxLink ?? (() => {})}
           readOnlyTiflux={!canEditBoard}
+          canEdit={canEditBoard}
         />
       ) : null}
 
@@ -399,6 +429,17 @@ function BoardViewInner({
 
       {canEditBoard && stagesOpen ? (
         <StageManagerModal boardId={board.id} stages={stages} onClose={() => setStagesOpen(false)} />
+      ) : null}
+
+      {canManageAutomations && automationsOpen ? (
+        <BoardAutomationsModal
+          boardId={board.id}
+          orgId={board.org_id}
+          columns={columns.map((c) => ({ id: c.id, name: c.name }))}
+          members={members.map((m) => ({ id: m.id, name: m.full_name ?? "Usuario" }))}
+          open={automationsOpen}
+          onClose={() => setAutomationsOpen(false)}
+        />
       ) : null}
 
       {shareOpen ? (

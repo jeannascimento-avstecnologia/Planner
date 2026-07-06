@@ -26,6 +26,7 @@ export const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 export const signInInput = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  rememberMe: z.boolean().optional(),
 });
 export type SignInInput = z.infer<typeof signInInput>;
 

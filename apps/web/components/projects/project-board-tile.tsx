@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Settings } from "lucide-react";
-import { useGuardedNavigate } from "@/lib/client-url-state";
+import { usePathname } from "next/navigation";
 import { BoardIcon } from "@/components/board/board-icon";
 import { canEditBoardUI } from "@/lib/board-member-roles";
 import { DEFAULT_BOARD_COLOR, tileInteractive, tileSelected } from "@/lib/ui-classes";
@@ -32,7 +32,7 @@ export function ProjectBoardTile({
   selected = false,
   onSelect,
 }: Props) {
-  const { onNavigateClick } = useGuardedNavigate();
+  const pathname = usePathname();
   const boardHref = `/boards/${board.id}`;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const tint = board.color || DEFAULT_BOARD_COLOR;
@@ -51,7 +51,9 @@ export function ProjectBoardTile({
       openBoard(e);
       return;
     }
-    onNavigateClick(e, boardHref);
+    if (pathname === boardHref) {
+      e.preventDefault();
+    }
   }
   if (variant === "list") {
     const nameContent = (

@@ -31,7 +31,7 @@ export function projectLink(page: Page, name: RegExp | string) {
 
 export async function openSeedBoard(page: Page): Promise<void> {
   await page.goto(`/boards/${SEED_BOARD_ID}`);
-  await expect(page.getByRole("heading", { name: "To Do", exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Walking skeleton de auth" })).toBeVisible({ timeout: 15_000 });
 }
 
 /** Loga com o usuario padrao do seed e espera cair em /boards. */

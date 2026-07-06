@@ -22,6 +22,7 @@ test.describe("Org switcher (active org cookie)", () => {
     await expect(projectTile(page, /Roadmap/)).toHaveCount(0, { timeout: 15_000 });
 
     await page.goto("/settings/organizations");
+    await page.getByTestId("org-manage-22222222-2222-2222-2222-222222222222").click();
     await page.getByTestId("set-active-org-22222222-2222-2222-2222-222222222222").click();
 
     await page.goto("/boards");

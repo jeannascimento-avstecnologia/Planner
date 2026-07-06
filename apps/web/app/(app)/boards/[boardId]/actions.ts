@@ -24,6 +24,9 @@ import {
   updateColumnInput,
   type Json,
   type InviteBoardBatchInput,
+  createAutomationRuleInput,
+  updateAutomationRuleInput,
+  deleteAutomationRuleInput,
 } from "@nextgen/contracts";
 import { lexoPosition } from "@/lib/fractional";
 import { normalizeBoardItemName } from "@/lib/board-item-names";
@@ -77,34 +80,7 @@ import {
   listTifluxServicesCatalogItems,
   type TifluxOption,
 } from "@/lib/tiflux-api";
-import { resolveBoardTifluxToken } from "@/lib/tiflux-credentials";
-
-const TIFLUX_NOT_CONFIGURED_MSG = "Integracao Tiflux nao configurada neste projeto.";
-
-async function emitEvent(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  payload: {
-    org_id: string;
-    board_id: string;
-    card_id: string;
-    actor_id: string | null;
-    type: "created" | "updated" | "assigned" | "due_changed" | "priority_changed" | "moved";
-    from_column_id?: string | null;
-    to_column_id?: string | null;
-    metadata?: Record<string, unknown>;
-  },
-) {
-  await supabase.from("card_events").insert({
-    org_id: payload.org_id,
-    board_id: payload.board_id,
-    card_id: payload.card_id,
-    actor_id: payload.actor_id,
-    type: payload.type,
-    from_column_id: payload.from_column_id ?? null,
-    to_column_id: payload.to_column_id ?? null,
-    metadata: (payload.metadata ?? {}) as Json,
-  });
-}
+import { resolveBoardTifluxTokenDetailed } from "@/lib/tiflux-credentials";
 
 export type CreateColumnResult = { ok: true } | { error: string };
 
@@ -251,13 +227,6 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
   if (isUniqueViolation(error)) return { error: DUPLICATE_CARD_MSG };
   if (error || !card) return { error: "Nao foi possivel criar o card." };
 
-  await emitEvent(supabase, {
-    org_id: board.org_id,
-    board_id: parsed.data.boardId,
-    card_id: card.id,
-    actor_id: user?.id ?? null,
-    type: "created",
-  });
   await supabase.rpc("notify_board", {
     p_board: parsed.data.boardId,
     p_type: "card_created",
@@ -335,37 +304,6 @@ export async function updateCard(formData: FormData): Promise<void> {
 
   const { error } = await supabase.from("cards").update(patch).eq("id", parsed.data.cardId);
   if (error) return;
-
-  if (parsed.data.priority !== undefined && parsed.data.priority !== existing.priority) {
-    await emitEvent(supabase, {
-      org_id: existing.org_id,
-      board_id: parsed.data.boardId,
-      card_id: parsed.data.cardId,
-      actor_id: user?.id ?? null,
-      type: "priority_changed",
-      metadata: { from: existing.priority, to: parsed.data.priority },
-    });
-  }
-  if (parsed.data.dueDate !== undefined && parsed.data.dueDate !== existing.due_date) {
-    await emitEvent(supabase, {
-      org_id: existing.org_id,
-      board_id: parsed.data.boardId,
-      card_id: parsed.data.cardId,
-      actor_id: user?.id ?? null,
-      type: "due_changed",
-      metadata: { from: existing.due_date, to: parsed.data.dueDate },
-    });
-  }
-  if (parsed.data.assigneeId !== undefined && parsed.data.assigneeId !== existing.assignee_id) {
-    await emitEvent(supabase, {
-      org_id: existing.org_id,
-      board_id: parsed.data.boardId,
-      card_id: parsed.data.cardId,
-      actor_id: user?.id ?? null,
-      type: "assigned",
-      metadata: { from: existing.assignee_id, to: parsed.data.assigneeId },
-    });
-  }
 
   revalidateBoard(parsed.data.boardId, { calendar: true });
 }
@@ -460,18 +398,6 @@ export async function moveCard(formData: FormData): Promise<MoveCardResult> {
     .eq("board_id", parsed.data.boardId);
   if (error) {
     return { error: "Nao foi possivel mover o card." };
-  }
-
-  if (fromColumnId !== parsed.data.columnId) {
-    await emitEvent(supabase, {
-      org_id: existing.org_id,
-      board_id: parsed.data.boardId,
-      card_id: parsed.data.cardId,
-      actor_id: user?.id ?? null,
-      type: "moved",
-      from_column_id: fromColumnId,
-      to_column_id: parsed.data.columnId,
-    });
   }
 
   revalidateBoard(parsed.data.boardId, { calendar: true });
@@ -885,11 +811,11 @@ export async function searchTifluxOptions(input: {
     .single();
   if (!board?.tiflux_enabled) return { error: "Projeto nao vinculado ao Tiflux." };
 
-  const creds = await resolveBoardTifluxToken(parsed.data.boardId);
-  if (!creds) return { error: TIFLUX_NOT_CONFIGURED_MSG };
+  const resolved = await resolveBoardTifluxTokenDetailed(parsed.data.boardId);
+  if (!resolved.ok) return { error: resolved.message };
 
   const { kind, query, deskId, clientId } = parsed.data;
-  const { token, apiUrl } = creds;
+  const { token, apiUrl } = resolved.creds;
   try {
     let options: TifluxOption[] = [];
     if (kind === "client") options = await searchTifluxClients(token, query, apiUrl);
@@ -955,12 +881,12 @@ export async function createTifluxTicket(formData: FormData): Promise<TifluxTick
   if (!card) return { error: "Card nao encontrado." };
   if (card.tiflux_ticket_number) return { error: "Este card ja possui chamado Tiflux." };
 
-  const creds = await resolveBoardTifluxToken(parsed.data.boardId);
-  if (!creds) return { error: TIFLUX_NOT_CONFIGURED_MSG };
+  const resolved = await resolveBoardTifluxTokenDetailed(parsed.data.boardId);
+  if (!resolved.ok) return { error: resolved.message };
 
   let ticket: { ticketId: string; ticketNumber: string; raw: unknown };
   try {
-    ticket = await callTifluxApi(parsed.data, creds.token, creds.apiUrl);
+    ticket = await callTifluxApi(parsed.data, resolved.creds.token, resolved.creds.apiUrl);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Falha ao criar chamado no Tiflux." };
   }
@@ -1013,12 +939,16 @@ export async function linkTifluxTicket(formData: FormData): Promise<TifluxTicket
   if (!card) return { error: "Card nao encontrado." };
   if (card.tiflux_ticket_number) return { error: "Este card ja possui chamado Tiflux." };
 
-  const creds = await resolveBoardTifluxToken(parsed.data.boardId);
-  if (!creds) return { error: TIFLUX_NOT_CONFIGURED_MSG };
+  const resolved = await resolveBoardTifluxTokenDetailed(parsed.data.boardId);
+  if (!resolved.ok) return { error: resolved.message };
 
   let ticket: { ticketId: string; ticketNumber: string; raw: unknown };
   try {
-    ticket = await getTifluxTicketByNumber(creds.token, parsed.data.ticketNumber, creds.apiUrl);
+    ticket = await getTifluxTicketByNumber(
+      resolved.creds.token,
+      parsed.data.ticketNumber,
+      resolved.creds.apiUrl,
+    );
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Chamado nao encontrado no Tiflux." };
   }
@@ -1048,4 +978,132 @@ export async function linkTifluxTicket(formData: FormData): Promise<TifluxTicket
 
   revalidateBoard(parsed.data.boardId);
   return { ok: true, ticketNumber: ticket.ticketNumber, ticketId: ticket.ticketId };
+}
+
+export type AutomationActionResult = { ok: true } | { error: string };
+
+async function assertBoardAutomationAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boardId: string,
+): Promise<{ ok: true; orgId: string; userId: string } | { ok: false; error: string }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const { data: board } = await supabase.from("boards").select("org_id").eq("id", boardId).single();
+  if (!board) return { ok: false, error: "Projeto nao encontrado." };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", board.org_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: boardMember } = await supabase
+    .from("board_members")
+    .select("role")
+    .eq("board_id", boardId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isOrgAdmin = isOrgAdminRole(membership?.role);
+  const canManage = isOrgAdmin || boardMember?.role === "admin";
+  if (!canManage) return { ok: false, error: "Sem permissao para gerenciar automacoes." };
+
+  return { ok: true, orgId: board.org_id, userId: user.id };
+}
+
+export async function createAutomationRule(formData: FormData): Promise<AutomationActionResult> {
+  const rawActions = formData.get("actions");
+  let actionsParsed: unknown = [];
+  try {
+    actionsParsed = rawActions ? JSON.parse(String(rawActions)) : [];
+  } catch {
+    return { error: "Acoes invalidas." };
+  }
+
+  const parsed = createAutomationRuleInput.safeParse({
+    boardId: formData.get("boardId"),
+    orgId: formData.get("orgId"),
+    name: formData.get("name"),
+    triggerEvent: formData.get("triggerEvent"),
+    conditions: {
+      column_id: formData.get("conditionColumnId") || undefined,
+      priority: formData.get("conditionPriority") || undefined,
+    },
+    actions: actionsParsed,
+  });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const auth = await assertBoardAutomationAdmin(supabase, parsed.data.boardId);
+  if (!auth.ok) return { error: auth.error };
+
+  const { error } = await supabase.from("automation_rules").insert({
+    org_id: parsed.data.orgId,
+    board_id: parsed.data.boardId,
+    name: parsed.data.name,
+    trigger_event: parsed.data.triggerEvent,
+    conditions: parsed.data.conditions as Json,
+    actions: parsed.data.actions as Json,
+    active: true,
+  });
+  if (error) return { error: error.message };
+
+  revalidateBoard(parsed.data.boardId);
+  return { ok: true };
+}
+
+export async function updateAutomationRule(formData: FormData): Promise<AutomationActionResult> {
+  const parsed = updateAutomationRuleInput.safeParse({
+    ruleId: formData.get("ruleId"),
+    boardId: formData.get("boardId"),
+    active: formData.get("active") === "true" ? true : formData.get("active") === "false" ? false : undefined,
+    name: formData.get("name") || undefined,
+  });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const auth = await assertBoardAutomationAdmin(supabase, parsed.data.boardId);
+  if (!auth.ok) return { error: auth.error };
+
+  const patch: { active?: boolean; name?: string; updated_at: string } = {
+    updated_at: new Date().toISOString(),
+  };
+  if (parsed.data.active !== undefined) patch.active = parsed.data.active;
+  if (parsed.data.name) patch.name = parsed.data.name;
+
+  const { error } = await supabase
+    .from("automation_rules")
+    .update(patch)
+    .eq("id", parsed.data.ruleId)
+    .eq("board_id", parsed.data.boardId);
+  if (error) return { error: error.message };
+
+  revalidateBoard(parsed.data.boardId);
+  return { ok: true };
+}
+
+export async function deleteAutomationRule(formData: FormData): Promise<AutomationActionResult> {
+  const parsed = deleteAutomationRuleInput.safeParse({
+    ruleId: formData.get("ruleId"),
+    boardId: formData.get("boardId"),
+  });
+  if (!parsed.success) return { error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const auth = await assertBoardAutomationAdmin(supabase, parsed.data.boardId);
+  if (!auth.ok) return { error: auth.error };
+
+  const { error } = await supabase
+    .from("automation_rules")
+    .delete()
+    .eq("id", parsed.data.ruleId)
+    .eq("board_id", parsed.data.boardId);
+  if (error) return { error: error.message };
+
+  revalidateBoard(parsed.data.boardId);
+  return { ok: true };
 }
