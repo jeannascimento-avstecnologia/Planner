@@ -26,10 +26,18 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     const base = securityHeaders(isDev);
+    const htmlCache =
+      isDev
+        ? []
+        : [{ key: "Cache-Control", value: "no-store, must-revalidate" }];
     return [
       {
+        source: "/_next/static/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
         source: "/:path*",
-        headers: base,
+        headers: [...base, ...htmlCache],
       },
       {
         source: "/invite",
