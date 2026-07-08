@@ -22,7 +22,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,css}\"",
     "supabase:env": "powershell -ExecutionPolicy Bypass -File scripts/sync-supabase-env.ps1",
     "supabase:env:local": "powershell -ExecutionPolicy Bypass -File scripts/sync-supabase-env-local.ps1",
-    "supabase:push": "powershell -ExecutionPolicy Bypass -File scripts/push-supabase-cloud.ps1"
+    "supabase:push": "powershell -ExecutionPolicy Bypass -File scripts/push-supabase-cloud.ps1",
+    "release": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
   },
   "devDependencies": {
     "prettier": "^3.4.2",
