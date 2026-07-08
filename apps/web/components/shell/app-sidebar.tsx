@@ -1,23 +1,36 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, FolderKanban, Home, X, Building2, BarChart3 } from "lucide-react";
+import { Calendar, CalendarClock, ChevronLeft, ChevronRight, CircleHelp, FolderKanban, Home, Settings, X, BarChart3 } from "lucide-react";
 import { RecentProjects } from "./recent-projects";
 import { AgifyLogo } from "./agify-logo";
 import { SignOutButton } from "./sign-out-button";
+import { NavLink } from "./nav-link";
+import { isSamePath } from "@/lib/client-url-state";
+import { isNavigationInFlight, setNavigationInFlight } from "@/lib/navigation-in-flight";
+
+import type { BoardMeta } from "@/lib/recent-boards";
 
 type Props = {
   userEmail: string;
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
   accessibleBoardIds: string[];
+  boardMetaById: Record<string, BoardMeta>;
+  showWorkload: boolean;
 };
 
 const COLLAPSE_KEY = "ngp:sidebar-collapsed";
 
-export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoardIds }: Props) {
+export function AppSidebar({
+  userEmail,
+  mobileOpen,
+  setMobileOpen,
+  accessibleBoardIds,
+  boardMetaById,
+  showWorkload,
+}: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(true);
@@ -47,19 +60,25 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
   const nav = [
     { href: "/boards", label: "Home", icon: Home },
     { href: "/calendar", label: "Calendario", icon: Calendar },
+    { href: "/plan", label: "Meu plano", icon: CalendarClock },
     { href: "/projects", label: "Projetos", icon: FolderKanban },
-    { href: "/settings/organizations", label: "Organizacoes", icon: Building2 },
-    { href: "/workload", label: "Carga", icon: BarChart3 },
+    ...(showWorkload ? [{ href: "/workload", label: "Carga", icon: BarChart3 }] : []),
   ];
+
+  const activeSettings = pathname === "/settings" || pathname.startsWith("/settings/");
+  const activeHelp = isSamePath("/help", pathname);
 
   function handleLogoClick(e: React.MouseEvent) {
     if (tight) {
       e.preventDefault();
       toggleCollapsed();
-    } else {
-      e.preventDefault();
-      router.push("/boards");
+      return;
     }
+    e.preventDefault();
+    if (isSamePath("/boards", pathname)) return;
+    if (isNavigationInFlight("/boards")) return;
+    setNavigationInFlight("/boards");
+    router.push("/boards", { scroll: false });
   }
 
   const sidebarContent = (
@@ -98,25 +117,13 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
           const activeHome = label === "Home" && pathname === "/boards";
           const activeProjetos =
             label === "Projetos" && (pathname === "/projects" || pathname.startsWith("/boards/"));
-          const activeOrganizacoes =
-            label === "Organizacoes" && pathname.startsWith("/settings/organizations");
           const active =
-            label === "Home"
-              ? activeHome
-              : label === "Projetos"
-                ? activeProjetos
-                : label === "Organizacoes"
-                  ? activeOrganizacoes
-                  : pathname === href;
+            label === "Home" ? activeHome : label === "Projetos" ? activeProjetos : isSamePath(href, pathname);
           return (
-            <Link
+            <NavLink
               key={label}
               href={href}
-              prefetch={false}
-              onClick={(e) => {
-                if (pathname === href) e.preventDefault();
-                setMobileOpen(false);
-              }}
+              onClick={() => setMobileOpen(false)}
               title={tight ? label : undefined}
               className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition ${
                 active
@@ -126,17 +133,50 @@ export function AppSidebar({ userEmail, mobileOpen, setMobileOpen, accessibleBoa
             >
               <Icon className="h-4 w-4 shrink-0 text-white" />
               {!tight ? label : null}
-            </Link>
+            </NavLink>
           );
         })}
       </nav>
 
-      <RecentProjects collapsed={tight} accessibleBoardIds={accessibleBoardIds} />
+      <RecentProjects
+        collapsed={tight}
+        accessibleBoardIds={accessibleBoardIds}
+        boardMetaById={boardMetaById}
+      />
 
-      <div className={`mt-auto border-t border-aurora-sidebar-border pt-3 ${tight ? "text-center" : ""}`}>
+      <div className={`mt-auto space-y-1 border-t border-aurora-sidebar-border pt-3 ${tight ? "text-center" : ""}`}>
         {!tight ? <p className="mb-2 truncate text-xs text-white/70">{userEmail}</p> : null}
+        <NavLink
+          href="/help"
+          onClick={() => setMobileOpen(false)}
+          title={tight ? "Ajuda" : undefined}
+          data-testid="sidebar-help-link"
+          className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition ${
+            activeHelp
+              ? "border-l-2 border-white/40 bg-white/15 text-white"
+              : "text-white/85 hover:bg-white/10 hover:text-white"
+          } ${tight ? "justify-center border-l-0" : ""}`}
+        >
+          <CircleHelp className="h-4 w-4 shrink-0 text-white" />
+          {!tight ? "Ajuda" : null}
+        </NavLink>
+        <NavLink
+          href="/settings"
+          onClick={() => setMobileOpen(false)}
+          title={tight ? "Configuracoes" : undefined}
+          data-testid="sidebar-settings-link"
+          className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition ${
+            activeSettings
+              ? "border-l-2 border-white/40 bg-white/15 text-white"
+              : "text-white/85 hover:bg-white/10 hover:text-white"
+          } ${tight ? "justify-center border-l-0" : ""}`}
+        >
+          <Settings className="h-4 w-4 shrink-0 text-white" />
+          {!tight ? "Configuracoes" : null}
+        </NavLink>
         <SignOutButton
           iconOnly={tight}
+          confirmBeforeSignOut
           className={`flex items-center justify-center rounded-lg bg-aurora-brand text-white hover:brightness-110 ${
             tight ? "h-9 w-full p-0" : "w-full px-2 py-1.5 text-sm font-semibold"
           }`}

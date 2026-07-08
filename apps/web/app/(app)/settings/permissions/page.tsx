@@ -1,59 +1,82 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { Suspense } from "react";
+import { UserPermissionsEditor } from "@/components/settings/user-permissions-editor";
 import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
-import { CARD_PERMISSION_FIELDS } from "@nextgen/contracts";
+import { buildAccessMap } from "@/lib/field-permissions";
+import { createClient } from "@/lib/supabase/server";
+import type { CardPermissionField, FieldAccess } from "@nextgen/contracts";
 
-export default async function PermissionsPage() {
+type Props = {
+  searchParams: Promise<{ user?: string }>;
+};
+
+export default async function PermissionsPage({ searchParams }: Props) {
   const ctx = await loadOrgSettingsContext();
   if (!ctx) redirect("/login");
-  if (!isOrgAdminRole(ctx.userRole)) redirect("/settings/organization");
+  if (!isOrgAdminRole(ctx.userRole)) redirect("/settings");
 
+  const sp = await searchParams;
   const supabase = await createClient();
-  const { data: rules } = await supabase
-    .from("field_permission_rules")
-    .select("id, role, field_name, access")
-    .eq("org_id", ctx.orgId)
-    .order("role")
-    .order("field_name");
 
-  const roles = ["viewer", "manager", "admin", "owner"] as const;
+  const members = ctx.members.map((m) => ({
+    userId: m.user_id,
+    name: m.full_name ?? m.user_id,
+    role: m.role,
+  }));
+
+  const selectedUserId =
+    members.find((m) => m.userId === sp.user)?.userId ?? members[0]?.userId ?? "";
+
+  const selectedMember = members.find((m) => m.userId === selectedUserId);
+
+  const { data: userOverridesRaw } = selectedUserId
+    ? await supabase
+        .from("user_field_permission_overrides")
+        .select("field_name, access")
+        .eq("org_id", ctx.orgId)
+        .eq("user_id", selectedUserId)
+        .eq("resource", "card")
+    : { data: [] as { field_name: string; access: string }[] };
+
+  const { data: roleRulesForRole } = selectedMember
+    ? await supabase
+        .from("field_permission_rules")
+        .select("field_name, access")
+        .eq("org_id", ctx.orgId)
+        .eq("resource", "card")
+        .eq("role", selectedMember.role)
+    : { data: [] };
+
+  const roleRules = buildAccessMap(roleRulesForRole ?? []) as Partial<
+    Record<CardPermissionField, FieldAccess>
+  >;
+  const userOverrides = buildAccessMap(userOverridesRaw ?? []) as Partial<
+    Record<CardPermissionField, FieldAccess>
+  >;
 
   return (
     <div className="space-y-4" data-testid="permissions-page">
       <div>
-        <h2 className="text-lg font-semibold text-aurora-fg">Permissoes por campo</h2>
-        <p className="text-sm text-aurora-muted">Controle leitura/escrita de campos de card por papel.</p>
+        <h2 className="text-lg font-semibold text-aurora-fg">Permissoes personalizadas</h2>
+        <p className="text-sm text-aurora-muted">
+          Ajuste o acesso a campos dos cards por membro. Sobrescreve o padrao do papel quando definido.
+        </p>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-aurora-border">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="bg-aurora-surface-2 text-xs uppercase text-aurora-muted">
-            <tr>
-              <th className="px-3 py-2">Campo</th>
-              {roles.map((r) => (
-                <th key={r} className="px-3 py-2 capitalize">
-                  {r}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {CARD_PERMISSION_FIELDS.map((field) => (
-              <tr key={field} className="border-t border-aurora-border">
-                <td className="px-3 py-2 font-mono text-xs">{field}</td>
-                {roles.map((role) => {
-                  const rule = (rules ?? []).find((x) => x.role === role && x.field_name === field);
-                  return (
-                    <td key={role} className="px-3 py-2 text-aurora-muted">
-                      {rule?.access ?? "—"}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {members.length === 0 ? (
+        <p className="text-sm text-aurora-muted">Nenhum membro na organizacao.</p>
+      ) : (
+        <Suspense fallback={<p className="text-sm text-aurora-muted">Carregando...</p>}>
+          <UserPermissionsEditor
+            orgId={ctx.orgId}
+            members={members}
+            selectedUserId={selectedUserId}
+            roleRules={roleRules}
+            userOverrides={userOverrides}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

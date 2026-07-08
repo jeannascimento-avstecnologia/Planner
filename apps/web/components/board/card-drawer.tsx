@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import type { CardPriority } from "@nextgen/contracts";
 import { deleteCard, getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/actions";
@@ -14,6 +15,7 @@ import { TagPickerPopover } from "./tag-picker-popover";
 import { StageSelector } from "./stage-selector";
 import { StageBadge } from "./badges";
 import { TifluxTicketBadges } from "./tiflux-ticket-badges";
+import { CardPlanWorkSection } from "@/components/plan/card-plan-work-section";
 import { CardDrawerReadOnly } from "./card-drawer-readonly";
 import { resolveCardStage, isCardOverdue, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
@@ -48,6 +50,7 @@ export function CardDrawer({
   onOpenTifluxLink,
   onClose,
 }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -83,6 +86,7 @@ export function CardDrawer({
 
   const dueValue = card.due_date ? card.due_date.slice(0, 10) : "";
   const startValue = card.start_date ? card.start_date.slice(0, 10) : "";
+  const targetValue = card.target_date ? card.target_date.slice(0, 10) : "";
   const stagesById = new Map(stages.map((s) => [s.id, s]));
   const stage = resolveCardStage(card, columns, stagesById);
   const overdue = isCardOverdue(card, stagesById);
@@ -159,6 +163,7 @@ export function CardDrawer({
           action={(fd) =>
             startTransition(async () => {
               await updateCard(fd);
+              router.refresh();
               appToast.success("Card salvo");
             })
           }
@@ -194,7 +199,20 @@ export function CardDrawer({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-aurora-muted">Prazo</label>
+              <label className="mb-1 block text-xs font-medium text-aurora-muted">Entrega estimada</label>
+              <DatePickerPopover
+                name="targetDate"
+                defaultValue={targetValue}
+                placeholder="Planejamento (opcional)"
+                clearLabel="Limpar entrega estimada"
+                variant="board"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-aurora-muted">Prazo final</label>
               <DatePickerPopover
                 name="dueDate"
                 defaultValue={dueValue}
@@ -203,7 +221,27 @@ export function CardDrawer({
                 overdue={overdue}
               />
             </div>
+            <div />
           </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-aurora-muted">Horas estimadas</label>
+            <input
+              name="estimatedHours"
+              type="number"
+              min={0}
+              max={999.99}
+              step={0.5}
+              defaultValue={card.estimated_hours ?? ""}
+              placeholder="ex: 8"
+              className={inputBoardClassSm}
+              data-testid="card-estimated-hours"
+            />
+          </div>
+
+          {card.assignee_id && (
+            <CardPlanWorkSection cardId={card.id} estimatedHours={card.estimated_hours} />
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -221,7 +259,12 @@ export function CardDrawer({
 
           <div>
             <label className="mb-1 block text-xs font-medium text-aurora-muted">Responsavel</label>
-            <select name="assigneeId" defaultValue={card.assignee_id ?? ""} className={inputBoardClassSm}>
+            <select
+              key={card.assignee_id ?? "none"}
+              name="assigneeId"
+              defaultValue={card.assignee_id ?? ""}
+              className={inputBoardClassSm}
+            >
               <option value="">Sem responsavel</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>

@@ -21,7 +21,7 @@ export function AppTopbar({
 }: Props) {
   return (
     <header
-      className="aurora-topbar-solid sticky top-0 z-20 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center overflow-hidden px-2 sm:px-3 md:px-4"
+      className="aurora-topbar-solid sticky top-0 z-40 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center overflow-visible px-2 sm:px-3 md:px-4"
     >
       <div className="flex min-w-0 items-center gap-1.5 justify-self-start overflow-hidden">
         <button
@@ -44,7 +44,7 @@ export function AppTopbar({
         <AgifyLogo variant="topbar" />
       </div>
 
-      <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-1.5 justify-self-end">
+      <div className="relative z-50 flex shrink-0 items-center justify-end gap-1 sm:gap-1.5 justify-self-end">
         {notificationsSlot}
         <ThemeToggle variant="topbar" />
         <ProfileMenu avatarUrl={avatarUrl} fullName={fullName} />

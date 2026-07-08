@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createCardInput } from "@nextgen/contracts";
 import { lexoPosition } from "@/lib/fractional";
+import { revalidateBoard, revalidatePlanViews } from "@/lib/revalidation";
 
 export type OrgCardHit = {
   id: string;
@@ -48,13 +48,20 @@ export async function assignDueDate(
   dueDate: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
   const iso = `${dueDate}T12:00:00.000Z`;
-  const { error } = await supabase.from("cards").update({ due_date: iso }).eq("id", cardId);
+  const { error } = await supabase.rpc("update_card_fields", {
+    p_card_id: cardId,
+    p_patch: { due_date: iso },
+  });
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath(`/boards/${boardId}`);
-  revalidatePath("/calendar");
-  revalidatePath("/boards");
+  revalidateBoard(boardId, { calendar: true, userId: user.id });
+  revalidatePlanViews(user.id);
   return { ok: true };
 }
 
@@ -96,8 +103,7 @@ export async function createDeadlineCard(
 
   if (error || !card) return { ok: false, error: error?.message ?? "Falha ao criar." };
 
-  revalidatePath(`/boards/${boardId}`);
-  revalidatePath("/calendar");
-  revalidatePath("/boards");
+  revalidateBoard(boardId, { calendar: true, userId: user?.id, orgId: board.org_id });
+  revalidatePlanViews(user?.id);
   return { ok: true };
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Search, X, Plus } from "lucide-react";
 import { deleteTag, createTag } from "@/app/(app)/boards/[boardId]/actions";
 import { createStage, deleteStage } from "@/app/(app)/boards/[boardId]/stages/actions";
@@ -23,6 +22,8 @@ type Props = {
   onManageStages?: () => void;
   onChange: (next: CardFilters) => void;
   onClear: () => void;
+  onTagsChange?: (updater: (prev: TagRow[]) => TagRow[]) => void;
+  onStagesChange?: (updater: (prev: StageRow[]) => StageRow[]) => void;
 };
 
 const PRESETS = [3, 5, 10, 30];
@@ -42,8 +43,9 @@ export function CardFilterBar({
   onManageStages,
   onChange,
   onClear,
+  onTagsChange,
+  onStagesChange,
 }: Props) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [deleteTarget, setDeleteTarget] = useState<TagRow | null>(null);
   const [showNewTag, setShowNewTag] = useState(false);
@@ -68,19 +70,21 @@ export function CardFilterBar({
       setDeleteTarget(null);
       if ("ok" in result) {
         onChange({ ...value, tagIds: value.tagIds.filter((id) => id !== deleteTarget.id) });
-        router.refresh();
+        onTagsChange?.((prev) => prev.filter((t) => t.id !== deleteTarget.id));
       }
     });
   }
 
   function handleCreateTag() {
-    if (!newTagName.trim()) return;
+    const name = newTagName.trim();
+    if (!name) return;
     setTagCreateError(null);
+    const color = newTagColor;
     const fd = new FormData();
     fd.set("orgId", orgId);
     fd.set("boardId", boardId);
-    fd.set("name", newTagName.trim());
-    fd.set("color", newTagColor);
+    fd.set("name", name);
+    fd.set("color", color);
     startTransition(async () => {
       const res = await createTag(fd);
       if ("error" in res) {
@@ -89,26 +93,40 @@ export function CardFilterBar({
       }
       setNewTagName("");
       setShowNewTag(false);
-      router.refresh();
+      onTagsChange?.((prev) => [...prev, { id: res.tagId, name, color }]);
     });
   }
 
   function handleCreateStage() {
-    if (!newStageName.trim()) return;
+    const name = newStageName.trim();
+    if (!name) return;
     setStageCreateError(null);
+    const color = newStageColor;
     const fd = new FormData();
     fd.set("boardId", boardId);
-    fd.set("name", newStageName.trim());
-    fd.set("color", newStageColor);
+    fd.set("name", name);
+    fd.set("color", color);
     startTransition(async () => {
       const res = await createStage(fd);
       if ("error" in res) {
         setStageCreateError(res.error);
         return;
       }
+      const stageId = res.stageId;
+      if (!stageId) return;
       setNewStageName("");
       setShowNewStage(false);
-      router.refresh();
+      onStagesChange?.((prev) => [
+        ...prev,
+        {
+          id: stageId,
+          name,
+          color,
+          position: prev.length,
+          is_system: false,
+          system_key: null,
+        },
+      ]);
     });
   }
 
@@ -123,7 +141,7 @@ export function CardFilterBar({
       setDeleteStageTarget(null);
       if ("error" in res) return;
       onChange({ ...value, stageIds: value.stageIds.filter((id) => id !== removedId) });
-      router.refresh();
+      onStagesChange?.((prev) => prev.filter((s) => s.id !== removedId));
     });
   }
 

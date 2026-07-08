@@ -4,7 +4,14 @@ import { cardPriority, uuid } from "./schemas";
 export const automationTriggerEvent = z.enum(["card_created", "card_moved", "priority_changed"]);
 export type AutomationTriggerEvent = z.infer<typeof automationTriggerEvent>;
 
-export const automationActionType = z.enum(["move_card", "set_priority", "set_assignee"]);
+export const automationActionType = z.enum([
+  "move_card",
+  "set_priority",
+  "set_assignee",
+  "send_slack",
+  "send_email",
+  "webhook",
+]);
 export type AutomationActionType = z.infer<typeof automationActionType>;
 
 export const automationConditionsSchema = z
@@ -19,6 +26,19 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("move_card"), target_column_id: uuid }),
   z.object({ type: z.literal("set_priority"), value: cardPriority }),
   z.object({ type: z.literal("set_assignee"), user_id: uuid }),
+  z.object({ type: z.literal("send_slack"), message: z.string().min(1).max(3000) }),
+  z.object({
+    type: z.literal("send_email"),
+    to: z.string().email(),
+    subject: z.string().min(1).max(200),
+    html: z.string().min(1).max(8000),
+  }),
+  z.object({
+    type: z.literal("webhook"),
+    url: z.string().url(),
+    secret: z.string().max(200).optional(),
+    body: z.record(z.unknown()).optional(),
+  }),
 ]);
 
 export type AutomationAction = z.infer<typeof automationActionSchema>;

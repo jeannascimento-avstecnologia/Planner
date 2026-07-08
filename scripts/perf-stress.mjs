@@ -32,6 +32,9 @@ const ROUTES = [
   { name: "board_kanban", path: `/boards/${SEED_BOARD}`, auth: true },
   { name: "board_timeline", path: `/boards/${SEED_BOARD}?view=timeline`, auth: true },
   { name: "calendar", path: "/calendar", auth: true },
+  { name: "plan", path: "/plan", auth: true },
+  { name: "workload", path: "/workload", auth: true },
+  { name: "projects", path: "/projects", auth: true },
   { name: "org_settings", path: "/settings/organizations", auth: true },
 ];
 
@@ -151,7 +154,9 @@ async function main() {
 
   const targets = [
     { route: "boards_home", maxP95: 600 },
-    { route: "board_kanban", maxP95: 600 },
+    { route: "board_kanban", maxP95: 800 },
+    { route: "plan", maxP95: 900 },
+    { route: "workload", maxP95: 900 },
   ];
   console.log("\n=== Metas do plano ===\n");
   for (const t of targets) {

@@ -80,8 +80,17 @@ export function CardDrawerReadOnly({
             <ReadOnlyField label="Inicio">
               {card.start_date ? formatDue(card.start_date) : <span className="text-aurora-muted">—</span>}
             </ReadOnlyField>
-            <ReadOnlyField label="Prazo">
+            <ReadOnlyField label="Entrega estimada">
+              {card.target_date ? formatDue(card.target_date) : <span className="text-aurora-muted">—</span>}
+            </ReadOnlyField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <ReadOnlyField label="Prazo final">
               {card.due_date ? formatDue(card.due_date) : <span className="text-aurora-muted">—</span>}
+            </ReadOnlyField>
+            <ReadOnlyField label="Horas estimadas">
+              {card.estimated_hours != null ? `${card.estimated_hours}h` : <span className="text-aurora-muted">—</span>}
             </ReadOnlyField>
           </div>
 

@@ -25,9 +25,9 @@ export type Database = {
         Relationships: [];
       };
       memberships: {
-        Row: { id: string; org_id: string; user_id: string; role: Database["public"]["Enums"]["membership_role"]; created_at: string };
-        Insert: { id?: string; org_id: string; user_id: string; role?: Database["public"]["Enums"]["membership_role"]; created_at?: string };
-        Update: { id?: string; org_id?: string; user_id?: string; role?: Database["public"]["Enums"]["membership_role"]; created_at?: string };
+        Row: { id: string; org_id: string; user_id: string; role: Database["public"]["Enums"]["membership_role"]; weekly_capacity_hours: number; created_at: string };
+        Insert: { id?: string; org_id: string; user_id: string; role?: Database["public"]["Enums"]["membership_role"]; weekly_capacity_hours?: number; created_at?: string };
+        Update: { id?: string; org_id?: string; user_id?: string; role?: Database["public"]["Enums"]["membership_role"]; weekly_capacity_hours?: number; created_at?: string };
         Relationships: [];
       };
       boards: {
@@ -70,21 +70,23 @@ export type Database = {
         Row: {
           id: string; board_id: string; column_id: string; org_id: string; parent_id: string | null;
           title: string; description: string | null; priority: Database["public"]["Enums"]["card_priority"];
-          due_date: string | null; start_date: string | null; position: string; assignee_id: string | null; completed_at: string | null;
+          due_date: string | null; start_date: string | null; target_date: string | null; position: string; assignee_id: string | null; completed_at: string | null;
           stage_id: string | null;
           tiflux_ticket_number: string | null; tiflux_ticket_id: string | null; tiflux_payload: Json | null; tiflux_created_at: string | null;
           tiflux_canceled_tickets: Json;
           estimated_hours: number | null; story_points: number | null;
+          personal_plan_at: string | null;
           created_by: string | null; created_at: string; updated_at: string;
         };
         Insert: {
           id?: string; board_id: string; column_id: string; org_id: string; parent_id?: string | null;
           title: string; description?: string | null; priority?: Database["public"]["Enums"]["card_priority"];
-          due_date?: string | null; start_date?: string | null; position: string; assignee_id?: string | null; completed_at?: string | null;
+          due_date?: string | null; start_date?: string | null; target_date?: string | null; position: string; assignee_id?: string | null; completed_at?: string | null;
           stage_id?: string | null;
           tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
           tiflux_canceled_tickets?: Json;
           estimated_hours?: number | null; story_points?: number | null;
+          personal_plan_at?: string | null;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Update: {
@@ -95,6 +97,7 @@ export type Database = {
           tiflux_ticket_number?: string | null; tiflux_ticket_id?: string | null; tiflux_payload?: Json | null; tiflux_created_at?: string | null;
           tiflux_canceled_tickets?: Json;
           estimated_hours?: number | null; story_points?: number | null;
+          personal_plan_at?: string | null;
           created_by?: string | null; created_at?: string; updated_at?: string;
         };
         Relationships: [];
@@ -133,6 +136,39 @@ export type Database = {
         Update: { id?: string; org_id?: string; role?: Database["public"]["Enums"]["membership_role"]; resource?: string; field_name?: string; access?: string };
         Relationships: [];
       };
+      user_field_permission_overrides: {
+        Row: {
+          id: string;
+          org_id: string;
+          user_id: string;
+          resource: string;
+          field_name: string;
+          access: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          user_id: string;
+          resource?: string;
+          field_name: string;
+          access: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          user_id?: string;
+          resource?: string;
+          field_name?: string;
+          access?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       board_whiteboards: {
         Row: { board_id: string; org_id: string; snapshot: Json; updated_at: string; updated_by: string | null };
         Insert: { board_id: string; org_id: string; snapshot?: Json; updated_at?: string; updated_by?: string | null };
@@ -154,6 +190,96 @@ export type Database = {
           id?: string; org_id?: string; board_id?: string; name?: string;
           trigger_event?: string; conditions?: Json; actions?: Json;
           active?: boolean; created_at?: string; updated_at?: string;
+        };
+        Relationships: [];
+      };
+      automation_runs: {
+        Row: {
+          id: string; rule_id: string; card_event_id: number | null;
+          status: string; depth: number; result: Json; ran_at: string;
+        };
+        Insert: {
+          id?: string; rule_id: string; card_event_id?: number | null;
+          status: string; depth?: number; result?: Json; ran_at?: string;
+        };
+        Update: {
+          id?: string; rule_id?: string; card_event_id?: number | null;
+          status?: string; depth?: number; result?: Json; ran_at?: string;
+        };
+        Relationships: [];
+      };
+      automation_outbox: {
+        Row: {
+          id: string; org_id: string; board_id: string; rule_id: string | null;
+          card_id: string | null; card_event_id: number | null; action_type: string;
+          action_payload: Json; status: string; attempts: number; next_attempt_at: string;
+          dedup_key: string; result: Json; created_at: string; updated_at: string;
+        };
+        Insert: {
+          id?: string; org_id: string; board_id: string; rule_id?: string | null;
+          card_id?: string | null; card_event_id?: number | null; action_type: string;
+          action_payload?: Json; status?: string; attempts?: number; next_attempt_at?: string;
+          dedup_key: string; result?: Json; created_at?: string; updated_at?: string;
+        };
+        Update: {
+          id?: string; org_id?: string; board_id?: string; rule_id?: string | null;
+          card_id?: string | null; card_event_id?: number | null; action_type?: string;
+          action_payload?: Json; status?: string; attempts?: number; next_attempt_at?: string;
+          dedup_key?: string; result?: Json; created_at?: string; updated_at?: string;
+        };
+        Relationships: [];
+      };
+      org_slack_integrations: {
+        Row: {
+          org_id: string; webhook_url_encrypted: string; channel_label: string | null;
+          updated_at: string; updated_by: string | null;
+        };
+        Insert: {
+          org_id: string; webhook_url_encrypted: string; channel_label?: string | null;
+          updated_at?: string; updated_by?: string | null;
+        };
+        Update: {
+          org_id?: string; webhook_url_encrypted?: string; channel_label?: string | null;
+          updated_at?: string; updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      user_google_tokens: {
+        Row: {
+          user_id: string; access_token_encrypted: string; refresh_token_encrypted: string;
+          expires_at: string; scope: string | null; updated_at: string;
+        };
+        Insert: {
+          user_id: string; access_token_encrypted: string; refresh_token_encrypted: string;
+          expires_at: string; scope?: string | null; updated_at?: string;
+        };
+        Update: {
+          user_id?: string; access_token_encrypted?: string; refresh_token_encrypted?: string;
+          expires_at?: string; scope?: string | null; updated_at?: string;
+        };
+        Relationships: [];
+      };
+      org_google_integrations: {
+        Row: {
+          org_id: string; calendar_id: string; updated_at: string; updated_by: string | null;
+        };
+        Insert: {
+          org_id: string; calendar_id: string; updated_at?: string; updated_by?: string | null;
+        };
+        Update: {
+          org_id?: string; calendar_id?: string; updated_at?: string; updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      google_export_mappings: {
+        Row: {
+          card_id: string; org_id: string; google_event_id: string; updated_at: string;
+        };
+        Insert: {
+          card_id: string; org_id: string; google_event_id: string; updated_at?: string;
+        };
+        Update: {
+          card_id?: string; org_id?: string; google_event_id?: string; updated_at?: string;
         };
         Relationships: [];
       };
@@ -268,10 +394,70 @@ export type Database = {
         };
         Relationships: [];
       };
+      card_workload_allocations: {
+        Row: {
+          id: string; org_id: string; card_id: string; user_id: string;
+          work_date: string; hours: number; created_at: string; updated_at: string;
+        };
+        Insert: {
+          id?: string; org_id: string; card_id: string; user_id: string;
+          work_date: string; hours: number; created_at?: string; updated_at?: string;
+        };
+        Update: {
+          id?: string; org_id?: string; card_id?: string; user_id?: string;
+          work_date?: string; hours?: number; created_at?: string; updated_at?: string;
+        };
+        Relationships: [];
+      };
+      org_teams_integrations: {
+        Row: {
+          org_id: string; azure_tenant_id: string | null; team_id: string; channel_id: string;
+          planner_plan_id: string; planner_bucket_id: string; configured_by: string | null;
+          created_at: string; updated_at: string;
+        };
+        Insert: {
+          org_id: string; azure_tenant_id?: string | null; team_id: string; channel_id: string;
+          planner_plan_id: string; planner_bucket_id: string; configured_by?: string | null;
+          created_at?: string; updated_at?: string;
+        };
+        Update: {
+          org_id?: string; azure_tenant_id?: string | null; team_id?: string; channel_id?: string;
+          planner_plan_id?: string; planner_bucket_id?: string; configured_by?: string | null;
+          created_at?: string; updated_at?: string;
+        };
+        Relationships: [];
+      };
+      teams_export_mappings: {
+        Row: {
+          id: string; org_id: string; card_id: string; planner_task_id: string; last_exported_at: string;
+        };
+        Insert: {
+          id?: string; org_id: string; card_id: string; planner_task_id: string; last_exported_at?: string;
+        };
+        Update: {
+          id?: string; org_id?: string; card_id?: string; planner_task_id?: string; last_exported_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       workload_by_member_week: {
         Row: { org_id: string; user_id: string; week_start: string; total_hours: number; total_points: number; card_count: number };
+        Relationships: [];
+      };
+      throughput_by_board_week: {
+        Row: { org_id: string; board_id: string; week_start: string; completed_count: number };
+        Relationships: [];
+      };
+      cycle_time_by_card: {
+        Row: { board_id: string; card_id: string; column_id: string; dwell_hours: number };
+        Relationships: [];
+      };
+      cfd_by_board_day: {
+        Row: {
+          board_id: string; org_id: string; day: string;
+          column_id: string; column_name: string; card_count: number;
+        };
         Relationships: [];
       };
     };
@@ -315,7 +501,59 @@ export type Database = {
           avatar_url: string | null;
           role: Database["public"]["Enums"]["membership_role"];
           created_at: string;
+          weekly_capacity_hours: number;
         }[];
+      };
+      update_member_capacity: {
+        Args: { p_org: string; p_user: string; p_hours: number };
+        Returns: undefined;
+      };
+      upsert_card_allocation: {
+        Args: { p_card_id: string; p_work_date: string; p_hours: number };
+        Returns: undefined;
+      };
+      move_card_allocation: {
+        Args: { p_card_id: string; p_from_date: string; p_to_date: string; p_hours?: number | null };
+        Returns: undefined;
+      };
+      bulk_spread_card_hours: {
+        Args: { p_card_id: string; p_total_hours: number; p_start: string; p_end: string };
+        Returns: undefined;
+      };
+      schedule_card_to_day: {
+        Args: { p_card_id: string; p_work_date: string; p_default_hours?: number };
+        Returns: undefined;
+      };
+      add_card_to_personal_plan: {
+        Args: { p_card_id: string };
+        Returns: undefined;
+      };
+      remove_card_from_personal_plan: {
+        Args: { p_card_id: string };
+        Returns: undefined;
+      };
+      upsert_org_teams_integration: {
+        Args: {
+          p_org: string; p_team_id: string; p_channel_id: string; p_plan_id: string;
+          p_bucket_id: string; p_tenant_id?: string | null;
+        };
+        Returns: undefined;
+      };
+      upsert_teams_export_mapping: {
+        Args: { p_org: string; p_card_id: string; p_planner_task_id: string };
+        Returns: undefined;
+      };
+      set_user_microsoft_tokens: {
+        Args: { p_access: string; p_refresh: string; p_expires_at: string; p_scope?: string | null };
+        Returns: undefined;
+      };
+      get_user_microsoft_tokens: {
+        Args: Record<string, never>;
+        Returns: { access_token: string; refresh_token: string; expires_at: string }[];
+      };
+      user_has_microsoft_connection: {
+        Args: Record<string, never>;
+        Returns: boolean;
       };
       update_membership_role: {
         Args: {
@@ -440,6 +678,34 @@ export type Database = {
       upsert_whiteboard_snapshot: {
         Args: { p_board_id: string; p_snapshot: Json };
         Returns: undefined;
+      };
+      set_org_slack_webhook: {
+        Args: { p_org: string; p_webhook_url: string; p_channel_label?: string | null };
+        Returns: undefined;
+      };
+      clear_org_slack_webhook: {
+        Args: { p_org: string };
+        Returns: undefined;
+      };
+      get_org_slack_webhook: {
+        Args: { p_org: string };
+        Returns: { webhook_url: string; channel_label: string | null }[];
+      };
+      set_user_google_tokens: {
+        Args: { p_access: string; p_refresh: string; p_expires_at: string; p_scope?: string | null };
+        Returns: undefined;
+      };
+      get_user_google_tokens: {
+        Args: Record<string, never>;
+        Returns: { access_token: string; refresh_token: string; expires_at: string; scope: string | null }[];
+      };
+      user_has_google_connection: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      get_board_dashboard_bundle: {
+        Args: { p_board: string };
+        Returns: Json;
       };
     };
     Enums: {

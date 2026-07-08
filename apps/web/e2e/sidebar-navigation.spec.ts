@@ -23,7 +23,10 @@ test.describe("Sidebar — navegacao entre paginas", () => {
     await aside.getByRole("link", { name: "Projetos" }).click();
     await expect(page).toHaveURL(/\/projects/, { timeout: 20_000 });
 
-    await aside.getByRole("link", { name: "Organizacoes" }).click();
+    await aside.getByRole("link", { name: "Configuracoes" }).click();
+    await expect(page).toHaveURL(/\/settings$/, { timeout: 20_000 });
+    await expect(page.getByTestId("settings-hub-page")).toBeVisible();
+    await page.getByTestId("settings-card-organizations").click();
     await expect(page).toHaveURL(/\/settings\/organizations/, { timeout: 20_000 });
     await expect(page.getByTestId("organizations-hub-page")).toBeVisible();
 
@@ -42,8 +45,15 @@ test.describe("Sidebar — navegacao entre paginas", () => {
     await aside.getByRole("link", { name: "Calendario" }).click();
     await expect(page).toHaveURL(/\/calendar/, { timeout: 20_000 });
 
+    let rscCount = 0;
+    const onRequest = (req: import("@playwright/test").Request) => {
+      if (req.method() === "GET" && req.url().includes("_rsc=")) rscCount += 1;
+    };
+    page.on("request", onRequest);
     await aside.getByRole("link", { name: "Calendario" }).click();
-    await expect(page).toHaveURL(/\/calendar/);
+    await page.waitForTimeout(300);
+    page.off("request", onRequest);
+    expect(rscCount).toBeLessThanOrEqual(1);
 
     await aside.getByRole("link", { name: "Projetos" }).click();
     await expect(page).toHaveURL(/\/projects/, { timeout: 20_000 });

@@ -52,6 +52,30 @@ function TopbarTitleInner() {
     );
   }
 
+  if (pathname === "/plan") {
+    return (
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
+        Meu plano
+      </span>
+    );
+  }
+
+  if (pathname === "/workload") {
+    return (
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
+        Carga
+      </span>
+    );
+  }
+
+  if (pathname === "/settings") {
+    return (
+      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
+        Configuracoes
+      </span>
+    );
+  }
+
   if (pathname.startsWith("/settings/organizations")) {
     return (
       <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">

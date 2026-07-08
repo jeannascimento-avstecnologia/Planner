@@ -1,15 +1,24 @@
 import { redirect } from "next/navigation";
-import { SettingsRouteChrome } from "@/components/settings/settings-route-chrome";
-import { loadOrgSettingsContext } from "@/lib/load-org-settings";
+import { SettingsShell } from "@/components/settings/settings-shell";
+import { loadSettingsShellData } from "@/lib/load-settings-shell";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const ctx = await loadOrgSettingsContext();
-  if (!ctx) redirect("/login");
+  const data = await loadSettingsShellData();
+  if (!data) redirect("/login");
 
   return (
-    <SettingsRouteChrome orgName={ctx.orgName} showAdminTabs={isOrgAdminRole(ctx.userRole)}>
+    <SettingsShell
+      orgId={data.orgId}
+      orgName={data.orgName}
+      orgLogoUrl={data.orgLogoUrl}
+      userFullName={data.userFullName}
+      userEmail={data.userEmail}
+      userRole={data.userRole}
+      userOrgs={data.userOrgs}
+      showAdminTabs={isOrgAdminRole(data.userRole)}
+    >
       {children}
-    </SettingsRouteChrome>
+    </SettingsShell>
   );
 }

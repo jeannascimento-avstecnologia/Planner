@@ -1,31 +1,31 @@
 # Modelo de Analytics (Dashboard)
 
 ## Principio
-Nunca agregar OLTP ao vivo por request. Event sourcing -> Materialized Views (pg_cron) -> cache Redis.
+Nunca agregar OLTP ao vivo por request. Event sourcing -> Materialized Views (pg_cron) -> cache Next.js (`unstable_cache` + tags).
 
 ## Fonte
-`card_events` (append-only): cada `created/moved/completed/...` com `from_column_id`, `to_column_id`, `created_at`, `actor_id`.
+`card_events` (append-only): `card_created`, `card_moved`, `card_completed`, `card_reopened`, `stage_changed`, etc.
 
 ## Metricas (por board, MVP)
-- Throughput: cards `completed` por semana.
-- Lead time: `completed_at - created_at`.
-- Cycle time por estagio: tempo entre entrada/saida de cada coluna (de eventos `moved`).
-- Gargalo: coluna com maior dwell time medio / acumulo de WIP.
-- CFD: contagem por coluna ao longo do tempo.
-- Aging WIP: cards em progresso ha mais tempo; taxa de atraso (due_date < now e nao completo).
+- Throughput: cards `card_completed` por semana (`throughput_by_board_week`).
+- Lead time: media de dwell entre movimentos (`cycle_time_by_card`).
+- Gargalo: coluna com maior dwell medio.
+- CFD: contagem por coluna no dia (`cfd_by_board_day`).
 
 ## Pipeline
 ```mermaid
 flowchart LR
-  ev["card_events"] -->|"pg_cron a cada N min"| mv["Materialized Views"]
-  mv -->|"cache TTL"| redis[("Upstash Redis")]
-  redis --> dash["Dashboard (Tremor/visx)"]
+  ev["card_events"] -->|"pg_cron ~10min"| mv["Materialized Views"]
+  mv -->|"unstable_cache + tags"| loader["load-dashboard.ts"]
+  loader --> dash["/boards/[id]/dashboard (Recharts)"]
 ```
 
-## Chaves de cache (Redis)
-- `org:{orgId}:board:{boardId}:dash:cfd` (TTL 300s)
-- `org:{orgId}:board:{boardId}:dash:cycle` (TTL 300s)
-- Invalidacao por evento via Realtime quando necessario.
+## Cache (Next.js)
+- Tags: `dashboard`, `dashboardBoard(boardId)` em `revalidation.ts`.
+- Invalidacao via `revalidateDashboard(boardId)` apos mutacoes relevantes.
+
+## Acesso
+RPC `get_board_dashboard_bundle(p_board)` — `security definer` com `app.can_access_board` (nao expor `card_events` direto).
 
 ## Fast-follow
-Rollup cross-board por org; export para ClickHouse/Tinybird se a analitica crescer.
+Rollup cross-board por org; export ClickHouse/Tinybird se analitica crescer.

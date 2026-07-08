@@ -11,9 +11,14 @@ test.describe("Organization management", () => {
     await loginAsStandard(page);
   });
 
-  test("menu da conta abre configuracoes da organizacao", async ({ page }) => {
-    await page.getByRole("button", { name: "Menu da conta" }).click();
-    await page.getByTestId("profile-org-settings").click();
+  test("sidebar abre hub de configuracoes", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const expand = page.getByRole("button", { name: "Expandir" });
+    if (await expand.isVisible()) await expand.click();
+    await page.locator("aside.aurora-sidebar-gradient").getByRole("link", { name: "Configuracoes" }).click();
+    await expect(page).toHaveURL(/\/settings$/, { timeout: 15_000 });
+    await expect(page.getByTestId("settings-hub-page")).toBeVisible();
+    await page.getByTestId("settings-card-organization").click();
     await expect(page).toHaveURL(/\/settings\/organization$/);
     await expect(page.getByTestId("org-members-table")).toBeVisible();
   });
@@ -62,6 +67,6 @@ test.describe("Organization management", () => {
       page.getByTestId("org-member-role-11111111-1111-1111-1111-111111111111"),
     ).toHaveCount(0);
     await page.goto("/settings/organization/invites");
-    await expect(page.getByText(/Apenas proprietario ou gerente/i)).toBeVisible();
+    await expect(page.getByText(/Apenas proprietario ou gerente/i).first()).toBeVisible();
   });
 });

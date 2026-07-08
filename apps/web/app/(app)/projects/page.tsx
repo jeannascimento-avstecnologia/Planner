@@ -1,13 +1,26 @@
+import { Suspense } from "react";
 import { createOrganization } from "@/app/(app)/boards/actions";
 import { inputClass, btnPrimary } from "@/lib/ui-classes";
-import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { ProjectsViews } from "@/components/projects/projects-views";
 import { ProjectsHubLayout } from "@/components/projects/projects-hub-shell";
 import { CreateProjectForm } from "@/components/projects/create-project-form";
+import { ProjectsFiltersPanel } from "@/components/projects/projects-filters-panel";
+import { PlanningPageHeader } from "@/components/shell/planning-page-header";
+import { FolderKanban } from "lucide-react";
+import { loadOrgProjectsCached } from "@/lib/loaders/cached-queries";
 import { loadOrgProjects } from "@/lib/load-org-projects";
+import { getSessionUser } from "@/lib/loaders/session";
+import { PAGE_COPY } from "@/lib/page-copy";
+import { buildDeptFilterOptions, filterProjectBoards } from "@/lib/filter-projects-boards";
 
-export default async function ProjectsPage() {
-  const result = await loadOrgProjects();
+type Props = {
+  searchParams: Promise<{ dept?: string; q?: string; archived?: string; sort?: string }>;
+};
+
+export default async function ProjectsPage({ searchParams }: Props) {
+  const sp = await searchParams;
+  const user = await getSessionUser();
+  const result = user ? await loadOrgProjectsCached(user.id) : await loadOrgProjects();
 
   if (result.kind === "no-org") {
     return (
@@ -22,9 +35,26 @@ export default async function ProjectsPage() {
     );
   }
 
-  const { orgName, isOrgAdmin, currentUserId, sections, activeOrgId, activeOrgLogoUrl, boardMembersByBoardId, upcomingTasksByBoard, creatableDepartments } =
-    result.data;
-  const boards = sections.find((s) => s.orgId === activeOrgId)?.boards ?? [];
+  const {
+    isOrgAdmin,
+    currentUserId,
+    sections,
+    activeOrgId,
+    boardMembersByBoardId,
+    upcomingTasksByBoard,
+    creatableDepartments,
+  } = result.data;
+
+  const activeSection = sections.find((s) => s.orgId === activeOrgId);
+  const rawBoards = activeSection?.boards ?? [];
+  const boards = filterProjectBoards(rawBoards, sp);
+  const deptOptions = buildDeptFilterOptions(activeSection?.departments ?? []);
+
+  const orgOptions = sections.map((s) => ({
+    orgId: s.orgId,
+    name: s.orgName,
+    logoUrl: s.logoUrl,
+  }));
 
   const creatableByOrg = new Map<string, { id: string | null; label: string }[]>();
   for (const item of creatableDepartments) {
@@ -43,19 +73,37 @@ export default async function ProjectsPage() {
       departmentOptions: creatableByOrg.get(s.orgId) ?? [{ id: null, label: "Geral" }],
     }));
 
+  const deptLabel =
+    sp.dept && sp.dept !== "all"
+      ? deptOptions.find((d) => d.id === sp.dept)?.label
+      : null;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-aurora-fg">Projetos</h2>
-        <div className="mt-1 flex items-center gap-2 text-sm text-aurora-muted">
-          {orgName ? (
-            <>
-              <OrgLogo name={orgName} logoUrl={activeOrgLogoUrl} size="sm" />
-              <span>{orgName}</span>
-            </>
-          ) : null}
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6" data-testid="projects-page">
+      <PlanningPageHeader
+        title={PAGE_COPY.projects.title}
+        icon={<FolderKanban className="h-5 w-5" aria-hidden />}
+        description={
+          <>
+            {PAGE_COPY.projects.description}
+            {deptLabel ? (
+              <span className="mt-1 block text-xs font-medium text-aurora-brand">
+                {activeSection?.orgName} · {deptLabel}
+              </span>
+            ) : null}
+          </>
+        }
+      />
+
+      <Suspense fallback={null}>
+        <ProjectsFiltersPanel orgs={orgOptions} activeOrgId={activeOrgId} deptOptions={deptOptions} />
+      </Suspense>
+
+      {boards.length === 0 ? (
+        <p className="rounded-lg border border-aurora-border bg-aurora-surface-2/40 px-4 py-8 text-center text-sm text-aurora-muted">
+          Nenhum projeto encontrado com os filtros atuais.
+        </p>
+      ) : null}
 
       <ProjectsHubLayout
         boards={boards}

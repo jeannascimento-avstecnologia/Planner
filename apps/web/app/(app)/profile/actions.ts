@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { updateProfileInput, changePasswordInput } from "@nextgen/contracts";
+import { revalidateShell } from "@/lib/revalidation";
 
 export type UpdateProfileResult = { ok: true } | { ok: false; error: string };
 export type ChangePasswordResult = { error?: string; message?: string };
@@ -43,6 +44,7 @@ export async function updateProfile(formData: FormData): Promise<UpdateProfileRe
 
   revalidatePath("/profile");
   revalidatePath("/", "layout");
+  revalidateShell(user.id);
   return { ok: true };
 }
 

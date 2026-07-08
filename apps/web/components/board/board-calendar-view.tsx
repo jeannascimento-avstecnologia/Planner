@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getMonthGrid, shiftMonth } from "@/lib/calendar-grid";
 import { TifluxCardButton } from "./tiflux-card-button";
-import type { BoardCard } from "./types";
+import { planningCalendarDate, type BoardCard } from "./types";
 
 type Props = {
   cards: BoardCard[];
@@ -32,8 +32,9 @@ export function BoardCalendarView({
   const byDay = useMemo(() => {
     const map = new Map<number, BoardCard[]>();
     for (const c of cards) {
-      if (!c.due_date) continue;
-      const d = new Date(c.due_date);
+      const planDate = planningCalendarDate(c);
+      if (!planDate) continue;
+      const d = new Date(planDate);
       if (d.getMonth() !== viewMonth || d.getFullYear() !== viewYear) continue;
       const day = d.getDate();
       const list = map.get(day) ?? [];

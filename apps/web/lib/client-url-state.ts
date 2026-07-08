@@ -7,6 +7,10 @@ export function pathFromHref(href: string): string {
   return href.split("?")[0] ?? href;
 }
 
+export function isSamePath(href: string, pathname: string): boolean {
+  return pathFromHref(href) === pathname;
+}
+
 /** Evita router.push/replace quando ja estamos na rota alvo. */
 export function useGuardedNavigate() {
   const pathname = usePathname();

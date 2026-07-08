@@ -24,3 +24,18 @@ export function buildAccessMap(
   }
   return map;
 }
+
+export function resolveRoleFieldAccess(
+  roleRules: Partial<Record<CardPermissionField, FieldAccess>>,
+  field: CardPermissionField,
+): FieldAccess {
+  return roleRules[field] ?? "write";
+}
+
+export function resolveEffectiveFieldAccess(
+  roleRules: Partial<Record<CardPermissionField, FieldAccess>>,
+  userOverrides: Partial<Record<CardPermissionField, FieldAccess>>,
+  field: CardPermissionField,
+): FieldAccess {
+  return userOverrides[field] ?? resolveRoleFieldAccess(roleRules, field);
+}

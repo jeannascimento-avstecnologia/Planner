@@ -21,6 +21,9 @@ export type BoardCard = {
   priority: CardPriority;
   due_date: string | null;
   start_date: string | null;
+  target_date: string | null;
+  estimated_hours: number | null;
+  story_points: number | null;
   assignee_id: string | null;
   completed_at: string | null;
   stage_id: string | null;
@@ -85,6 +88,11 @@ export function formatDue(dueDate: string | null): string {
 export function formatStart(startDate: string | null): string {
   if (!startDate) return "";
   return new Date(startDate).toLocaleDateString("pt-BR");
+}
+
+/** Data exibida no calendario de planejamento: target > due. */
+export function planningCalendarDate(card: Pick<BoardCard, "target_date" | "due_date">): string | null {
+  return card.target_date ?? card.due_date;
 }
 
 /** start_date efetivo para timeline: inferido do prazo quando start vazio. */

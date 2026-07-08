@@ -18,7 +18,7 @@ Layout global `(app)` com sidebar compacta, recolhivel, **fechada por padrao**.
 4. NotificationBell
 5. Perfil (icone -> `/profile`)
 6. Recentes (so aberto)
-7. Rodape: email + Sair (so aberto)
+7. Rodape: email + **Ajuda** (`/help`, icone `CircleHelp`, acima de Configuracoes) + Configuracoes + Sair (so aberto quando expandido)
 
 ## Dados (layout server)
 - Boards da org (recentes/links) + notificacoes do usuario (contador/lista).
@@ -29,3 +29,4 @@ Layout global `(app)` com sidebar compacta, recolhivel, **fechada por padrao**.
 - Calendario e icone (sem grade na sidebar).
 - Compartilhar NAO esta na sidebar (vive no projeto).
 - Sidebar em todas as rotas `(app)`.
+- Link **Ajuda** no rodape acima de Configuracoes; navega para `/help` (Centro de Ajuda).

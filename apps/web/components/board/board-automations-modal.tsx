@@ -40,10 +40,21 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
   const [triggerEvent, setTriggerEvent] = useState<AutomationTriggerEvent>("card_moved");
   const [conditionColumnId, setConditionColumnId] = useState("");
   const [conditionPriority, setConditionPriority] = useState("");
-  const [actionType, setActionType] = useState<"move_card" | "set_priority" | "set_assignee">("set_priority");
+  const [actionType, setActionType] = useState<
+    "move_card" | "set_priority" | "set_assignee" | "send_slack" | "send_email" | "webhook"
+  >("set_priority");
   const [actionColumnId, setActionColumnId] = useState("");
   const [actionPriority, setActionPriority] = useState("high");
   const [actionUserId, setActionUserId] = useState("");
+  const [slackMessage, setSlackMessage] = useState("Card atualizado no Planner");
+  const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("Notificacao Planner");
+  const [emailHtml, setEmailHtml] = useState("<p>Evento de automacao</p>");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [tab, setTab] = useState<"rules" | "history">("rules");
+  const [runs, setRuns] = useState<
+    Array<{ id: string; status: string; ran_at: string; result: Record<string, unknown> }>
+  >([]);
 
   const loadRules = useCallback(async () => {
     setLoading(true);
@@ -61,9 +72,31 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
     setLoading(false);
   }, [boardId]);
 
+  const loadRuns = useCallback(async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("automation_runs")
+      .select("id, status, ran_at, result, rule_id")
+      .in(
+        "rule_id",
+        rules.map((r) => r.id),
+      )
+      .order("ran_at", { ascending: false })
+      .limit(50);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setRuns((data ?? []) as typeof runs);
+  }, [rules]);
+
   useEffect(() => {
     if (open) void loadRules();
   }, [open, loadRules]);
+
+  useEffect(() => {
+    if (open && tab === "history" && rules.length) void loadRuns();
+  }, [open, tab, rules, loadRuns]);
 
   function buildActionsJson(): string {
     if (actionType === "move_card") {
@@ -71,6 +104,17 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
     }
     if (actionType === "set_assignee") {
       return JSON.stringify([{ type: "set_assignee", user_id: actionUserId }]);
+    }
+    if (actionType === "send_slack") {
+      return JSON.stringify([{ type: "send_slack", message: slackMessage }]);
+    }
+    if (actionType === "send_email") {
+      return JSON.stringify([
+        { type: "send_email", to: emailTo, subject: emailSubject, html: emailHtml },
+      ]);
+    }
+    if (actionType === "webhook") {
+      return JSON.stringify([{ type: "webhook", url: webhookUrl, body: { source: "planner" } }]);
     }
     return JSON.stringify([{ type: "set_priority", value: actionPriority }]);
   }
@@ -87,6 +131,18 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
     }
     if (actionType === "set_assignee" && !actionUserId) {
       toast.error("Selecione o responsavel.");
+      return;
+    }
+    if (actionType === "send_slack" && !slackMessage.trim()) {
+      toast.error("Informe a mensagem Slack.");
+      return;
+    }
+    if (actionType === "send_email" && (!emailTo.trim() || !emailSubject.trim())) {
+      toast.error("Informe destinatario e assunto do email.");
+      return;
+    }
+    if (actionType === "webhook" && !webhookUrl.trim()) {
+      toast.error("Informe a URL do webhook.");
       return;
     }
 
@@ -150,6 +206,41 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
       testId="board-automations-modal"
     >
       <div className="space-y-6">
+        <div className="flex gap-2 border-b border-aurora-border pb-2">
+          <button
+            type="button"
+            className={`text-sm font-medium ${tab === "rules" ? "text-aurora-accent" : "text-aurora-muted"}`}
+            onClick={() => setTab("rules")}
+          >
+            Regras
+          </button>
+          <button
+            type="button"
+            className={`text-sm font-medium ${tab === "history" ? "text-aurora-accent" : "text-aurora-muted"}`}
+            onClick={() => setTab("history")}
+            data-testid="automation-history-tab"
+          >
+            Historico
+          </button>
+        </div>
+
+        {tab === "history" ? (
+          <section className="space-y-2" data-testid="automation-runs-list">
+            {runs.length === 0 ? (
+              <p className="text-sm text-aurora-muted">Nenhuma execucao registrada.</p>
+            ) : (
+              runs.map((run) => (
+                <div key={run.id} className="rounded-lg border border-aurora-border p-3 text-sm">
+                  <p className="font-medium text-aurora-fg">{run.status}</p>
+                  <p className="text-xs text-aurora-muted">{new Date(run.ran_at).toLocaleString("pt-BR")}</p>
+                </div>
+              ))
+            )}
+          </section>
+        ) : null}
+
+        {tab === "rules" ? (
+        <>
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-aurora-fg">Regras ativas</h3>
           {loading ? (
@@ -262,6 +353,9 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
                   <option value="set_priority">Alterar prioridade</option>
                   <option value="move_card">Mover para coluna</option>
                   <option value="set_assignee">Definir responsavel</option>
+                  <option value="send_slack">Enviar Slack</option>
+                  <option value="send_email">Enviar email</option>
+                  <option value="webhook">Webhook HTTP</option>
                 </select>
               </div>
               <div>
@@ -314,6 +408,41 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
                     </select>
                   </>
                 ) : null}
+                {actionType === "send_slack" ? (
+                  <>
+                    <label className="mb-1 block text-xs font-medium text-aurora-muted">Mensagem Slack</label>
+                    <input
+                      value={slackMessage}
+                      onChange={(e) => setSlackMessage(e.target.value)}
+                      className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                    />
+                  </>
+                ) : null}
+                {actionType === "send_email" ? (
+                  <div className="space-y-2">
+                    <input
+                      value={emailTo}
+                      onChange={(e) => setEmailTo(e.target.value)}
+                      placeholder="email@empresa.com"
+                      className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                    />
+                  </div>
+                ) : null}
+                {actionType === "webhook" ? (
+                  <>
+                    <label className="mb-1 block text-xs font-medium text-aurora-muted">URL webhook</label>
+                    <input
+                      value={webhookUrl}
+                      onChange={(e) => setWebhookUrl(e.target.value)}
+                      className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                    />
+                  </>
+                ) : null}
               </div>
             </div>
 
@@ -322,6 +451,8 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
             </button>
           </form>
         </section>
+        </>
+        ) : null}
       </div>
     </AuroraModal>
   );

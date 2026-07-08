@@ -11,8 +11,8 @@ Modos timeline/calendar/table existem read-only ([board-view-modes.md](./board-v
 ## Objetivos
 
 - Timeline: drag barra altera `start_date`/`due_date`; resize handles; setas de dependência FS.
-- Calendário: drag card entre dias atualiza `due_date`.
-- Tabela: inline edit células permitidas (F.2).
+- Calendário: exibe `target_date` como eixo de planejamento; `due_date` visível como prazo final quando distinto.
+- Tabela: inline edit células permitidas (F.2), incluindo `estimated_hours`, `target_date`, `due_date`.
 - Anti-ciclo em dependências ao criar link Gantt.
 
 ## Não-objetivos

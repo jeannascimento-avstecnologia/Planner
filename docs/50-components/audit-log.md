@@ -16,7 +16,6 @@ Organizações B2B exigem trilha de auditoria imutável para ações administrat
 ## Não-objetivos
 
 - Diff granular campo-a-campo (F.2).
-- Export CSV/PDF (fast-follow).
 - Full-text search no payload (v1: filtro por `event_type`, `actor_id`, período).
 - Eventos de leitura (SELECT) — só mutações e ações admin.
 
@@ -75,8 +74,9 @@ Tabela existente `public.card_events`:
 - Acesso: redirect se role ∉ `{admin, owner}`.
 - Filtros: ator (combobox profiles da org), `event_type` (multi-select), período (`occurred_at` from/to).
 - Paginação keyset: cursor `(occurred_at, id)` DESC; page size 50.
-- Colunas: timestamp (locale pt-BR), ator (nome + avatar), tipo (label i18n), escopo (board/card link quando aplicável), resumo payload (1 linha).
-- Componentes: Tremor Table ou visx list; loading skeleton; empty state.
+- Colunas: timestamp (locale pt-BR), ator (nome + avatar), tipo (label i18n), escopo (board/card link quando aplicável), resumo payload (1 linha em PT via `auditPayloadSummary`).
+- Filtros de tipo: chips com **Selecionar todos** / **Limpar** (global e por grupo); vazio = todos os tipos.
+- Export: botoes CSV/PDF em `/settings/audit`; rota `GET /api/audit/export?orgId=&format=csv|pdf` com mesmos filtros; payload redigido (`redactAuditPayload`).
 
 ### Contratos TypeScript
 

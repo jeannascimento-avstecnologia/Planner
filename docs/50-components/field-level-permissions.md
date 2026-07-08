@@ -15,7 +15,7 @@ Roles org (`owner`, `admin`, `manager`, `viewer`) e board (`can_write_board`) co
 
 ## Não-objetivos
 
-- Permissões por usuário individual (só por role org + override board admin).
+- ~~Permissões por usuário individual~~ → **v1.1:** overrides por usuário sobre defaults de role.
 - Campos customizados dinâmicos (MVP F.2: campos fixos do schema `cards`).
 - UI drag-and-drop de matriz de permissões (form tabela simples).
 
@@ -25,25 +25,30 @@ Roles org (`owner`, `admin`, `manager`, `viewer`) e board (`can_write_board`) co
 
 | Campo | Entidade |
 |-------|----------|
-| `title`, `description`, `due_date`, `start_date`, `priority`, `assignee_id`, `column_id`, `parent_id` | `cards` |
+| `title`, `description`, `due_date`, `start_date`, `target_date`, `priority`, `assignee_id`, `column_id`, `parent_id` | `cards` |
 | `tiflux_*`, integrações | `cards` + board settings |
 | `estimated_hours`, `story_points` | `cards` (prep E) |
 
 ### Modelo
 
-Tabela `public.field_permission_rules`:
+**Defaults por role** — `public.field_permission_rules`:
 
 ```sql
 (org_id, role, resource, field_name, access) -- access: read|write|hidden
 ```
 
-- Default seed por org na criação (viewer: read-only dates; manager: write all exceto delete board).
-- Override por board opcional em `board_field_overrides` (fast-follow v1.1 se escopo estourar).
+**Overrides por usuário** — `public.user_field_permission_overrides`:
+
+```sql
+(org_id, user_id, resource, field_name, access)
+```
+
+Resolução efetiva (server-side): override do usuário → regra da role → `write`.
 
 ### Enforcement
 
 1. **RPC `app.update_card_fields(card_id, patch jsonb)`** — único caminho de update parcial em views D/E.
-2. Função valida cada chave do patch contra regras + `can_write_board`.
+2. Função valida cada chave do patch contra regras efetivas (`user override` + role) + `can_write_board`.
 3. UPDATE direto em `cards` permanece para Kanban drag (column/order) — trigger `BEFORE UPDATE` valida colunas sensíveis se patch incluir campos restritos.
 4. SELECT: views filtram colunas `hidden` no cliente; RLS não oculta coluna (complexidade) — **server components strip** campos hidden antes de serializar.
 
@@ -54,16 +59,15 @@ Tabela `public.field_permission_rules`:
 
 ### UI
 
-- `/settings/permissions` — matriz editável admin/owner.
-- Board settings: badge "Restrições ativas" se override.
+- `/settings/permissions` — **permisões personalizadas por usuário** (admin/owner).
+- Seletor de membro + matriz editável campo × acesso (`Padrão do papel` | `Leitura` | `Edição` | `Oculto`).
+- Exibir hint do default da role quando valor = padrão.
 
 ## Critérios de aceite
 
-- [ ] Viewer não altera `due_date` via RPC nem inline table (403 + toast).
-- [ ] Manager altera `due_date` com sucesso.
-- [ ] Campo `hidden` não aparece no drawer para viewer.
-- [ ] Alteração negada gera `field_write_denied` em `card_events`.
-- [ ] pgTAP: RPC rejeita patch com campo não permitido.
+- [ ] Admin define override por usuário (ex.: bloquear `due_date` para membro X).
+- [ ] Override persiste e prevalece sobre role no RPC.
+- [ ] "Padrão do papel" remove override e restaura default da role.
 
 ## Questões abertas
 
@@ -84,5 +88,6 @@ Tabela `public.field_permission_rules`:
 | RPC update_card_fields | `app.update_card_fields` | pgTAP + Vitest |
 | Trigger cards | `*_card_field_guard.sql` | pgTAP |
 | Strip hidden SSR | `lib/field-permissions.ts`, server loaders | Vitest |
-| UI matriz | `settings/permissions/page.tsx` | Playwright |
+| Tabela overrides | `*_user_field_permission_overrides.sql` | pgTAP RLS |
+| UI por usuário | `settings/permissions/*`, `user-permissions-editor.tsx` | Playwright |
 | Audit events | triggers + emit | pgTAP |

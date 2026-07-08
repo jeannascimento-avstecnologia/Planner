@@ -1,13 +1,24 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getRecentBoards, pruneRecentBoards, type RecentBoard } from "@/lib/recent-boards";
+import { useEffect, useMemo, useState } from "react";
+import { BoardIcon } from "@/components/board/board-icon";
+import { NavLink } from "@/components/shell/nav-link";
+import {
+  enrichRecentBoards,
+  getRecentBoards,
+  pruneRecentBoards,
+  type BoardMeta,
+  type RecentBoard,
+} from "@/lib/recent-boards";
 
-type Props = { collapsed?: boolean; accessibleBoardIds: string[] };
+type Props = {
+  collapsed?: boolean;
+  accessibleBoardIds: string[];
+  boardMetaById: Record<string, BoardMeta>;
+};
 
-export function RecentProjects({ collapsed, accessibleBoardIds }: Props) {
+export function RecentProjects({ collapsed, accessibleBoardIds, boardMetaById }: Props) {
   const pathname = usePathname();
   const [items, setItems] = useState<RecentBoard[]>([]);
 
@@ -16,7 +27,7 @@ export function RecentProjects({ collapsed, accessibleBoardIds }: Props) {
   }, [accessibleBoardIds]);
 
   useEffect(() => {
-    const refresh = () => setItems(getRecentBoards());
+    const refresh = () => setItems(enrichRecentBoards(getRecentBoards(), boardMetaById));
     refresh();
     window.addEventListener("ngp:recent-boards", refresh);
     window.addEventListener("storage", refresh);
@@ -24,29 +35,52 @@ export function RecentProjects({ collapsed, accessibleBoardIds }: Props) {
       window.removeEventListener("ngp:recent-boards", refresh);
       window.removeEventListener("storage", refresh);
     };
-  }, [pathname]);
+  }, [pathname, boardMetaById]);
 
-  if (collapsed || items.length === 0) return null;
+  const visible = useMemo(
+    () => items.filter((b) => accessibleBoardIds.includes(b.id)),
+    [items, accessibleBoardIds],
+  );
 
-  return (
-    <div className="space-y-1 border-t border-white/10 pt-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Recentes</p>
-      <ul className="space-y-0.5">
-        {items.map((b) => {
+  if (visible.length === 0) return null;
+
+  if (collapsed) {
+    return (
+      <div className="mt-3 space-y-1 border-t border-white/10 pt-3" data-testid="recent-projects-collapsed">
+        {visible.map((b) => {
           const href = `/boards/${b.id}`;
           return (
-          <li key={b.id}>
-            <Link
+            <NavLink
+              key={b.id}
               href={href}
-              prefetch={false}
-              onClick={(e) => {
-                if (pathname === href) e.preventDefault();
-              }}
-              className="block truncate rounded px-2 py-1 text-sm text-white/90 hover:bg-white/10 hover:text-white"
+              title={b.name}
+              data-testid={`recent-board-icon-${b.id}`}
+              className="flex justify-center rounded-lg px-2 py-2 transition hover:bg-white/10"
             >
-              {b.name}
-            </Link>
-          </li>
+              <BoardIcon icon={b.icon ?? null} color={b.color ?? null} size="sm" />
+            </NavLink>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-1 border-t border-white/10 pt-3" data-testid="recent-projects-expanded">
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Recentes</p>
+      <ul className="space-y-0.5">
+        {visible.map((b) => {
+          const href = `/boards/${b.id}`;
+          return (
+            <li key={b.id}>
+              <NavLink
+                href={href}
+                className="flex items-center gap-2 truncate rounded px-2 py-1 text-sm text-white/90 hover:bg-white/10 hover:text-white"
+              >
+                <BoardIcon icon={b.icon ?? null} color={b.color ?? null} size="sm" />
+                <span className="truncate">{b.name}</span>
+              </NavLink>
+            </li>
           );
         })}
       </ul>

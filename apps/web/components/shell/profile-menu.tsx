@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, KeyRound, User } from "lucide-react";
+import { KeyRound, User } from "lucide-react";
 
 type Props = {
   avatarUrl?: string;
@@ -36,13 +36,10 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
 
   const topbarIconBtn =
     "flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition hover:bg-white/90";
-  const active =
-    pathname === "/profile" ||
-    pathname === "/profile/password" ||
-    pathname.startsWith("/settings/organization");
+  const active = pathname === "/profile" || pathname === "/profile/password";
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative z-[100]">
       <button
         type="button"
         title="Conta"
@@ -61,7 +58,10 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-50 mt-1 min-w-[11rem] rounded-lg border border-aurora-border bg-aurora-surface py-1 shadow-lg">
+        <div
+          className="absolute right-0 top-full z-[100] mt-1 min-w-[11rem] rounded-lg border border-aurora-border bg-aurora-surface py-1 shadow-lg"
+          data-testid="profile-menu-dropdown"
+        >
           <Link
             href="/profile"
             onClick={() => setOpen(false)}
@@ -76,14 +76,6 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
             data-testid="profile-change-password"
           >
             <KeyRound className="h-4 w-4" /> Mudar senha
-          </Link>
-          <Link
-            href="/settings/organization"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-aurora-fg hover:bg-aurora-surface-2"
-            data-testid="profile-org-settings"
-          >
-            <Building2 className="h-4 w-4" /> Organizacao
           </Link>
         </div>
       ) : null}

@@ -3,8 +3,23 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@nextgen/contracts";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { applyAuthSessionCookieOptions, isSessionOnlyAuth } from "@/lib/supabase/auth-cookies";
+import {
+  DEADLINE_SYNC_COOKIE,
+  DEADLINE_SYNC_INTERVAL_MS,
+  PLANNER_SYNC_DEADLINES_HEADER,
+  PLANNER_USER_EMAIL_HEADER,
+  PLANNER_USER_ID_HEADER,
+} from "@/lib/planner-headers";
 
-const PROTECTED_PREFIXES = ["/boards", "/projects", "/calendar", "/profile", "/settings", "/workload"];
+const PROTECTED_PREFIXES = [
+  "/boards",
+  "/projects",
+  "/calendar",
+  "/plan",
+  "/profile",
+  "/settings",
+  "/workload",
+];
 
 const HTTP_LIMIT_IP = 120;
 const HTTP_LIMIT_USER = 60;
@@ -17,13 +32,26 @@ function rateLimitResponse(retryAfterSec: number): NextResponse {
   });
 }
 
+function stripPlannerHeaders(headers: Headers): Headers {
+  headers.delete(PLANNER_USER_ID_HEADER);
+  headers.delete(PLANNER_USER_EMAIL_HEADER);
+  headers.delete(PLANNER_SYNC_DEADLINES_HEADER);
+  return headers;
+}
+
+function copyCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach((c) => to.cookies.set(c.name, c.value));
+}
+
 export async function updateSession(request: NextRequest) {
   const ip = getClientIp(request);
   const ipRl = checkRateLimit(`http:ip:${ip}`, HTTP_LIMIT_IP, HTTP_WINDOW_MS);
   if (!ipRl.ok) return rateLimitResponse(ipRl.retryAfterSec);
 
-  let response = NextResponse.next({ request });
   const sessionOnly = isSessionOnlyAuth(request.cookies);
+  const inboundHeaders = stripPlannerHeaders(new Headers(request.headers));
+
+  let response = NextResponse.next({ request: { headers: inboundHeaders } });
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +63,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: inboundHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, applyAuthSessionCookieOptions(options, sessionOnly)),
           );
@@ -74,5 +102,31 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return response;
+  if (!sessionUser) return response;
+
+  const outHeaders = stripPlannerHeaders(new Headers(request.headers));
+  outHeaders.set(PLANNER_USER_ID_HEADER, sessionUser.id);
+
+  let syncDeadlines = false;
+  if (isProtected) {
+    const lastRaw = request.cookies.get(DEADLINE_SYNC_COOKIE)?.value;
+    const last = lastRaw ? Number(lastRaw) : 0;
+    const now = Date.now();
+    if (!last || now - last > DEADLINE_SYNC_INTERVAL_MS) {
+      syncDeadlines = true;
+      outHeaders.set(PLANNER_SYNC_DEADLINES_HEADER, "1");
+    }
+  }
+
+  const nextResponse = NextResponse.next({ request: { headers: outHeaders } });
+  copyCookies(response, nextResponse);
+  if (syncDeadlines) {
+    nextResponse.cookies.set(DEADLINE_SYNC_COOKIE, String(Date.now()), {
+      maxAge: DEADLINE_SYNC_INTERVAL_MS / 1000,
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
+  return nextResponse;
 }

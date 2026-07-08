@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
+import type { BoardMeta } from "@/lib/recent-boards";
 
 type Props = {
   userEmail: string;
   avatarUrl?: string;
   fullName?: string;
   accessibleBoardIds: string[];
+  boardMetaById: Record<string, BoardMeta>;
+  showWorkload: boolean;
   notificationsSlot: React.ReactNode;
   children: React.ReactNode;
 };
@@ -18,6 +21,8 @@ export function AppShell({
   avatarUrl,
   fullName,
   accessibleBoardIds,
+  boardMetaById,
+  showWorkload,
   notificationsSlot,
   children,
 }: Props) {
@@ -30,6 +35,8 @@ export function AppShell({
         mobileOpen={mobileOpen}
         setMobileOpen={setMobileOpen}
         accessibleBoardIds={accessibleBoardIds}
+        boardMetaById={boardMetaById}
+        showWorkload={showWorkload}
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <AppTopbar

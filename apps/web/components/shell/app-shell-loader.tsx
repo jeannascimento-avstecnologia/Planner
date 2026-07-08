@@ -1,8 +1,9 @@
-import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgIdCached } from "@/lib/loaders/session";
+import { loadShellDataCached } from "@/lib/loaders/shell-cache";
 import { AppShell } from "./app-shell";
 import { NotificationsLoader } from "./notifications-loader";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Suspense } from "react";
 
 type Props = {
   userId: string;
@@ -15,18 +16,17 @@ function NotificationFallback() {
 }
 
 export async function AppShellLoader({ userId, userEmail, children }: Props) {
-  const supabase = await createClient();
-  const [{ data: profile }, { data: accessibleBoards }] = await Promise.all([
-    supabase.from("profiles").select("avatar_url, full_name").eq("id", userId).single(),
-    supabase.from("boards").select("id"),
-  ]);
+  const orgId = await getActiveOrgIdCached();
+  const shell = await loadShellDataCached(userId, orgId);
 
   return (
     <AppShell
       userEmail={userEmail}
-      avatarUrl={profile?.avatar_url ?? ""}
-      fullName={profile?.full_name ?? ""}
-      accessibleBoardIds={(accessibleBoards ?? []).map((b) => b.id)}
+      avatarUrl={shell.avatarUrl}
+      fullName={shell.fullName}
+      accessibleBoardIds={shell.accessibleBoardIds}
+      boardMetaById={shell.boardMetaById}
+      showWorkload={shell.showWorkload}
       notificationsSlot={
         <Suspense fallback={<NotificationFallback />}>
           <NotificationsLoader userId={userId} variant="topbar" />

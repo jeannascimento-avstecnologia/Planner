@@ -2,18 +2,21 @@ import { createClient } from "@/lib/supabase/server";
 import { cache } from "react";
 import {
   getActiveOrgIdCached,
-  getActiveOrgMembershipCached,
   getSessionUser,
-  listUserOrgsCached,
 } from "@/lib/loaders/session";
 import { isOrgAdminRole, isOrgOwnerRole } from "@/lib/org-member-roles";
 import { canCreateInDepartment } from "@/lib/department-roles";
-import type { DepartmentOverview } from "@/components/departments/DepartmentsPanel";
 import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import type { DeadlineTileItem } from "@/components/home/deadline-tiles";
 import type { BoardMember } from "@/components/board/share-project-panel";
 import type { UpcomingTask } from "@/components/projects/project-hub-detail";
 import type { ProjectBoardRow } from "@/components/projects/types";
+import type { CachedSupabaseClient } from "@/lib/loaders/cached-supabase";
+import type { UserOrgRow } from "@/lib/active-org-constants";
+import type { Database } from "@nextgen/contracts";
+
+type MembershipRole = Database["public"]["Enums"]["membership_role"];
+type OrgSupabase = CachedSupabaseClient;
 
 export type DepartmentProjectGroup = {
   departmentId: string | null;
@@ -103,12 +106,41 @@ export async function loadOrgProjects(): Promise<LoadOrgProjectsResult> {
   return loadOrgProjectsImpl();
 }
 
-const loadOrgProjectsImpl = cache(async (): Promise<LoadOrgProjectsResult> => {
-  const supabase = await createClient();
-  const user = await getSessionUser();
-  const orgId = await getActiveOrgIdCached();
-  const membership = await getActiveOrgMembershipCached();
-  const userOrgs = await listUserOrgsCached();
+async function fetchUserOrgs(supabase: OrgSupabase, userId: string): Promise<UserOrgRow[]> {
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("org_id, role, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+  if (!memberships?.length) return [];
+
+  const orgIds = memberships.map((m) => m.org_id);
+  const { data: orgs } = await supabase.from("organizations").select("id, name, slug, logo_url").in("id", orgIds);
+  const orgById = new Map((orgs ?? []).map((o) => [o.id, o]));
+
+  return memberships.flatMap((m) => {
+    const org = orgById.get(m.org_id);
+    if (!org) return [];
+    return [
+      {
+        orgId: org.id,
+        name: org.name,
+        slug: org.slug,
+        logoUrl: org.logo_url,
+        role: m.role as MembershipRole,
+        isOwner: m.role === "owner",
+      },
+    ];
+  });
+}
+
+/** Fetch home/projects data — usado por React cache e unstable_cache (token estatico). */
+export async function fetchOrgProjectsData(
+  supabase: OrgSupabase,
+  userId: string,
+  activeOrgId: string | null,
+): Promise<LoadOrgProjectsResult> {
+  const userOrgs = await fetchUserOrgs(supabase, userId);
 
   const BOARD_COLUMNS =
     "id, org_id, name, description, icon, color, department_id, archived, tiflux_enabled, integrations, created_at, created_by";
@@ -123,16 +155,25 @@ const loadOrgProjectsImpl = cache(async (): Promise<LoadOrgProjectsResult> => {
     return { kind: "no-org" };
   }
 
-  const isOrgAdmin = isOrgAdminRole(membership?.role);
-  const effectiveOrgId = orgId ?? userOrgs[0]?.orgId ?? boardsRaw?.[0]?.org_id ?? null;
+  const { data: membershipRow } = activeOrgId
+    ? await supabase
+        .from("memberships")
+        .select("role")
+        .eq("org_id", activeOrgId)
+        .eq("user_id", userId)
+        .maybeSingle()
+    : { data: null };
+
+  const isOrgAdmin = isOrgAdminRole(membershipRow?.role);
+  const effectiveOrgId = activeOrgId ?? userOrgs[0]?.orgId ?? boardsRaw?.[0]?.org_id ?? null;
 
   const orgIdsForDepts = [...new Set(userOrgs.map((o) => o.orgId))];
   const [{ data: departmentsRaw }, { data: myDeptMemberships }, { data: activeOrgRow }] = await Promise.all([
     orgIdsForDepts.length
       ? supabase.from("departments").select("id, org_id, name, icon, color").in("org_id", orgIdsForDepts)
       : Promise.resolve({ data: [] as { id: string; org_id: string; name: string; icon: string | null; color: string | null }[] }),
-    user?.id
-      ? supabase.from("department_members").select("department_id, org_id, role").eq("user_id", user.id)
+    userId
+      ? supabase.from("department_members").select("department_id, org_id, role").eq("user_id", userId)
       : Promise.resolve({ data: [] as { department_id: string; org_id: string; role: string }[] }),
     effectiveOrgId
       ? supabase.from("organizations").select("name, logo_url").eq("id", effectiveOrgId).maybeSingle()
@@ -371,9 +412,9 @@ const loadOrgProjectsImpl = cache(async (): Promise<LoadOrgProjectsResult> => {
       activeOrgLogoUrl: activeOrgRow?.logo_url ?? null,
       sections,
       orgId: effectiveOrgId ?? "",
-      orgName: activeOrgRow?.name ?? (orgId ? null : "Projetos compartilhados"),
+      orgName: activeOrgRow?.name ?? (activeOrgId ? null : "Projetos compartilhados"),
       isOrgAdmin,
-      currentUserId: user?.id ?? null,
+      currentUserId: userId,
       boards,
       boardMembersByBoardId,
       upcomingTasksByBoard,
@@ -381,4 +422,12 @@ const loadOrgProjectsImpl = cache(async (): Promise<LoadOrgProjectsResult> => {
       creatableDepartments,
     },
   };
+}
+
+const loadOrgProjectsImpl = cache(async (): Promise<LoadOrgProjectsResult> => {
+  const supabase = await createClient();
+  const user = await getSessionUser();
+  const orgId = await getActiveOrgIdCached();
+  if (!user) return { kind: "no-org" };
+  return fetchOrgProjectsData(supabase, user.id, orgId);
 });

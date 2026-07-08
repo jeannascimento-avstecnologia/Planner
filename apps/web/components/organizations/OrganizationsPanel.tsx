@@ -50,27 +50,6 @@ export function OrganizationsPanel({ data }: Props) {
     setActiveOrgId(data.activeOrgId);
   }, [data.orgs, data.activeOrgId]);
 
-  useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-      body: JSON.stringify({
-        sessionId: "fa60ca",
-        hypothesisId: "H1",
-        location: "OrganizationsPanel.tsx:mount",
-        message: "organizations hub mounted",
-        data: {
-          activeOrgId: data.activeOrgId,
-          orgCount: data.orgs.length,
-          orgNames: data.orgs.map((o) => o.name),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [data.activeOrgId, data.orgs]);
-
   function handleOrgCreated(org: CreatedOrganization) {
     setSearch("");
     setActiveOrgId(org.orgId);

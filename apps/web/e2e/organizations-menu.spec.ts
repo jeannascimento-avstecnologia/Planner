@@ -6,13 +6,18 @@ test.describe("Organizations menu", () => {
     await loginAsStandard(page);
   });
 
-  test("sidebar abre hub de organizacoes", async ({ page }) => {
-    await page.getByRole("link", { name: "Organizacoes" }).click();
+  test("sidebar abre hub de organizacoes via configuracoes", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const expand = page.getByRole("button", { name: "Expandir" });
+    if (await expand.isVisible()) await expand.click();
+    await page.locator("aside.aurora-sidebar-gradient").getByRole("link", { name: "Configuracoes" }).click();
+    await expect(page).toHaveURL(/\/settings$/, { timeout: 15_000 });
+    await page.getByTestId("settings-card-organizations").click();
     await expect(page).toHaveURL(/\/settings\/organizations/);
     await expect(page.getByTestId("organizations-hub-page")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("organizations-panel")).toBeVisible();
-    await expect(page.getByTestId("org-settings-tab-membros")).toHaveCount(0);
-    await expect(page.getByText("Gerencie membros, convites e configuracoes da organizacao")).toHaveCount(0);
+    await expect(page.getByTestId("settings-nav")).toBeVisible();
+    await expect(page.getByTestId("settings-org-switcher")).toBeVisible();
   });
 
   test("busca filtra projetos preservando org", async ({ page }) => {

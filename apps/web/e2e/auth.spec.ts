@@ -96,7 +96,8 @@ test.describe("Auth", () => {
     await page.getByRole("button", { name: "Entrar" }).click();
     await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
 
-    await page.getByRole("button", { name: "Sair" }).click();
+    await page.getByTestId("sign-out-button").click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Sair" }).click();
     await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
   });
 });

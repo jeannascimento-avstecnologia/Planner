@@ -41,6 +41,10 @@ export const btnBoardSecondary =
 export const tileInteractive =
   `rounded-xl border border-aurora-border bg-aurora-surface ${motionBase} hover:-translate-y-0.5 hover:border-aurora-accent hover:bg-aurora-surface-2 hover:shadow-md active:translate-y-px active:shadow-sm`;
 
+/** Tile de settings hub — borda vem do tom do card, nao do accent global. */
+export const settingsTileInteractive =
+  `rounded-xl border bg-aurora-surface ${motionBase} hover:-translate-y-0.5 hover:bg-aurora-surface-2 hover:shadow-md active:translate-y-px active:shadow-sm`;
+
 export const tileBoardInteractive =
   `rounded-lg border border-board-border bg-board-surface shadow-sm ${motionBase} hover:-translate-y-0.5 hover:border-board-accent hover:shadow-md active:translate-y-px active:shadow-sm`;
 
@@ -79,6 +83,73 @@ export const viewSwitcherActiveClass =
 
 export const viewSwitcherBoardActiveClass =
   "border-board-accent bg-board-accent text-white shadow-sm";
+
+/** Painel de dados (grade plano / carga) — alinhado ao hub-panel. */
+export const dataPanelClass =
+  "overflow-hidden rounded-xl border border-aurora-border bg-aurora-surface shadow-sm";
+
+export const dataPanelEnterClass = "hub-panel-enter";
+
+export const pageBreadcrumbClass =
+  `inline-flex items-center gap-1 text-xs text-aurora-muted ${motionBase} hover:text-aurora-brand`;
+
+export const navChipClass =
+  `inline-flex items-center gap-1 rounded-lg border border-aurora-border bg-aurora-surface px-2.5 py-1.5 text-sm text-aurora-muted ${motionBase} hover:border-aurora-brand/40 hover:bg-aurora-brand-muted/30 hover:text-aurora-fg active:scale-[0.98]`;
+
+export const navChipBrandClass =
+  `inline-flex items-center rounded-lg border border-aurora-brand/35 bg-aurora-brand-muted/40 px-2.5 py-1 text-xs font-medium text-aurora-brand ${motionBase} hover:border-aurora-brand/55 hover:bg-aurora-brand-muted/70 active:scale-[0.98]`;
+
+export const segmentTrackClass =
+  "inline-flex rounded-lg border border-aurora-border bg-aurora-surface-2/80 p-0.5 text-xs shadow-inner";
+
+export const segmentItemClass =
+  `rounded-md px-3 py-1.5 font-medium text-aurora-muted ${viewSwitcherMotion} hover:text-aurora-fg active:scale-[0.98]`;
+
+export const segmentItemActiveClass =
+  "bg-aurora-surface text-aurora-fg shadow-sm ring-1 ring-aurora-brand/25";
+
+export const planTodayColumnClass = "plan-today-column";
+
+export const planTodayColumnHeaderClass = "plan-today-column plan-today-column-header";
+
+export const planTargetDeliveryCellClass = "plan-target-delivery-cell";
+
+export const planFinalDueCellClass = "plan-final-due-cell";
+
+export const planPastDueCellClass = "plan-past-due-cell";
+
+export const dropTargetOverClass = "aurora-drop-target-over";
+
+export const planColumnDropTargetClass = "plan-column-drop-target";
+
+export const planCellDropTargetClass = "plan-cell-drop-target";
+
+export const planGridDraggingClass = "plan-grid-is-dragging";
+
+export const planGridSidebarDragClass = "plan-grid-sidebar-drag";
+
+export const planRowDraggingClass = "plan-sortable-row";
+
+export const planRowDropTargetClass = "plan-row-drop-target";
+
+export const planSidebarCardDraggingClass = "plan-sidebar-card-dragging-source";
+
+export const planDragOverlayCardClass = "plan-drag-overlay-card";
+
+export const planSidebarCardClass =
+  `rounded-lg border border-aurora-border bg-aurora-surface px-2.5 py-2 text-xs shadow-sm ${motionBase} hover:-translate-y-px hover:border-aurora-brand/35 hover:shadow-md active:scale-[0.99]`;
+
+export const planDragOverlayClass = "aurora-plan-drag-overlay";
+
+export const toolbarStripClass =
+  "flex flex-wrap items-center gap-3 rounded-xl border border-aurora-border bg-aurora-surface-2/50 px-3 py-2 text-sm";
+
+export const tableStickyHeadClass = "sticky left-0 z-20 bg-aurora-surface-2";
+
+export const tableStickyCellClass = "sticky left-0 z-10 bg-aurora-surface";
+
+export const memberAvatarClass =
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-agify-brand text-xs font-semibold text-white shadow-sm";
 
 export const priorityClass = {
   low: "bg-aurora-muted/15 text-aurora-muted",

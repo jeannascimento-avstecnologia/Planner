@@ -195,7 +195,9 @@ export const updateCardInput = z.object({
   priority: cardPriority.optional(),
   dueDate: z.string().nullable().optional(),
   startDate: z.string().nullable().optional(),
+  targetDate: z.string().nullable().optional(),
   assigneeId: uuid.nullable().optional(),
+  estimatedHours: z.coerce.number().min(0).max(999.99).nullable().optional(),
 });
 export type UpdateCardInput = z.infer<typeof updateCardInput>;
 

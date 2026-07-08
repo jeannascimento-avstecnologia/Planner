@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Settings2 } from "lucide-react";
@@ -26,33 +26,6 @@ export function OrganizationCard({ org, currentUserId, adminOrgIds, allOrgs }: P
   const targetOrgs = allOrgs.filter(
     (o) => o.orgId !== org.orgId && adminOrgIds.includes(o.orgId),
   );
-
-  useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fa60ca" },
-      body: JSON.stringify({
-        sessionId: "fa60ca",
-        runId: "post-fix",
-        hypothesisId: "H2-H3",
-        location: "OrganizationCard.tsx:mount",
-        message: "organization card initial state",
-        data: {
-          orgId: org.orgId,
-          orgName: org.name,
-          isActive: org.isActive,
-          expandedInitial: false,
-          manageOpenInitial: false,
-          showsTornarAtivaOnCard: false,
-          showsMoveButtonsOnCard: false,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount snapshot only
-  }, []);
 
   return (
     <>

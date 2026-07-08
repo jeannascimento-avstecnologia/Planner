@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { createOrganization } from "./actions";
+import { PAGE_COPY } from "@/lib/page-copy";
 import { inputClass, btnPrimary } from "@/lib/ui-classes";
 import { DeadlineTiles } from "@/components/home/deadline-tiles";
-import { OrgLogo } from "@/components/organizations/OrgLogo";
 import { HomeProjectsGrouped } from "@/components/home/home-projects-grouped";
 import { CreateProjectForm } from "@/components/projects/create-project-form";
-import { loadDeadlinesCached, loadOrgProjectsCached } from "@/lib/loaders/cached-queries";
+import { loadOrgProjectsCached } from "@/lib/loaders/cached-queries";
 import { loadOrgProjects } from "@/lib/load-org-projects";
 import { getSessionUser } from "@/lib/loaders/session";
 import type { OrgProjectSection } from "@/lib/load-org-projects";
@@ -13,11 +13,6 @@ import type { BoardMember } from "@/components/board/share-project-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const experimental_ppr = true;
-
-async function DeadlinesSection({ userId }: { userId: string }) {
-  const items = await loadDeadlinesCached(userId);
-  return <DeadlineTiles items={items} />;
-}
 
 type ProjectsSectionProps = {
   sections: OrgProjectSection[];
@@ -35,7 +30,21 @@ function ProjectsSection({ sections, boardMembersByBoardId, currentUserId }: Pro
   );
 }
 
-export default async function BoardsPage() {
+function BoardsPageFallback() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-48 rounded-lg" />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-20 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full rounded-xl" />
+    </div>
+  );
+}
+
+async function BoardsPageContent() {
   const user = await getSessionUser();
   const result = user ? await loadOrgProjectsCached(user.id) : await loadOrgProjects();
 
@@ -53,13 +62,12 @@ export default async function BoardsPage() {
   }
 
   const {
-    activeOrgName,
-    activeOrgLogoUrl,
     activeOrgId,
     sections,
     currentUserId,
     boardMembersByBoardId,
     creatableDepartments,
+    deadlineItems,
   } = result.data;
 
   const creatableByOrg = new Map<string, { id: string | null; label: string }[]>();
@@ -84,30 +92,11 @@ export default async function BoardsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div>
           <h2 className="text-lg font-semibold text-aurora-fg">Home</h2>
-          <div className="mt-1 flex items-center gap-2 text-sm text-aurora-muted">
-            {activeOrgName ? (
-              <>
-                <OrgLogo name={activeOrgName} logoUrl={activeOrgLogoUrl} size="sm" />
-                <span>Org ativa: {activeOrgName}</span>
-              </>
-            ) : (
-              <span>Seus projetos por organizacao</span>
-            )}
-          </div>
+          <p className="mt-1 text-sm text-aurora-muted">{PAGE_COPY.home.description}</p>
         </div>
       </div>
 
-      <Suspense
-        fallback={
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
-            ))}
-          </div>
-        }
-      >
-        <DeadlinesSection userId={user?.id ?? "anon"} />
-      </Suspense>
+      <DeadlineTiles items={deadlineItems} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         {creatableOrgs.length > 0 ? (
@@ -127,5 +116,13 @@ export default async function BoardsPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default async function BoardsPage() {
+  return (
+    <Suspense fallback={<BoardsPageFallback />}>
+      <BoardsPageContent />
+    </Suspense>
   );
 }

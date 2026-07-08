@@ -7,8 +7,16 @@ export const orgMemberRowSchema = z.object({
   avatar_url: z.string().nullable(),
   role: membershipRole,
   created_at: z.string(),
+  weekly_capacity_hours: z.number().nullable().optional(),
 });
 export type OrgMemberRow = z.infer<typeof orgMemberRowSchema>;
+
+export const updateMemberCapacityInput = z.object({
+  orgId: uuid,
+  userId: uuid,
+  weeklyCapacityHours: z.number().min(1).max(168),
+});
+export type UpdateMemberCapacityInput = z.infer<typeof updateMemberCapacityInput>;
 
 export const updateOrgMemberRoleInput = z.object({
   orgId: uuid,

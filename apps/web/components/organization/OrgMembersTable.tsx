@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { updateMemberCapacityAction } from "@/app/(app)/workload/actions";
 import {
   removeOrgMemberAction,
   updateOrgMemberRoleAction,
@@ -46,6 +47,24 @@ export function OrgMembersTable({
   const [removeTarget, setRemoveTarget] = useState<OrgMemberRow | null>(null);
 
   const ownerCount = members.filter((m) => m.role === "owner").length;
+
+  function changeCapacity(userId: string, raw: string, current: number) {
+    const v = Number(raw);
+    if (!Number.isFinite(v) || v < 1 || v > 168) {
+      appToast.error("Capacidade entre 1 e 168 horas.");
+      return;
+    }
+    if (v === current) return;
+    startTransition(async () => {
+      const res = await updateMemberCapacityAction({ orgId, userId, weeklyCapacityHours: v });
+      if (!res.ok) {
+        appToast.error(res.error);
+        return;
+      }
+      appToast.success("Capacidade atualizada");
+      router.refresh();
+    });
+  }
 
   function changeRole(userId: string, role: OrgMemberRole) {
     startTransition(async () => {
@@ -105,13 +124,14 @@ export function OrgMembersTable({
             <tr>
               <th className="px-4 py-2 font-semibold">Membro</th>
               <th className="px-4 py-2 font-semibold">Papel</th>
+              <th className="px-4 py-2 font-semibold">Capacidade (h/sem)</th>
               {canManage ? <th className="px-4 py-2 font-semibold">Acoes</th> : null}
             </tr>
           </thead>
           <tbody className={`divide-y divide-aurora-border bg-aurora-surface ${pending ? "opacity-70" : ""}`}>
             {members.length === 0 ? (
               <tr>
-                <td colSpan={canManage ? 3 : 2} className="px-4 py-6 text-center text-aurora-muted">
+                <td colSpan={canManage ? 4 : 3} className="px-4 py-6 text-center text-aurora-muted">
                   Nenhum membro encontrado.
                 </td>
               </tr>
@@ -149,6 +169,24 @@ export function OrgMembersTable({
                         </select>
                       ) : (
                         <span className="text-aurora-muted">{orgRoleLabel(member.role)}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {canManage ? (
+                        <input
+                          type="number"
+                          min={1}
+                          max={168}
+                          step={1}
+                          defaultValue={member.weekly_capacity_hours ?? 40}
+                          className="w-16 rounded border border-aurora-border bg-aurora-surface px-2 py-1 text-xs"
+                          data-testid={`org-member-capacity-${member.user_id}`}
+                          onBlur={(e) =>
+                            changeCapacity(member.user_id, e.target.value, member.weekly_capacity_hours ?? 40)
+                          }
+                        />
+                      ) : (
+                        <span className="text-aurora-muted tabular-nums">{member.weekly_capacity_hours ?? 40}h</span>
                       )}
                     </td>
                     {canManage ? (

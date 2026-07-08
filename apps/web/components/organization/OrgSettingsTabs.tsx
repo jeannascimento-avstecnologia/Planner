@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 const tabs: Array<{ href: string; label: string; exact?: boolean; adminOnly?: boolean }> = [
   { href: "/settings/organization", label: "Membros", exact: true },
   { href: "/settings/organization/invites", label: "Convites" },
-  { href: "/settings/organization/settings", label: "Configuracoes" },
+  { href: "/settings/organization/settings", label: "Geral" },
   { href: "/settings/audit", label: "Auditoria", adminOnly: true },
+  { href: "/settings/integrations", label: "Integracoes", adminOnly: true },
   { href: "/settings/permissions", label: "Permissoes", adminOnly: true },
 ];
 

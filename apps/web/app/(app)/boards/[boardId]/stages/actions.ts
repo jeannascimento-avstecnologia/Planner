@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import {
   createStageInput,
   deleteStageInput,
@@ -9,12 +8,9 @@ import {
   updateStageInput,
 } from "@nextgen/contracts";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateBoard, revalidatePlanViews } from "@/lib/revalidation";
 
-export type StageActionResult = { ok: true } | { error: string; code?: string };
-
-function revalidateBoard(boardId: string) {
-  revalidatePath(`/boards/${boardId}`);
-}
+export type StageActionResult = { ok: true; stageId?: string } | { error: string; code?: string };
 
 export async function createStage(formData: FormData): Promise<StageActionResult> {
   const parsed = createStageInput.safeParse({
@@ -40,18 +36,22 @@ export async function createStage(formData: FormData): Promise<StageActionResult
     .limit(1)
     .maybeSingle();
 
-  const { error } = await supabase.from("stages").insert({
-    org_id: board.org_id,
-    board_id: parsed.data.boardId,
-    name: parsed.data.name,
-    color: parsed.data.color,
-    position: (maxPos?.position ?? -1) + 1,
-    is_system: false,
-  });
+  const { data: inserted, error } = await supabase
+    .from("stages")
+    .insert({
+      org_id: board.org_id,
+      board_id: parsed.data.boardId,
+      name: parsed.data.name,
+      color: parsed.data.color,
+      position: (maxPos?.position ?? -1) + 1,
+      is_system: false,
+    })
+    .select("id")
+    .single();
   if (error) return { error: "Falha ao criar estagio." };
 
   revalidateBoard(parsed.data.boardId);
-  return { ok: true };
+  return { ok: true, stageId: inserted.id };
 }
 
 export async function updateStage(formData: FormData): Promise<StageActionResult> {
@@ -137,6 +137,10 @@ export async function setCardStage(input: {
   if (error) return { error: "Falha ao atualizar estagio do card." };
 
   revalidateBoard(parsed.data.boardId);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  revalidatePlanViews(user?.id);
   return { ok: true };
 }
 

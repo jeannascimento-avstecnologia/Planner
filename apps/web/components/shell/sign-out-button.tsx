@@ -1,10 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { safeInternalPath } from "@/lib/safe-internal-path";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type Props = {
   className?: string;
@@ -15,6 +16,7 @@ type Props = {
   label?: string;
   pendingLabel?: string;
   iconOnly?: boolean;
+  confirmBeforeSignOut?: boolean;
 };
 
 export function SignOutButton({
@@ -24,9 +26,11 @@ export function SignOutButton({
   label = "Sair",
   pendingLabel = "Saindo...",
   iconOnly = false,
+  confirmBeforeSignOut = false,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   function handleSignOut() {
     startTransition(async () => {
@@ -43,22 +47,47 @@ export function SignOutButton({
     });
   }
 
+  function onClick() {
+    if (confirmBeforeSignOut) {
+      setConfirmOpen(true);
+      return;
+    }
+    handleSignOut();
+  }
+
   return (
-    <button
-      type="button"
-      onClick={handleSignOut}
-      disabled={pending}
-      aria-label="Sair"
-      title={iconOnly ? "Sair" : undefined}
-      className={className}
-    >
-      {pending ? (
-        iconOnly ? <span className="sr-only">{pendingLabel}</span> : pendingLabel
-      ) : iconOnly ? (
-        <LogOut className="mx-auto h-4 w-4" aria-hidden />
-      ) : (
-        label
-      )}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        aria-label="Sair"
+        title={iconOnly ? "Sair" : undefined}
+        className={className}
+        data-testid="sign-out-button"
+      >
+        {pending ? (
+          iconOnly ? <span className="sr-only">{pendingLabel}</span> : pendingLabel
+        ) : iconOnly ? (
+          <LogOut className="mx-auto h-4 w-4" aria-hidden />
+        ) : (
+          label
+        )}
+      </button>
+      {confirmBeforeSignOut ? (
+        <ConfirmDialog
+          open={confirmOpen}
+          title="Sair da conta?"
+          message="Voce precisara entrar novamente para acessar o Planner."
+          confirmLabel="Sair"
+          pending={pending}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            handleSignOut();
+          }}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      ) : null}
+    </>
   );
 }

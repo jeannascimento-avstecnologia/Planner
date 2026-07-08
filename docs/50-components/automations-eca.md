@@ -17,9 +17,9 @@ Usuários precisam automatizar fluxos tipo Butler/Trello sem loops infinitos. Mo
 ## Não-objetivos
 
 - Editor visual drag-and-drop de fluxo.
-- Integrações externas Zapier/Slack/email (v1).
 - Regras cross-board.
 - Scheduling cron-style (fast-follow).
+- Slack Web API multi-canal (fast-follow).
 
 ## Requisitos
 
@@ -27,12 +27,12 @@ Usuários precisam automatizar fluxos tipo Butler/Trello sem loops infinitos. Mo
 
 ```sql
 automation_rules (
-  id, org_id, board_id nullable,
-  name, enabled boolean,
-  trigger_event_type text,
-  conditions jsonb,  -- array AND
-  actions jsonb,     -- array sequential
-  created_by, created_at
+  id, org_id, board_id,
+  name, active boolean,
+  trigger_event text,
+  conditions jsonb,
+  actions jsonb,
+  created_at, updated_at
 )
 
 automation_runs (
@@ -42,33 +42,37 @@ automation_runs (
   result jsonb,
   ran_at
 )
+
+automation_outbox (
+  id, org_id, board_id, rule_id, card_id, card_event_id,
+  action_type, action_payload, status, attempts, next_attempt_at,
+  dedup_key, result
+)
 ```
 
 ### Conditions (v1)
 
-- `field_equals`, `field_changed`, `assignee_is`, `column_is`, `priority_gte`.
+- `column_is`, `priority_gte`.
 
-### Actions (v1)
+### Actions (v1 internas)
 
-- `set_field`, `move_to_column`, `add_comment`, `assign_user`, `add_label`.
+- `move_card`, `set_priority`, `set_assignee`.
+
+### Actions (v1 externas — async via outbox)
+
+- `send_slack`, `send_email`, `webhook` — enfileiradas em `automation_outbox`; motor Postgres nao faz HTTP na transacao.
 
 ### Runner flow
 
-1. Webhook on `INSERT card_events` → Edge `automation-runner`.
-2. Load rules matching `event_type` + board/org.
-3. Evaluate conditions against event payload + card snapshot (`SELECT ... FOR UPDATE`).
-4. Execute actions; each mutation emits new `card_events` with `payload.meta.trigger_depth = parent + 1`.
-5. Reject if `trigger_depth > 3`.
-
-### Race mitigation
-
-- Optimistic: compare `cards.updated_at` before write; skip action if stale.
-- Advisory lock `pg_advisory_xact_lock(hashtext(card_id))` per card during run.
+1. Trigger em `card_events` executa acoes internas sincronamente (depth max 3).
+2. Acoes externas: INSERT em `automation_outbox` com `dedup_key` idempotente.
+3. Edge `automation-runner` drena outbox (~pg_cron 1min): Slack / Resend / webhook generico com HMAC.
+4. Retry com backoff; registra `automation_runs` em sucesso/falha.
 
 ### UI
 
-- `/boards/[id]/automations` — table rules; modal create/edit JSON form (structured fields, not raw JSON).
-- Run history tab: last 50 runs per rule.
+- Modal automacoes no board: CRUD regras + acoes externas + aba Historico (`automation_runs`).
+- Slack webhook por org em `/settings/integrations/slack`.
 
 ## Critérios de aceite
 

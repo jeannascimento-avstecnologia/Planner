@@ -1,6 +1,8 @@
 "use server";
 
-import { revalidateHomeProjects, revalidateBoard } from "@/lib/revalidation";
+import { revalidatePath } from "next/cache";
+import { revalidateHomeProjects, revalidateBoard, revalidatePlanViews } from "@/lib/revalidation";
+import { patchAffectsWorkloadViews } from "@/lib/workload/patch-affects-workload";
 import { acceptBoardInviteByToken } from "@/lib/accept-board-invite";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -202,6 +204,8 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
     .single();
   if (!board) return { error: "Projeto nao encontrado." };
 
+  const assigneeId = parsed.data.assigneeId ?? user?.id ?? null;
+
   const sanitizedTitle = sanitizeName(parsed.data.title, 500);
   if (await boardHasCardTitle(supabase, parsed.data.boardId, sanitizedTitle)) {
     return { error: DUPLICATE_CARD_MSG };
@@ -217,11 +221,11 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
       priority: parsed.data.priority,
       due_date: dueDate,
       start_date: startDate,
-      assignee_id: parsed.data.assigneeId ?? null,
+      assignee_id: assigneeId,
       position: lexoPosition(),
       created_by: user?.id ?? null,
     })
-    .select("id")
+    .select("id, assignee_id")
     .single();
 
   if (isUniqueViolation(error)) return { error: DUPLICATE_CARD_MSG };
@@ -236,13 +240,18 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
     p_entity_id: parsed.data.boardId,
   });
   revalidateBoard(parsed.data.boardId, { calendar: Boolean(dueDate) });
+  if (card.assignee_id) {
+    revalidatePlanViews(user?.id);
+  }
   return { ok: true, cardId: card.id };
 }
 
 export async function updateCard(formData: FormData): Promise<void> {
   const dueRaw = formData.get("dueDate");
   const startRaw = formData.get("startDate");
+  const targetRaw = formData.get("targetDate");
   const assigneeRaw = formData.get("assigneeId");
+  const estRaw = formData.get("estimatedHours");
   const parsed = updateCardInput.safeParse({
     cardId: formData.get("cardId"),
     boardId: formData.get("boardId"),
@@ -261,18 +270,22 @@ export async function updateCard(formData: FormData): Promise<void> {
         : startRaw
           ? `${startRaw}T12:00:00.000Z`
           : undefined,
+    targetDate:
+      targetRaw === ""
+        ? null
+        : targetRaw
+          ? `${targetRaw}T12:00:00.000Z`
+          : undefined,
     assigneeId: assigneeRaw === "" ? null : assigneeRaw || undefined,
+    estimatedHours: estRaw === "" ? null : estRaw ?? undefined,
   });
   if (!parsed.success) return;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data: existing } = await supabase
     .from("cards")
-    .select("org_id, priority, due_date, start_date, assignee_id")
+    .select("start_date, due_date")
     .eq("id", parsed.data.cardId)
     .single();
   if (!existing) return;
@@ -283,29 +296,35 @@ export async function updateCard(formData: FormData): Promise<void> {
   const resolved = resolveCardDateRange(nextStart, nextDue);
   const resolvedStart = resolved.start;
 
-  const patch: {
-    title?: string;
-    description?: string | null;
-    priority?: typeof parsed.data.priority;
-    due_date?: string | null;
-    start_date?: string | null;
-    assignee_id?: string | null;
-  } = {};
+  const patch: Record<string, string | number | null> = {};
   if (parsed.data.title !== undefined) patch.title = parsed.data.title;
   if (parsed.data.description !== undefined) patch.description = parsed.data.description;
   if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
   if (parsed.data.dueDate !== undefined) patch.due_date = parsed.data.dueDate;
+  if (parsed.data.targetDate !== undefined) patch.target_date = parsed.data.targetDate;
   if (parsed.data.startDate !== undefined) {
     patch.start_date = parsed.data.startDate === null ? null : resolvedStart;
   } else if (parsed.data.dueDate !== undefined && resolvedStart !== existing.start_date) {
     patch.start_date = resolvedStart;
   }
   if (parsed.data.assigneeId !== undefined) patch.assignee_id = parsed.data.assigneeId;
+  if (parsed.data.estimatedHours !== undefined) patch.estimated_hours = parsed.data.estimatedHours;
 
-  const { error } = await supabase.from("cards").update(patch).eq("id", parsed.data.cardId);
+  if (Object.keys(patch).length === 0) return;
+
+  const { error } = await supabase.rpc("update_card_fields", {
+    p_card_id: parsed.data.cardId,
+    p_patch: patch,
+  });
   if (error) return;
 
   revalidateBoard(parsed.data.boardId, { calendar: true });
+  if (patchAffectsWorkloadViews(patch)) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    revalidatePlanViews(user?.id);
+  }
 }
 
 export type DeleteCardResult = { ok: true } | { error: string };
@@ -343,9 +362,12 @@ export async function deleteCard(formData: FormData): Promise<DeleteCardResult> 
   if (!parsed.success) return { error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { data: card } = await supabase
     .from("cards")
-    .select("id")
+    .select("id, assignee_id")
     .eq("id", parsed.data.cardId)
     .eq("board_id", parsed.data.boardId)
     .single();
@@ -355,6 +377,9 @@ export async function deleteCard(formData: FormData): Promise<DeleteCardResult> 
   if (error) return { error: "Nao foi possivel excluir o card." };
 
   revalidateBoard(parsed.data.boardId, { calendar: true });
+  if (card.assignee_id) {
+    revalidatePlanViews(user?.id);
+  }
   return { ok: true };
 }
 
@@ -1042,7 +1067,7 @@ export async function createAutomationRule(formData: FormData): Promise<Automati
   if (!auth.ok) return { error: auth.error };
 
   const { error } = await supabase.from("automation_rules").insert({
-    org_id: parsed.data.orgId,
+    org_id: auth.orgId,
     board_id: parsed.data.boardId,
     name: parsed.data.name,
     trigger_event: parsed.data.triggerEvent,

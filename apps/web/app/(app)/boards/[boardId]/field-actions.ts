@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { updateCardFieldsInput, type Json } from "@nextgen/contracts";
-import { revalidateBoard } from "@/lib/revalidation";
+import { revalidateBoard, revalidatePlanViews } from "@/lib/revalidation";
+import { patchAffectsWorkloadViews } from "@/lib/workload/patch-affects-workload";
 
 export async function updateCardFieldsAction(input: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
   const parsed = updateCardFieldsInput.safeParse(input);
@@ -16,6 +17,14 @@ export async function updateCardFieldsAction(input: unknown): Promise<{ ok: true
   if (error) return { ok: false, error: error.message.includes("field_forbidden") ? "Campo nao permitido." : error.message };
 
   const { data: card } = await supabase.from("cards").select("board_id").eq("id", parsed.data.cardId).single();
-  if (card?.board_id) revalidateBoard(card.board_id, { calendar: true });
+  if (card?.board_id) {
+    revalidateBoard(card.board_id, { calendar: true });
+    if (patchAffectsWorkloadViews(parsed.data.patch as Record<string, unknown>)) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      revalidatePlanViews(user?.id);
+    }
+  }
   return { ok: true };
 }

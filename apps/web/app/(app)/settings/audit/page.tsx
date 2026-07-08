@@ -1,12 +1,38 @@
 import { redirect } from "next/navigation";
 import { AuditLogTable } from "@/components/organization/audit-log-table";
+import { AuditLogFilters, type AuditFilterValues } from "@/components/organization/audit-log-filters";
+import { AuditExportButtons } from "@/components/organization/audit-export-buttons";
+import { PAGE_COPY } from "@/lib/page-copy";
 import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 import { canViewAuditLog, loadAuditLog } from "@/lib/load-audit-log";
-import { orgAuditEventTypes } from "@nextgen/contracts";
+import { auditEventType, type AuditEventType } from "@nextgen/contracts";
 
 type Props = {
-  searchParams: Promise<{ cursor?: string; cursorId?: string; type?: string; actor?: string }>;
+  searchParams: Promise<{
+    cursor?: string;
+    cursorId?: string;
+    type?: string;
+    types?: string | string[];
+    actor?: string;
+    from?: string;
+    to?: string;
+  }>;
 };
+
+function toIsoDatetime(local: string | undefined): string | undefined {
+  if (!local) return undefined;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
+function parseEventTypes(type?: string, types?: string | string[]) {
+  const merged = [...(Array.isArray(types) ? types : types ? [types] : [])];
+  if (type) merged.push(type);
+  const unique = [...new Set(merged.filter(Boolean))];
+  if (!unique.length) return undefined;
+  return unique.filter((t): t is AuditEventType => auditEventType.safeParse(t).success);
+}
 
 export default async function AuditLogPage({ searchParams }: Props) {
   const ctx = await loadOrgSettingsContext();
@@ -14,13 +40,22 @@ export default async function AuditLogPage({ searchParams }: Props) {
   if (!canViewAuditLog(ctx.userRole)) redirect("/settings/organization");
 
   const sp = await searchParams;
-  const eventTypes = sp.type ? [sp.type] : undefined;
+  const eventTypes = parseEventTypes(sp.type, sp.types);
+  const filterValues: AuditFilterValues = {
+    type: sp.type ?? "",
+    types: Array.isArray(sp.types) ? sp.types : sp.types ? [sp.types] : [],
+    actor: sp.actor ?? "",
+    from: sp.from ?? "",
+    to: sp.to ?? "",
+  };
 
   const result = await loadAuditLog({
     orgId: ctx.orgId,
-    actorId: sp.actor,
-    eventTypes: eventTypes as typeof orgAuditEventTypes[number][] | undefined,
-    cursorOccurredAt: sp.cursor,
+    actorId: sp.actor || undefined,
+    eventTypes,
+    from: toIsoDatetime(sp.from),
+    to: toIsoDatetime(sp.to),
+    cursorOccurredAt: sp.cursor ? new Date(sp.cursor).toISOString() : undefined,
     cursorId: sp.cursorId ? Number(sp.cursorId) : undefined,
     limit: 50,
   });
@@ -29,26 +64,22 @@ export default async function AuditLogPage({ searchParams }: Props) {
     return <p className="text-sm text-red-500">{result.error}</p>;
   }
 
+  const memberOptions = ctx.members.map((m) => ({
+    userId: m.user_id,
+    name: m.full_name ?? m.user_id,
+  }));
+
   return (
     <div className="space-y-4" data-testid="audit-log-page">
-      <div>
-        <h2 className="text-lg font-semibold text-aurora-fg">Auditoria</h2>
-        <p className="text-sm text-aurora-muted">Historico imutavel de acoes na organizacao (400 dias).</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-aurora-fg">Auditoria</h2>
+          <p className="text-sm text-aurora-muted">{PAGE_COPY.audit.description}</p>
+        </div>
+        <AuditExportButtons orgId={ctx.orgId} filters={filterValues} />
       </div>
-      <form className="flex flex-wrap gap-3" method="get">
-        <select name="type" defaultValue={sp.type ?? ""} className="rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm">
-          <option value="">Todos os tipos</option>
-          {orgAuditEventTypes.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className="rounded-lg bg-aurora-accent px-4 py-2 text-sm font-medium text-white" data-testid="audit-filter-submit">
-          Filtrar
-        </button>
-      </form>
-      <AuditLogTable rows={result.rows} nextCursor={result.nextCursor} orgId={ctx.orgId} />
+      <AuditLogFilters values={filterValues} members={memberOptions} />
+      <AuditLogTable rows={result.rows} nextCursor={result.nextCursor} filterValues={filterValues} />
     </div>
   );
 }

@@ -1,21 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateCardFieldsAction } from "@/app/(app)/boards/[boardId]/field-actions";
+import { acquireInFlightLock, releaseInFlightLock } from "@/lib/in-flight-submit";
 import { PriorityBadge, TagChip } from "./badges";
 import { TifluxCardButton } from "./tiflux-card-button";
-import {
-  formatDue,
-  formatStart,
-  isCardOverdue,
-  memberLabel,
-  type BoardCard,
-  type ColumnRow,
-  type ProfileRow,
-  type StageRow,
-  type TagRow,
-} from "./types";
+import { formatDue, formatStart, isCardOverdue, memberLabel, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type SortKey = "title" | "due_date";
 type SortDir = "asc" | "desc";
@@ -80,6 +71,21 @@ export function BoardTableView({
     }
   }
 
+  const fieldLocksRef = useRef(new Set<string>());
+
+  async function commitField(cardId: string, field: string, fn: () => Promise<{ ok: boolean; error?: string }>) {
+    const lockKey = `table:${cardId}:${field}`;
+    if (fieldLocksRef.current.has(lockKey) || !acquireInFlightLock(lockKey)) return;
+    fieldLocksRef.current.add(lockKey);
+    try {
+      const r = await fn();
+      if (!r.ok) toast.error(r.error ?? "Erro ao salvar");
+    } finally {
+      fieldLocksRef.current.delete(lockKey);
+      releaseInFlightLock(lockKey);
+    }
+  }
+
   return (
     <div className="overflow-x-auto rounded-xl border border-board-border bg-board-surface">
       <table className="w-full min-w-[720px] text-left text-sm">
@@ -94,11 +100,13 @@ export function BoardTableView({
             <th className="px-3 py-2">Coluna</th>
             <th className="px-3 py-2">Prioridade</th>
             <th className="px-3 py-2">Inicio</th>
+            <th className="px-3 py-2">Entrega est.</th>
             <th className="px-3 py-2">
               <button type="button" onClick={() => toggleSort("due_date")} className="hover:text-aurora-fg">
-                Prazo {sortKey === "due_date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                Prazo final {sortKey === "due_date" ? (sortDir === "asc" ? "↑" : "↓") : ""}
               </button>
             </th>
+            <th className="px-3 py-2">Horas</th>
             <th className="px-3 py-2">Responsavel</th>
             <th className="px-3 py-2">Marcadores</th>
           </tr>
@@ -106,7 +114,7 @@ export function BoardTableView({
         <tbody>
           {sorted.length === 0 ? (
             <tr>
-              <td colSpan={tifluxEnabled ? 8 : 7} className="px-3 py-8 text-center text-aurora-muted">
+              <td colSpan={tifluxEnabled ? 11 : 10} className="px-3 py-8 text-center text-aurora-muted">
                 Nenhum card com os filtros atuais.
               </td>
             </tr>
@@ -130,8 +138,9 @@ export function BoardTableView({
                       onBlur={async (e) => {
                         const v = e.target.value.trim();
                         if (!v || v === c.title) return;
-                        const r = await updateCardFieldsAction({ cardId: c.id, patch: { title: v } });
-                        if (!r.ok) toast.error(r.error);
+                        await commitField(c.id, "title", () =>
+                          updateCardFieldsAction({ cardId: c.id, patch: { title: v } }),
+                        );
                       }}
                     />
                   ) : (
@@ -155,8 +164,58 @@ export function BoardTableView({
                   <PriorityBadge priority={c.priority} />
                 </td>
                 <td className="px-3 py-2 text-aurora-muted">{formatStart(c.start_date) || "—"}</td>
+                <td className="px-3 py-2 text-aurora-muted" onClick={(e) => e.stopPropagation()}>
+                  {canEdit ? (
+                    <input
+                      type="date"
+                      defaultValue={c.target_date ? c.target_date.slice(0, 10) : ""}
+                      className="rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-board-border focus:border-board-accent"
+                      data-testid={`table-edit-target-${c.id}`}
+                      onBlur={async (e) => {
+                        const v = e.target.value;
+                        const cur = c.target_date ? c.target_date.slice(0, 10) : "";
+                        if (v === cur) return;
+                        await commitField(c.id, "target_date", () =>
+                          updateCardFieldsAction({
+                            cardId: c.id,
+                            patch: { target_date: v ? `${v}T12:00:00.000Z` : null },
+                          }),
+                        );
+                      }}
+                    />
+                  ) : (
+                    formatDue(c.target_date) || "—"
+                  )}
+                </td>
                 <td className={`px-3 py-2 ${overdue ? "font-semibold text-aurora-danger" : "text-aurora-muted"}`}>
                   {formatDue(c.due_date) || "—"}
+                </td>
+                <td className="px-3 py-2 tabular-nums text-aurora-muted" onClick={(e) => e.stopPropagation()}>
+                  {canEdit ? (
+                    <input
+                      type="number"
+                      min={0}
+                      max={999.99}
+                      step={0.5}
+                      defaultValue={c.estimated_hours ?? ""}
+                      className="w-16 rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-board-border focus:border-board-accent"
+                      data-testid={`table-edit-hours-${c.id}`}
+                      onBlur={async (e) => {
+                        const raw = e.target.value.trim();
+                        const v = raw === "" ? null : Number(raw);
+                        const cur = c.estimated_hours;
+                        if (v === cur || (v === null && cur == null)) return;
+                        await commitField(c.id, "estimated_hours", () =>
+                          updateCardFieldsAction({
+                            cardId: c.id,
+                            patch: { estimated_hours: v },
+                          }),
+                        );
+                      }}
+                    />
+                  ) : (
+                    c.estimated_hours != null ? `${c.estimated_hours}h` : "—"
+                  )}
                 </td>
                 <td className="px-3 py-2 text-aurora-muted">
                   {c.assignee_id ? memberLabel(profilesById[c.assignee_id]) : "—"}

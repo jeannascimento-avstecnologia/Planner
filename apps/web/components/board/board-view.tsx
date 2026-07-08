@@ -111,6 +111,8 @@ function BoardViewInner({
   const searchParams = useSearchParams();
   const viewModeRef = useRef(parseBoardViewMode(searchParams.get("view")));
   const [viewMode, setViewMode] = useState(viewModeRef.current);
+  const [localTags, setLocalTags] = useState(tags);
+  const [localStages, setLocalStages] = useState(stages);
   const selectedCardIdRef = useRef<string | null>(null);
   const urlCardOpened = useRef(false);
 
@@ -121,6 +123,11 @@ function BoardViewInner({
       setViewMode(fromUrl);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    setLocalTags(tags);
+    setLocalStages(stages);
+  }, [tags, stages]);
 
   const changeViewMode = useCallback(
     (mode: ReturnType<typeof parseBoardViewMode>) => {
@@ -193,7 +200,7 @@ function BoardViewInner({
     replaceClientUrl(pathname, params);
   }, [pathname, searchParams]);
 
-  const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
+  const stagesById = useMemo(() => new Map(localStages.map((s) => [s.id, s])), [localStages]);
 
   const filtered = useMemo(
     () => safeCards.filter((c) => matchesFilters(c, filters, { columns, stagesById })),
@@ -279,6 +286,9 @@ function BoardViewInner({
           <Link href={`/boards/${board.id}/whiteboard`} className={btnBoardSecondary}>
             Whiteboard
           </Link>
+          <Link href={`/boards/${board.id}/dashboard`} className={btnBoardSecondary} data-testid="board-dashboard-link">
+            Dashboard
+          </Link>
           {canManageAutomations ? (
             <button
               type="button"
@@ -316,14 +326,16 @@ function BoardViewInner({
       <CardFilterBar
         boardId={board.id}
         orgId={board.org_id}
-        tags={tags}
-        stages={stages}
+        tags={localTags}
+        stages={localStages}
         members={members}
         value={filters}
         isOrgAdmin={isOrgAdmin}
         onManageStages={canEditBoard ? () => setStagesOpen(true) : undefined}
         onChange={setFilters}
         onClear={() => setFilters(EMPTY_FILTERS)}
+        onTagsChange={setLocalTags}
+        onStagesChange={setLocalStages}
       />
 
       <BoardViewSwitcher value={viewMode} onChange={changeViewMode} />
@@ -343,7 +355,7 @@ function BoardViewInner({
           cardsByColumn={cardsByColumn}
           swimlanes={swimlanes}
           groupByAssignee={groupByAssignee}
-          tags={tags}
+          tags={localTags}
           profilesById={profilesById}
           tifluxEnabled={tifluxEnabled}
           canEditBoard={canEditBoard}
@@ -381,8 +393,8 @@ function BoardViewInner({
         <BoardTableView
           cards={filtered}
           columns={columns}
-          stages={stages}
-          tags={tags}
+          stages={localStages}
+          tags={localTags}
           profilesById={profilesById}
           tifluxEnabled={tifluxEnabled}
           onSelectCard={selectCard}
@@ -399,8 +411,8 @@ function BoardViewInner({
           boardId={board.id}
           orgId={board.org_id}
           columns={columns}
-          stages={stages}
-          tags={tags}
+          stages={localStages}
+          tags={localTags}
           members={members}
           isOrgAdmin={isOrgAdmin}
           readOnly={!canEditBoard}
@@ -428,7 +440,7 @@ function BoardViewInner({
       ) : null}
 
       {canEditBoard && stagesOpen ? (
-        <StageManagerModal boardId={board.id} stages={stages} onClose={() => setStagesOpen(false)} />
+        <StageManagerModal boardId={board.id} stages={localStages} onClose={() => setStagesOpen(false)} />
       ) : null}
 
       {canManageAutomations && automationsOpen ? (

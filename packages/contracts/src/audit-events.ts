@@ -12,6 +12,9 @@ export const cardAuditEventTypes = [
   "card_comment_added",
   "card_attachment_added",
   "card_tiflux_linked",
+  "stage_changed",
+  "card_completed",
+  "card_reopened",
 ] as const;
 
 export const boardAuditEventTypes = [

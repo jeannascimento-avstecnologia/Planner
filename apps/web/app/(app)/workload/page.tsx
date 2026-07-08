@@ -1,10 +1,33 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
+import { BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgId } from "@/lib/active-org";
+import { loadWorkloadDrilldownForRange } from "@/lib/load-workload";
+import { loadWorkload15DayCached, loadWorkloadWeekCached } from "@/lib/loaders/workload-cache";
+import { canViewWorkload } from "@/lib/workload/permissions";
 import { canManageOrgMembers } from "@/lib/org-member-roles";
+import { formatDateIso, parseWeekParam } from "@/lib/workload/week";
+import { buildWorkload15DayRange, parseStartParam } from "@/lib/plan/window";
+import {
+  formatWorkloadContextBadge,
+  loadWorkloadViewerContext,
+} from "@/lib/load-workload-viewer-context";
+import { WorkloadWeekNav } from "@/components/workload/workload-week-nav";
+import { WorkloadTable } from "@/components/workload/workload-table";
+import { Workload15DayGrid } from "@/components/workload/workload-15d-grid";
+import { WorkloadViewToggle } from "@/components/workload/workload-view-toggle";
+import { PlanWeekNav } from "@/components/plan/plan-week-nav";
+import { PlanningPageHeader } from "@/components/shell/planning-page-header";
+import { PAGE_COPY } from "@/lib/page-copy";
+import { linkClass } from "@/lib/ui-classes";
 
-export default async function WorkloadPage() {
+type Props = { searchParams: Promise<{ week?: string; mode?: string; start?: string }> };
+
+export default async function WorkloadPage({ searchParams }: Props) {
+  const { week: weekParam, mode: modeParam, start: startParam } = await searchParams;
+  const viewMode = modeParam === "15d" ? "15d" : "week";
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,62 +43,97 @@ export default async function WorkloadPage() {
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!membership || !canManageOrgMembers(membership.role)) redirect("/boards");
 
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekIso = weekStart.toISOString().slice(0, 10);
+  if (!canViewWorkload(membership?.role)) redirect("/boards");
 
-  const { data: rows } = await supabase
-    .from("workload_by_member_week")
-    .select("user_id, total_hours, total_points, card_count")
-    .eq("org_id", orgId)
-    .eq("week_start", weekIso);
+  const viewerContext = await loadWorkloadViewerContext(orgId, user.id);
+  const contextBadge = viewerContext ? formatWorkloadContextBadge(viewerContext) : null;
 
-  const userIds = [...new Set((rows ?? []).map((r) => r.user_id))];
-  const { data: profiles } = userIds.length
-    ? await supabase.from("profiles").select("id, full_name, weekly_capacity_hours").in("id", userIds)
-    : { data: [] };
+  const canEditCapacity = canManageOrgMembers(membership?.role);
 
-  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
+  const weekStart = parseWeekParam(weekParam);
+  const weekIso = formatDateIso(weekStart);
+  const planStart = parseStartParam(startParam);
+  const planStartIso = formatDateIso(planStart);
+  const dayKeys = buildWorkload15DayRange(planStart).map(formatDateIso);
+
+  const descriptionWithContext = (
+    <>
+      {viewMode === "15d" ? PAGE_COPY.workload15d.description : PAGE_COPY.workloadWeek.description}
+      {contextBadge ? (
+        <span className="mt-1 block text-xs font-medium text-aurora-brand">{contextBadge}</span>
+      ) : null}
+    </>
+  );
+
+  if (viewMode === "15d") {
+    const fromIso = dayKeys[0]!;
+    const toIso = dayKeys[dayKeys.length - 1]!;
+    const [members15d, drilldownByUser] = await Promise.all([
+      loadWorkload15DayCached(orgId, user.id, planStart),
+      loadWorkloadDrilldownForRange(orgId, fromIso, toIso),
+    ]);
+
+    return (
+      <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6" data-testid="workload-page">
+        <PlanningPageHeader
+          title={PAGE_COPY.workload15d.title}
+          icon={<BarChart3 className="h-5 w-5" aria-hidden />}
+          description={
+            <>
+              {descriptionWithContext}
+              <span className="mt-1 block text-xs text-aurora-muted">
+                Edite alocacoes no{" "}
+                <Link href={`/plan?start=${planStartIso}`} className={linkClass}>
+                  Meu plano
+                </Link>
+                .
+              </span>
+            </>
+          }
+          toolbar={
+            <div className="flex flex-wrap items-center gap-3">
+              <WorkloadViewToggle mode={viewMode} weekStartIso={weekIso} planStartIso={planStartIso} />
+              <Suspense fallback={<span className="text-sm text-aurora-muted">…</span>}>
+                <PlanWeekNav windowStartIso={planStartIso} basePath="/workload" />
+              </Suspense>
+            </div>
+          }
+        />
+        <Workload15DayGrid
+          members={members15d}
+          dayKeys={dayKeys}
+          windowStartIso={planStartIso}
+          drilldownByUser={drilldownByUser}
+          planStartIso={planStartIso}
+        />
+      </div>
+    );
+  }
+
+  const { members, drilldownByUser, unscheduled } = await loadWorkloadWeekCached(orgId, user.id, weekStart);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6" data-testid="workload-page">
-      <header>
-        <Link href="/boards" className="text-xs text-aurora-muted hover:text-aurora-fg">
-          ← Projetos
-        </Link>
-        <h1 className="text-2xl font-semibold text-aurora-fg">Carga de trabalho</h1>
-        <p className="text-sm text-aurora-muted">Semana iniciando em {weekIso}</p>
-      </header>
-      <div className="overflow-x-auto rounded-lg border border-aurora-border">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-aurora-surface-2 text-xs uppercase text-aurora-muted">
-            <tr>
-              <th className="px-4 py-3">Membro</th>
-              <th className="px-4 py-3">Horas</th>
-              <th className="px-4 py-3">Capacidade</th>
-              <th className="px-4 py-3">Utilizacao</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(rows ?? []).map((row) => {
-              const p = profileMap[row.user_id];
-              const cap = Number(p?.weekly_capacity_hours ?? 40);
-              const hrs = Number(row.total_hours ?? 0);
-              const pct = cap > 0 ? Math.round((hrs / cap) * 100) : 0;
-              return (
-                <tr key={row.user_id} className="border-t border-aurora-border" data-testid="workload-row">
-                  <td className="px-4 py-3">{p?.full_name ?? row.user_id.slice(0, 8)}</td>
-                  <td className="px-4 py-3">{hrs}h</td>
-                  <td className="px-4 py-3">{cap}h</td>
-                  <td className="px-4 py-3">{pct}%</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6" data-testid="workload-page">
+      <PlanningPageHeader
+        title={PAGE_COPY.workloadWeek.title}
+        icon={<BarChart3 className="h-5 w-5" aria-hidden />}
+        description={descriptionWithContext}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-3">
+            <WorkloadViewToggle mode={viewMode} weekStartIso={weekIso} planStartIso={planStartIso} />
+            <WorkloadWeekNav weekStart={weekStart} />
+          </div>
+        }
+      />
+      <WorkloadTable
+        orgId={orgId}
+        members={members}
+        weekIso={weekIso}
+        drilldownByUser={drilldownByUser}
+        unscheduled={unscheduled}
+        canEditCapacity={canEditCapacity}
+      />
     </div>
   );
 }
