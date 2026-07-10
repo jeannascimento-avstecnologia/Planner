@@ -42,3 +42,6 @@ docs/security_audit_log.md
 
 # notas/comandos locais (nao versionar)
 .local/
+
+# pacotes de export para mentor
+exports/

@@ -72,7 +72,25 @@ VERSION_JSON="$(curl -sf "http://127.0.0.1:${PORT}/api/version")"
 echo "    /api/version = $VERSION_JSON"
 
 LOGIN_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/login")"
-echo "    /login -> HTTP $LOGIN_CODE"
+echo "    GET /login -> HTTP $LOGIN_CODE"
+
+PROBE_POST="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:${PORT}/api/debug/auth-probe" \
+  -H 'Content-Type: application/json' -d '{}')"
+echo "    POST /api/debug/auth-probe -> HTTP $PROBE_POST"
+
+LOGIN_POST="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:${PORT}/login" \
+  -H 'Content-Type: text/plain;charset=UTF-8' \
+  -H 'Accept: text/x-component' \
+  -H 'Next-Router-State-Tree: %5B%22%22%2C%7B%7D%5D' \
+  -d '[]')"
+echo "    POST /login (RSC) -> HTTP $LOGIN_POST"
+
+# 405 = Next.js respondeu (sem Next-Action); 502/000 = upstream quebrado
+if [ "$PROBE_POST" != "200" ] || [ "$LOGIN_POST" = "502" ] || [ "$LOGIN_POST" = "000" ]; then
+  echo "ERRO: POST falhou (Server Actions quebrados). Rode: bash scripts/probe-login-post.sh" >&2
+  pm2 logs "$PM2_NAME" --lines 25 --nostream || true
+  exit 1
+fi
 
 CHUNK_FILE="$(find apps/web/.next/static/chunks -name '*.js' | head -1)"
 if [ -n "$CHUNK_FILE" ]; then
