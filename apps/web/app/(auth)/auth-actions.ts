@@ -13,24 +13,6 @@ import { safeInternalPath } from "@/lib/safe-internal-path";
 
 export type AuthState = { error?: string; message?: string; redirectTo?: string };
 
-// #region agent log
-function debugLog(hypothesisId: string, message: string, data: Record<string, unknown>) {
-  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-    body: JSON.stringify({
-      sessionId: "c84914",
-      runId: "pre-fix",
-      hypothesisId,
-      location: "auth-actions.ts",
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-}
-// #endregion
-
 function authConfigError(): string | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -75,11 +57,6 @@ function safeAuthNext(raw: FormDataEntryValue | null): string {
 }
 
 export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {
-  // #region agent log
-  console.error("[debug-c84914] signIn entry");
-  debugLog("H2", "signIn entry", { hasEmail: Boolean(formData.get("email")) });
-  // #endregion
-
   const rememberMe = formData.get("rememberMe") === "true";
   const parsed = signInInput.safeParse({
     email: formData.get("email"),
@@ -89,12 +66,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   if (!parsed.success) return { error: "Email ou senha invalidos." };
 
   const configError = authConfigError();
-  if (configError) {
-    // #region agent log
-    debugLog("H3", "signIn config error", { configError });
-    // #endregion
-    return { error: configError };
-  }
+  if (configError) return { error: configError };
 
   const supabase = await createClient();
   const loginEmail = normalizeAuthEmail(parsed.data.email);
@@ -110,23 +82,13 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
     email: loginEmail,
     password: parsed.data.password,
   });
-  if (error) {
-    // #region agent log
-    debugLog("H3", "signIn supabase error", { code: error.code ?? null, message: error.message });
-    // #endregion
-    return { error: mapAuthNetworkError(error.message, "Email ou senha incorretos.") };
-  }
+  if (error) return { error: mapAuthNetworkError(error.message, "Email ou senha incorretos.") };
 
   const cookieStore = await cookies();
   cookieStore.set(AUTH_PERSIST_COOKIE, rememberMe ? "1" : "0", authPersistCookieOptions(rememberMe));
   revalidatePath("/", "layout");
 
-  const redirectTo = safeAuthNext(formData.get("next"));
-  // #region agent log
-  debugLog("H2", "signIn success", { rememberMe, redirectTo });
-  // #endregion
-
-  return { redirectTo };
+  return { redirectTo: safeAuthNext(formData.get("next")) };
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {

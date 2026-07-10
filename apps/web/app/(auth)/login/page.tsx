@@ -19,57 +19,11 @@ function LoginForm() {
   const [state, formAction, pending] = useActionState(signIn, initialState);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // #region agent log
-  useEffect(() => {
-    const log = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
-      fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-        body: JSON.stringify({
-          sessionId: "c84914",
-          runId: "pre-fix",
-          hypothesisId,
-          location: "login/page.tsx",
-          message,
-          data,
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    };
-
-    log("login page mounted", { href: window.location.href, next: next || null }, "H4");
-
-    const onRejection = (event: PromiseRejectionEvent) => {
-      const reason = event.reason;
-      const msg = reason instanceof Error ? reason.message : String(reason ?? "");
-      log("unhandled rejection", { msg }, "H1,H2,H4");
-    };
-
-    window.addEventListener("unhandledrejection", onRejection);
-    return () => window.removeEventListener("unhandledrejection", onRejection);
-  }, [next]);
-
   useEffect(() => {
     if (!state.redirectTo) return;
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-      body: JSON.stringify({
-        sessionId: "c84914",
-        runId: "pre-fix",
-        hypothesisId: "H2",
-        location: "login/page.tsx:redirect",
-        message: "client redirect after signIn",
-        data: { redirectTo: state.redirectTo },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     router.replace(state.redirectTo);
     router.refresh();
   }, [state.redirectTo, router]);
-  // #endregion
 
   return (
     <div className="space-y-4">

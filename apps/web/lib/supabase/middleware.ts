@@ -44,35 +44,8 @@ function copyCookies(from: NextResponse, to: NextResponse) {
 }
 
 export async function updateSession(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-
-  // #region agent log
-  const nextAction = request.headers.get("next-action");
-  if (request.method === "POST" && path === "/login") {
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-      body: JSON.stringify({
-        sessionId: "c84914",
-        runId: "pre-fix",
-        hypothesisId: "H1",
-        location: "middleware.ts:login-post",
-        message: "POST /login reached middleware",
-        data: {
-          hasNextAction: Boolean(nextAction),
-          skipped: Boolean(nextAction),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }
-  // #endregion
-
-  // Server Actions set auth cookies themselves; refreshing session here breaks the action stream.
-  if (nextAction) {
-    // #region agent log
-    console.error("[debug-c84914] middleware skip next-action", path);
-    // #endregion
+  // Server Actions set auth cookies themselves; session refresh here can break the action stream.
+  if (request.headers.get("next-action")) {
     return NextResponse.next();
   }
 
@@ -124,6 +97,7 @@ export async function updateSession(request: NextRequest) {
     if (!userRl.ok) return rateLimitResponse(userRl.retryAfterSec);
   }
 
+  const path = request.nextUrl.pathname;
   const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p));
 
   if (!sessionUser && isProtected) {

@@ -109,3 +109,19 @@ echo "  Commit:  $AFTER"
 echo "  BUILD:   $BUILD_ID"
 echo "  Browser: Ctrl+Shift+R em https://agify.avstecnologia.local/login"
 echo "  DB:      no PC rode npm run supabase:push se funcoes falharem apos login"
+
+AGIFY_HOST="${AGIFY_HOST:-agify.avstecnologia.local}"
+if command -v curl >/dev/null 2>&1; then
+  NGINX_POST="$(curl -sk -o /dev/null -w '%{http_code}' -X POST "https://${AGIFY_HOST}/login" \
+    -H 'Content-Type: text/plain;charset=UTF-8' \
+    -H 'Accept: text/x-component' \
+    -H 'Next-Router-State-Tree: %5B%22%22%2C%7B%7D%5D' \
+    -d '[]' 2>/dev/null || echo '000')"
+  echo "  POST https://${AGIFY_HOST}/login (via nginx) -> HTTP ${NGINX_POST}"
+  if [ "$NGINX_POST" = "502" ] || [ "$NGINX_POST" = "000" ]; then
+    echo ""
+    echo "AVISO: nginx retornou ${NGINX_POST} no POST. Como ROOT no servidor:" >&2
+    echo "  bash /opt/agify/scripts/fix-nginx-agify.sh" >&2
+    echo "  tail -20 /var/log/nginx/error.log" >&2
+  fi
+fi
