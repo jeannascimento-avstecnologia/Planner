@@ -1,6 +1,7 @@
 import type { CookieOptions } from "@supabase/ssr";
 
-export const AUTH_PERSIST_COOKIE = "ngp:auth-persist";
+// ":" nao e permitido em cookie-name pelos browsers (RFC 6265 token).
+export const AUTH_PERSIST_COOKIE = "ngp-auth-persist";
 export const AUTH_REMEMBER_MAX_AGE_SEC = 60 * 60 * 24 * 400;
 
 const baseCookieOptions = (): Pick<CookieOptions, "httpOnly" | "sameSite" | "secure" | "path"> => ({

@@ -1,17 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { authPersistCookieOptions, AUTH_PERSIST_COOKIE } from "@/lib/supabase/auth-cookies";
+import { AUTH_PERSIST_COOKIE } from "@/lib/supabase/auth-cookies";
 import { getConfiguredAppUrl } from "@/lib/app-url";
-import { signInInput, signUpInput, inviteSignUpInput, forgotPasswordInput, type SignUpInput } from "@nextgen/contracts";
+import { signUpInput, inviteSignUpInput, forgotPasswordInput, type SignUpInput } from "@nextgen/contracts";
 import { isInviteAuthNext } from "@/lib/invite-auth";
 import { normalizeAuthEmail } from "@/lib/normalize-auth-email";
 import { safeInternalPath } from "@/lib/safe-internal-path";
 
-export type AuthState = { error?: string; message?: string; redirectTo?: string };
+export type AuthState = { error?: string; message?: string };
 
 function authConfigError(): string | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -54,41 +53,6 @@ function slugify(value: string): string {
 
 function safeAuthNext(raw: FormDataEntryValue | null): string {
   return safeInternalPath(typeof raw === "string" ? raw : null);
-}
-
-export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {
-  const rememberMe = formData.get("rememberMe") === "true";
-  const parsed = signInInput.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-    rememberMe,
-  });
-  if (!parsed.success) return { error: "Email ou senha invalidos." };
-
-  const configError = authConfigError();
-  if (configError) return { error: configError };
-
-  const supabase = await createClient();
-  const loginEmail = normalizeAuthEmail(parsed.data.email);
-  const {
-    data: { user: existingUser },
-  } = await supabase.auth.getUser();
-  if (existingUser && normalizeAuthEmail(existingUser.email ?? "") !== loginEmail) {
-    await supabase.auth.signOut();
-  }
-
-  const authClient = await createClient({ sessionCookies: !rememberMe });
-  const { error } = await authClient.auth.signInWithPassword({
-    email: loginEmail,
-    password: parsed.data.password,
-  });
-  if (error) return { error: mapAuthNetworkError(error.message, "Email ou senha incorretos.") };
-
-  const cookieStore = await cookies();
-  cookieStore.set(AUTH_PERSIST_COOKIE, rememberMe ? "1" : "0", authPersistCookieOptions(rememberMe));
-  revalidatePath("/", "layout");
-
-  return { redirectTo: safeAuthNext(formData.get("next")) };
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {

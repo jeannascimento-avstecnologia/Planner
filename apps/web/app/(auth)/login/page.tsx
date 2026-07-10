@@ -1,29 +1,85 @@
 "use client";
 
-import { Suspense, useActionState, useEffect, useState } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, type AuthState } from "../auth-actions";
+import { useSearchParams } from "next/navigation";
+import { signInInput } from "@nextgen/contracts";
 import { AuthQueryAlert } from "@/components/auth/auth-query-alert";
 import { AuthOAuthDivider, GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { normalizeAuthEmail } from "@/lib/normalize-auth-email";
 import { authInputClass, btnPrimary, authLinkClass } from "@/lib/ui-classes";
 import { safeInternalPath } from "@/lib/safe-internal-path";
+import { createClient } from "@/lib/supabase/client";
 
-const initialState: AuthState = {};
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  "Invalid login credentials": "Email ou senha incorretos.",
+  "Email not confirmed": "Confirme seu email antes de entrar.",
+};
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = safeInternalPath(searchParams.get("next"), "");
-  const [state, formAction, pending] = useActionState(signIn, initialState);
   const [rememberMe, setRememberMe] = useState(true);
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    if (!state.redirectTo) return;
-    router.replace(state.redirectTo);
-    router.refresh();
-  }, [state.redirectTo, router]);
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setPending(true);
+
+    const formData = new FormData(event.currentTarget);
+    const parsed = signInInput.safeParse({
+      email: formData.get("email"),
+      password: formData.get("password"),
+      rememberMe,
+    });
+    if (!parsed.success) {
+      setError("Email ou senha invalidos.");
+      setPending(false);
+      return;
+    }
+
+    try {
+      const supabase = createClient({ sessionOnly: !rememberMe });
+      const loginEmail = normalizeAuthEmail(parsed.data.email);
+      const {
+        data: { user: existingUser },
+      } = await supabase.auth.getUser();
+
+      if (existingUser && normalizeAuthEmail(existingUser.email ?? "") !== loginEmail) {
+        await supabase.auth.signOut();
+      }
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: parsed.data.password,
+      });
+      if (authError) {
+        setError(AUTH_ERROR_MESSAGES[authError.message] ?? "Nao foi possivel entrar. Tente novamente.");
+        return;
+      }
+
+      const persistenceResponse = await fetch("/api/auth/persistence", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rememberMe }),
+      });
+      if (!persistenceResponse.ok) {
+        await supabase.auth.signOut();
+        setError("Nao foi possivel salvar a sessao. Tente novamente.");
+        return;
+      }
+
+      window.location.assign(next || "/boards");
+    } catch {
+      setError("Servico de autenticacao indisponivel.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -35,7 +91,7 @@ function LoginForm() {
       ) : null}
       <AuthOAuthDivider />
 
-      <form action={formAction} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <div className="space-y-1">
           <label htmlFor="email" className="text-sm font-medium">
@@ -67,7 +123,7 @@ function LoginForm() {
         <Suspense fallback={null}>
           <AuthQueryAlert />
         </Suspense>
-        {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
         <button type="submit" disabled={pending} className={`w-full ${btnPrimary}`}>
           {pending ? "Entrando..." : "Entrar"}

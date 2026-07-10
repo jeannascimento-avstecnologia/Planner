@@ -9,7 +9,6 @@ PM2_NAME="${PM2_NAME:-agify}"
 PORT="${PORT:-3001}"
 
 cd "$APP_DIR"
-git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 
 echo "========================================"
 echo " Agify deploy — $(date -Iseconds)"
@@ -68,40 +67,7 @@ if [ "$READY" != "1" ]; then
 fi
 
 echo "==> [6/6] Validacao..."
-VERSION_JSON="$(curl -sf "http://127.0.0.1:${PORT}/api/version")"
-echo "    /api/version = $VERSION_JSON"
-
-LOGIN_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/login")"
-echo "    GET /login -> HTTP $LOGIN_CODE"
-
-PROBE_POST="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:${PORT}/api/debug/auth-probe" \
-  -H 'Content-Type: application/json' -d '{}')"
-echo "    POST /api/debug/auth-probe -> HTTP $PROBE_POST"
-
-LOGIN_POST="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:${PORT}/login" \
-  -H 'Content-Type: text/plain;charset=UTF-8' \
-  -H 'Accept: text/x-component' \
-  -H 'Next-Router-State-Tree: %5B%22%22%2C%7B%7D%5D' \
-  -d '[]')"
-echo "    POST /login (RSC) -> HTTP $LOGIN_POST"
-
-# 405 = Next.js respondeu (sem Next-Action); 502/000 = upstream quebrado
-if [ "$PROBE_POST" != "200" ] || [ "$LOGIN_POST" = "502" ] || [ "$LOGIN_POST" = "000" ]; then
-  echo "ERRO: POST falhou (Server Actions quebrados). Rode: bash scripts/probe-login-post.sh" >&2
-  pm2 logs "$PM2_NAME" --lines 25 --nostream || true
-  exit 1
-fi
-
-CHUNK_FILE="$(find apps/web/.next/static/chunks -name '*.js' | head -1)"
-if [ -n "$CHUNK_FILE" ]; then
-  REL="${CHUNK_FILE#apps/web/.next/}"
-  CHUNK_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/_next/${REL}")"
-  echo "    /_next/${REL} -> HTTP $CHUNK_CODE"
-  if [ "$CHUNK_CODE" != "200" ]; then
-    echo "ERRO: chunk estatico nao servido (ChunkLoadError no browser)" >&2
-    exit 1
-  fi
-fi
+bash scripts/diagnose-server.sh
 
 echo ""
 echo "OK deploy concluido."
@@ -109,19 +75,3 @@ echo "  Commit:  $AFTER"
 echo "  BUILD:   $BUILD_ID"
 echo "  Browser: Ctrl+Shift+R em https://agify.avstecnologia.local/login"
 echo "  DB:      no PC rode npm run supabase:push se funcoes falharem apos login"
-
-AGIFY_HOST="${AGIFY_HOST:-agify.avstecnologia.local}"
-if command -v curl >/dev/null 2>&1; then
-  NGINX_POST="$(curl -sk -o /dev/null -w '%{http_code}' -X POST "https://${AGIFY_HOST}/login" \
-    -H 'Content-Type: text/plain;charset=UTF-8' \
-    -H 'Accept: text/x-component' \
-    -H 'Next-Router-State-Tree: %5B%22%22%2C%7B%7D%5D' \
-    -d '[]' 2>/dev/null || echo '000')"
-  echo "  POST https://${AGIFY_HOST}/login (via nginx) -> HTTP ${NGINX_POST}"
-  if [ "$NGINX_POST" = "502" ] || [ "$NGINX_POST" = "000" ]; then
-    echo ""
-    echo "AVISO: nginx retornou ${NGINX_POST} no POST. Como ROOT no servidor:" >&2
-    echo "  bash /opt/agify/scripts/fix-nginx-agify.sh" >&2
-    echo "  tail -20 /var/log/nginx/error.log" >&2
-  fi
-fi

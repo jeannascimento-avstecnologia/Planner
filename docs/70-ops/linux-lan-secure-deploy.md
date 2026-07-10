@@ -283,6 +283,106 @@ pm2 restart agify
 | Email não envia | Resend / domínio | Ver [production-email-invites.md](production-email-invites.md) |
 | `:3001` aberto na rede | PM2 sem `-H 127.0.0.1` ou UFW | Usar `infra/pm2/ecosystem.config.cjs` |
 | Avatar URL externa não aparece | CSP | Produção permite `https:` em imagens (ver `content-security-policy.ts`) |
+| `Application error` após Entrar | Chunk antigo, CSP ou exceção JS | Rodar `bash scripts/diagnose-server.sh`; conferir Console sem extensões |
+| `Connection closed` em `Next-Action` | Cliente/build antigo ainda usando login por Server Action | Confirmar commit/build atual; o login por senha vigente chama Supabase no browser |
+| Supabase `Invalid login credentials` | Credencial incorreta | Validar usuário no Dashboard; nunca colocar senha em comando ou log |
+
+### Spec operacional — login em produção
+
+#### Contexto
+
+O login por senha não deve depender do transporte RSC/Server Actions. Reverse proxies,
+headers encaminhados e respostas RSC truncadas não podem impedir autenticação quando o
+browser consegue alcançar o Supabase Cloud.
+
+#### Requisitos e critérios de aceite
+
+- O browser autentica com `createBrowserClient` e navega por carregamento completo.
+- A anon key continua pública; nenhuma secret/service-role vai para o cliente.
+- Cookies Supabase continuam disponíveis ao SSR; “Lembre-me” controla persistência.
+- Credencial inválida retorna mensagem na página, sem HTTP 500 ou exceção no console.
+- O deploy falha se env, build, PM2, chunk estático, nginx ou Supabase estiverem inválidos.
+- O diagnóstico separa logs da execução atual de logs PM2 antigos.
+- Playwright cobre erro de credencial e sucesso sem Server Action.
+
+#### Não-objetivos
+
+- Alterar Supabase Auth, RLS, usuários ou políticas multi-tenant.
+- Aceitar origins extras ou relaxar CSRF.
+
+#### Matriz Spec → Código → Teste
+
+| Requisito | Código | Teste |
+|-----------|--------|-------|
+| Login sem RSC | `app/(auth)/login/page.tsx` | `e2e/login-browser-auth.spec.ts` |
+| Persistência SSR | `api/auth/persistence/route.ts`, `browser-auth-cookies.ts` | `browser-auth-cookies.test.ts` |
+| Diagnóstico determinístico | `scripts/diagnose-server.sh` | executado pelo deploy |
+
+### Guia de diagnóstico completo
+
+O deploy executa esta auditoria automaticamente. Para repetir sem rebuild:
+
+```bash
+cd /opt/agify
+bash scripts/diagnose-server.sh
+```
+
+O script não recebe senha e não imprime chaves. Interprete cada falha:
+
+1. **`codigo local difere de origin/main`**
+   - Causa: deploy antigo, branch errada ou `git fetch` bloqueado.
+   - Confira `git remote -v` e acesso ao GitHub. Rode novamente o deploy como `agify`.
+2. **`Node 20+ obrigatorio`**
+   - Causa: runtime incompatível.
+   - Instale Node LTS 20+ e recrie o processo PM2.
+3. **falha em `.env.local`**
+   - URL deve ser `https://<project-ref>.supabase.co`.
+   - anon key deve iniciar com `eyJ` ou `sb_publishable_`; nunca `sb_secret_`.
+   - `NEXT_PUBLIC_APP_URL` deve ser exatamente `https://agify.avstecnologia.local`.
+   - Permissão deve ser `600`; service-role deve estar ausente.
+4. **`Node nao alcanca Supabase`**
+   - Causa provável: DNS, proxy corporativo, firewall de saída, relógio/TLS ou chave inválida.
+   - Verifique DNS e HTTPS de saída para `*.supabase.co`; não cole a chave em logs.
+5. **`build antigo: login ainda registrado como Server Action`**
+   - Causa: `.next` antigo ou commit antigo.
+   - O deploy deve apagar `apps/web/.next`, rebuildar e falhar até o manifest novo existir.
+6. **PM2/runtime divergente**
+   - `PM2 offline`: processo não iniciou; veja somente logs posteriores ao horário do deploy.
+   - `runtime nao corresponde ao HEAD`: PM2 serve outro diretório/build.
+   - Confirme `cwd=/opt/agify/apps/web` e porta `127.0.0.1:3001`.
+7. **chunk JS falhou**
+   - Causa: build incompleto, nginx/cache servindo HTML de outra versão ou arquivo removido.
+   - Não tente corrigir no browser antes de o diagnóstico ficar verde.
+8. **nginx HTTPS falhou**
+   - Causa: DNS, certificado, upstream, site habilitado ou firewall.
+   - Como root: `nginx -t`, `nginx -T`, `systemctl status nginx`.
+9. **`POST /api/auth/persistence` ou cookie falhou**
+   - Causa: build antigo, Origin/Host incorretos ou cookie inválido.
+   - O esperado é HTTP 200 e `Set-Cookie: ngp-auth-persist=...`.
+10. **CSP/HSTS/cache**
+    - CSP precisa permitir o origin Supabase em `connect-src`.
+    - HTML deve ter `Cache-Control: no-store`.
+    - HSTS ausente é aviso; corrija antes de exposição fora da LAN.
+
+#### Se todos os checks do servidor estiverem verdes e o browser falhar
+
+Use janela anônima com extensões desativadas e DevTools → Network:
+
+1. `/login`: HTTP 200; chunks `/_next/static/...js`: HTTP 200.
+2. `https://<project>.supabase.co/auth/v1/token?grant_type=password`:
+   - 200: credencial aceita.
+   - 400 `invalid_credentials`: email/senha.
+   - bloqueado/CORS/TLS: firewall, proxy, antivírus ou CA no computador cliente.
+3. `/api/auth/persistence`: HTTP 200.
+4. Navegação `/boards`: HTTP 200/307, nunca POST `/login` com `Next-Action`.
+5. Console:
+   - `ChunkLoadError`: cache de browser/proxy; feche todas as abas e limpe dados do site.
+   - erro em script de extensão: teste sem extensões.
+   - CSP `connect-src`: env/build aponta para Supabase diferente.
+   - certificado: instale a CA interna no computador cliente e confira o relógio.
+
+Envie apenas: commit exibido, linhas `FAIL/WARN`, status das quatro requests e primeira
+exceção do Console. Nunca envie senha, anon key completa, access token ou refresh token.
 
 ---
 
