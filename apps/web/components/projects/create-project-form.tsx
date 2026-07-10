@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createBoard } from "@/app/(app)/boards/actions";
 import { AuroraModal } from "@/components/ui/aurora-modal";
@@ -26,7 +25,6 @@ type Props = {
 };
 
 export function CreateProjectForm({ orgOptions, defaultOrgId, defaultDepartmentId = null }: Props) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
@@ -50,7 +48,6 @@ export function CreateProjectForm({ orgOptions, defaultOrgId, defaultDepartmentI
       }
       appToast.success("Projeto criado");
       close();
-      router.refresh();
     });
   }
 

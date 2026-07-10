@@ -1,9 +1,10 @@
+import { cache } from "react";
+import { Suspense } from "react";
 import { getActiveOrgIdCached } from "@/lib/loaders/session";
 import { loadShellDataCached } from "@/lib/loaders/shell-cache";
-import { AppShell } from "./app-shell";
+import { AppShellStreaming } from "./app-shell-streaming";
 import { NotificationsLoader } from "./notifications-loader";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Suspense } from "react";
 
 type Props = {
   userId: string;
@@ -15,18 +16,20 @@ function NotificationFallback() {
   return <Skeleton className="h-9 w-9 rounded-full" aria-hidden />;
 }
 
-export async function AppShellLoader({ userId, userEmail, children }: Props) {
-  const orgId = await getActiveOrgIdCached();
-  const shell = await loadShellDataCached(userId, orgId);
+const getShellDataPromise = cache((userId: string) =>
+  (async () => {
+    const orgId = await getActiveOrgIdCached();
+    return loadShellDataCached(userId, orgId);
+  })(),
+);
+
+export function AppShellLoader({ userId, userEmail, children }: Props) {
+  const shellPromise = getShellDataPromise(userId);
 
   return (
-    <AppShell
+    <AppShellStreaming
       userEmail={userEmail}
-      avatarUrl={shell.avatarUrl}
-      fullName={shell.fullName}
-      accessibleBoardIds={shell.accessibleBoardIds}
-      boardMetaById={shell.boardMetaById}
-      showWorkload={shell.showWorkload}
+      shellPromise={shellPromise}
       notificationsSlot={
         <Suspense fallback={<NotificationFallback />}>
           <NotificationsLoader userId={userId} variant="topbar" />
@@ -34,6 +37,6 @@ export async function AppShellLoader({ userId, userEmail, children }: Props) {
       }
     >
       {children}
-    </AppShell>
+    </AppShellStreaming>
   );
 }

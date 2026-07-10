@@ -90,10 +90,9 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
     await supabase.auth.signOut();
   }
 
-  const signupClient = await createClient();
   let target: string;
   try {
-    const { data, error } = await signupClient.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: normalizeAuthEmail(parsed.data.email),
       password: parsed.data.password,
       options: { data: { full_name: parsed.data.fullName } },
@@ -103,7 +102,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
     if (data.session) {
       if (!inviteSignup) {
         const orgName = (parsed.data as SignUpInput).orgName;
-        const { error: orgError } = await signupClient.rpc("create_organization", {
+        const { error: orgError } = await supabase.rpc("create_organization", {
           p_name: orgName,
           p_slug: slugify(orgName),
         });

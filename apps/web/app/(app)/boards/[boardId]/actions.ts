@@ -698,8 +698,8 @@ export async function inviteToBoardBatch(input: InviteBoardBatchInput): Promise<
     });
   }
 
-  revalidateHomeProjects();
-  revalidateBoard(parsed.data.boardId);
+  revalidateHomeProjects(user.id);
+  revalidateBoard(parsed.data.boardId, { userId: user.id });
 
   return { ok: true, results };
 }
@@ -735,8 +735,8 @@ export async function updateBoardMemberRole(formData: FormData): Promise<UpdateM
 
   if (error) return { ok: false, error: "Nao foi possivel atualizar o papel." };
 
-  revalidateHomeProjects();
-  revalidateBoard(parsed.data.boardId);
+  revalidateHomeProjects(user.id);
+  revalidateBoard(parsed.data.boardId, { userId: user.id });
   return { ok: true };
 }
 
@@ -770,15 +770,19 @@ export async function removeBoardMember(formData: FormData): Promise<RemoveBoard
 
   if (error) return { ok: false, error: "Nao foi possivel remover o membro." };
 
-  revalidateHomeProjects();
-  revalidateBoard(parsed.data.boardId);
+  revalidateHomeProjects(user.id);
+  revalidateBoard(parsed.data.boardId, { userId: user.id });
   return { ok: true };
 }
 
 export async function acceptInvite(token: string): Promise<{ boardId?: string; error?: string }> {
   const result = await acceptBoardInviteByToken(token);
   if (result.boardId) {
-    revalidateHomeProjects();
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    revalidateHomeProjects(user?.id);
   }
   return result;
 }

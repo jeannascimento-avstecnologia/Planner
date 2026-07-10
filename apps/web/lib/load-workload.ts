@@ -49,6 +49,13 @@ async function loadBoardNameMap(orgId: string, client?: WorkloadSupabase): Promi
   return Object.fromEntries((boards ?? []).map((b) => [b.id, b.name]));
 }
 
+export async function fetchBoardNameMap(
+  orgId: string,
+  client?: WorkloadSupabase,
+): Promise<Record<string, string>> {
+  return loadBoardNameMap(orgId, client);
+}
+
 export async function loadWorkloadMembers(
   orgId: string,
   weekStart: Date,
@@ -191,6 +198,7 @@ export async function loadWorkloadDrilldownByOrg(
   orgId: string,
   weekStart: Date,
   client?: WorkloadSupabase,
+  boardNames?: Record<string, string>,
 ): Promise<Record<string, WorkloadDrilldownCard[]>> {
   const supabase = await resolveSupabase(client);
   const weekIso = formatDateIso(weekStart);
@@ -212,7 +220,7 @@ export async function loadWorkloadDrilldownByOrg(
       .is("completed_at", null),
   ]);
 
-  const boardNames = await loadBoardNameMap(orgId, supabase);
+  const resolvedBoardNames = boardNames ?? (await loadBoardNameMap(orgId, supabase));
   const cardById = new Map((cards ?? []).map((c) => [c.id as string, c]));
   const grouped: Record<string, WorkloadDrilldownCard[]> = {};
 
@@ -229,7 +237,7 @@ export async function loadWorkloadDrilldownByOrg(
     for (const [cardId, weekHours] of allocAgg.hoursByCard) {
       const c = cardById.get(cardId);
       if (!c) continue;
-      grouped[userId].push(toDrilldownCard(c, boardNames, weekHours));
+      grouped[userId].push(toDrilldownCard(c, resolvedBoardNames, weekHours));
     }
   }
 
@@ -244,7 +252,7 @@ export async function loadWorkloadDrilldownByOrg(
     if (cardWeekIso(anchor) !== weekIso) continue;
 
     grouped[uid] = grouped[uid] ?? [];
-    grouped[uid].push(toDrilldownCard(c, boardNames));
+    grouped[uid].push(toDrilldownCard(c, resolvedBoardNames));
   }
 
   for (const uid of Object.keys(grouped)) {
@@ -348,6 +356,7 @@ export async function loadWorkloadDrilldownForRange(
 export async function loadUnscheduledWorkload(
   orgId: string,
   client?: WorkloadSupabase,
+  boardNames?: Record<string, string>,
 ): Promise<WorkloadUnscheduledCard[]> {
   const supabase = await resolveSupabase(client);
 
@@ -363,7 +372,7 @@ export async function loadUnscheduledWorkload(
   ]);
 
   const cardsWithDailyPlan = new Set((anyAllocCards ?? []).map((a) => a.card_id as string));
-  const boardNames = await loadBoardNameMap(orgId, supabase);
+  const resolvedBoardNames = boardNames ?? (await loadBoardNameMap(orgId, supabase));
 
   const unscheduled = (cards ?? []).filter(
     (c) => !cardsWithDailyPlan.has(c.id as string) && isUnscheduledWorkload(c),
@@ -382,7 +391,7 @@ export async function loadUnscheduledWorkload(
       id: c.id,
       title: c.title,
       boardId: c.board_id,
-      boardName: boardNames[c.board_id] ?? "Projeto",
+      boardName: resolvedBoardNames[c.board_id] ?? "Projeto",
       assigneeId,
       assigneeName: profileMap[assigneeId] ?? assigneeId.slice(0, 8),
       estimatedHours: c.estimated_hours != null ? Number(c.estimated_hours) : null,

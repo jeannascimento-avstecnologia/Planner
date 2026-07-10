@@ -55,8 +55,8 @@ export async function createDepartmentAction(formData: FormData): Promise<Action
   });
   if (error) return { ok: false, error: mapRpcError(error.message) };
 
-  revalidateOrgSettings(parsed.data.orgId);
-  revalidateHomeProjects();
+  revalidateOrgSettings(parsed.data.orgId, user.id);
+  revalidateHomeProjects(user.id);
   return { ok: true };
 }
 
@@ -70,6 +70,9 @@ export async function updateDepartmentAction(formData: FormData): Promise<Action
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { error } = await supabase.rpc("update_department", {
     p_dept: parsed.data.departmentId,
     p_name: parsed.data.name,
@@ -78,7 +81,7 @@ export async function updateDepartmentAction(formData: FormData): Promise<Action
   });
   if (error) return { ok: false, error: mapRpcError(error.message) };
 
-  revalidateHomeProjects();
+  revalidateHomeProjects(user?.id);
   revalidatePath("/settings/organizations");
   return { ok: true };
 }
@@ -88,10 +91,13 @@ export async function deleteDepartmentAction(formData: FormData): Promise<Action
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { error } = await supabase.rpc("delete_department", { p_dept: parsed.data.departmentId });
   if (error) return { ok: false, error: mapRpcError(error.message) };
 
-  revalidateHomeProjects();
+  revalidateHomeProjects(user?.id);
   revalidatePath("/settings/organizations");
   return { ok: true };
 }
@@ -116,7 +122,7 @@ export async function addDepartmentMemberAction(input: unknown): Promise<ActionR
   });
   if (error) return { ok: false, error: mapRpcError(error.message) };
 
-  revalidateHomeProjects();
+  revalidateHomeProjects(user.id);
   revalidatePath("/settings/organizations");
   return { ok: true };
 }
@@ -126,6 +132,9 @@ export async function updateDepartmentMemberRoleAction(input: unknown): Promise<
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { error } = await supabase.rpc("set_department_member_role", {
     p_dept: parsed.data.departmentId,
     p_user: parsed.data.userId,
@@ -133,7 +142,7 @@ export async function updateDepartmentMemberRoleAction(input: unknown): Promise<
   });
   if (error) return { ok: false, error: mapRpcError(error.message) };
 
-  revalidateHomeProjects();
+  revalidateHomeProjects(user?.id);
   revalidatePath("/settings/organizations");
   return { ok: true };
 }
@@ -143,13 +152,16 @@ export async function removeDepartmentMemberAction(input: unknown): Promise<Acti
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { error } = await supabase.rpc("remove_department_member", {
     p_dept: parsed.data.departmentId,
     p_user: parsed.data.userId,
   });
   if (error) return { ok: false, error: mapRpcError(error.message) };
 
-  revalidateHomeProjects();
+  revalidateHomeProjects(user?.id);
   revalidatePath("/settings/organizations");
   return { ok: true };
 }
@@ -163,14 +175,17 @@ export async function setBoardDepartmentAction(formData: FormData): Promise<Acti
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { error } = await supabase.rpc("set_board_department", {
     p_board: parsed.data.boardId,
     p_dept: parsed.data.departmentId,
   });
   if (error) return { ok: false, error: mapRpcError(error.message) };
 
-  revalidateBoard(parsed.data.boardId);
-  revalidateHomeProjects();
+  revalidateBoard(parsed.data.boardId, { userId: user?.id });
+  revalidateHomeProjects(user?.id);
   revalidatePath("/settings/organizations");
   return { ok: true };
 }

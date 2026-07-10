@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/loaders/session";
 import { AppShellLoader } from "@/components/shell/app-shell-loader";
-import { ShellSkeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/ui/skeleton";
 import { PLANNER_SYNC_DEADLINES_HEADER } from "@/lib/planner-headers";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -25,10 +25,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <Suspense fallback={<ShellSkeleton />}>
-      <AppShellLoader userId={user.id} userEmail={user.email ?? ""}>
-        {children}
-      </AppShellLoader>
-    </Suspense>
+    <AppShellLoader userId={user.id} userEmail={user.email ?? ""}>
+      <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+    </AppShellLoader>
   );
 }

@@ -26,8 +26,6 @@ npm-debug.log*
 coverage/
 playwright-report/
 test-results/
-docs/security_audit_log.md
-
 # supabase local
 supabase/.branches/
 supabase/.temp/

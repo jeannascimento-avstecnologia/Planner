@@ -28,6 +28,9 @@ export async function createOrganization(formData: FormData): Promise<void> {
   if (!name) return;
   const supabase = await createClient();
   const { data: org } = await supabase.rpc("create_organization", { p_name: name, p_slug: slugify(name) });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (org?.id) {
     const cookieStore = await cookies();
     cookieStore.set(ACTIVE_ORG_COOKIE, org.id, {
@@ -38,7 +41,7 @@ export async function createOrganization(formData: FormData): Promise<void> {
       maxAge: 60 * 60 * 24 * 365,
     });
   }
-  revalidateHomeProjects();
+  revalidateHomeProjects(user?.id);
 }
 
 export async function createBoard(formData: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -102,8 +105,8 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
   });
   if (error) return { ok: false, error: "Nao foi possivel criar o projeto." };
 
-  revalidateHomeProjects();
-  revalidateOrgSettings(targetOrgId);
+  revalidateHomeProjects(user.id);
+  revalidateOrgSettings(targetOrgId, user.id);
   return { ok: true };
 }
 
@@ -116,13 +119,16 @@ export async function updateBoardAppearance(formData: FormData): Promise<void> {
   if (!parsed.success) return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   await supabase
     .from("boards")
     .update({ icon: parsed.data.icon ?? null, color: parsed.data.color ?? null })
     .eq("id", parsed.data.boardId);
 
-  revalidateHomeProjects();
-  revalidateBoard(parsed.data.boardId);
+  revalidateHomeProjects(user?.id);
+  revalidateBoard(parsed.data.boardId, { userId: user?.id });
 }
 
 export type BoardSettingsResult = { ok: true } | { error: string };
@@ -212,8 +218,8 @@ export async function updateBoardSettings(formData: FormData): Promise<BoardSett
   const { error } = await supabase.from("boards").update(patch).eq("id", boardId);
   if (error) return { error: "Nao foi possivel salvar as configuracoes." };
 
-  revalidateHomeProjects();
-  revalidateBoard(boardId);
+  revalidateHomeProjects(user.id);
+  revalidateBoard(boardId, { userId: user.id });
   return { ok: true };
 }
 
@@ -247,6 +253,6 @@ export async function deleteBoard(formData: FormData): Promise<BoardSettingsResu
   const { error } = await supabase.from("boards").delete().eq("id", parsed.data.boardId);
   if (error) return { error: "Nao foi possivel excluir o projeto." };
 
-  revalidateHomeProjects();
+  revalidateHomeProjects(user.id);
   return { ok: true };
 }

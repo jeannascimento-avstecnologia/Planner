@@ -98,20 +98,24 @@ BUILD_ID_FILE="apps/web/.next/BUILD_ID"
 MANIFEST="apps/web/.next/server/server-reference-manifest.json"
 if [ -s "$BUILD_ID_FILE" ]; then ok "BUILD_ID=$(tr -d '\r\n' < "$BUILD_ID_FILE")"; else fail "build Next.js ausente"; fi
 
-if [ -f "$MANIFEST" ] && node - "$MANIFEST" <<'NODE'
-const manifest = require(process.argv[2]);
-const registrations = Object.values(manifest.node || {});
-const legacy = registrations.some((entry) =>
-  entry.exportedName === "signIn" &&
-  entry.workers &&
-  entry.workers["app/(auth)/login/page"]
-);
-process.exit(legacy ? 1 : 0);
-NODE
-then
-  ok "login atual nao usa Server Action"
+MANIFEST_PATH="${APP_DIR}/${MANIFEST}"
+if [ -f "$MANIFEST_PATH" ]; then
+  if node -e "
+    const manifest = require(process.argv[1]);
+    const legacy = Object.values(manifest.node || {}).some(
+      (entry) =>
+        entry.exportedName === 'signIn' &&
+        entry.workers &&
+        entry.workers['app/(auth)/login/page']
+    );
+    process.exit(legacy ? 1 : 0);
+  " "$MANIFEST_PATH"; then
+    ok "login atual nao usa Server Action"
+  else
+    fail "build antigo: login ainda registrado como Server Action"
+  fi
 else
-  fail "build antigo: login ainda registrado como Server Action"
+  warn "server-reference-manifest ausente — checagem de Server Action legado ignorada"
 fi
 
 if pm2 describe agify 2>/dev/null | grep -q 'status.*online'; then

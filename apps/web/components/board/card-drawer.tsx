@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import type { CardPriority } from "@nextgen/contracts";
 import { deleteCard, getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/actions";
@@ -50,7 +49,6 @@ export function CardDrawer({
   onOpenTifluxLink,
   onClose,
 }: Props) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -163,7 +161,6 @@ export function CardDrawer({
           action={(fd) =>
             startTransition(async () => {
               await updateCard(fd);
-              router.refresh();
               appToast.success("Card salvo");
             })
           }

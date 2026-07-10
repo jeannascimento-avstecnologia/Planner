@@ -11,6 +11,7 @@ import {
   loadUnscheduledWorkload,
   loadWorkloadDrilldownByOrg,
   loadWorkloadMembers,
+  fetchBoardNameMap,
   type WorkloadDrilldownCard,
   type WorkloadMemberRow,
   type WorkloadUnscheduledCard,
@@ -28,10 +29,11 @@ async function fetchWorkloadWeekBundle(
   orgId: string,
   weekStart: Date,
 ): Promise<WorkloadWeekBundle> {
+  const boardNames = await fetchBoardNameMap(orgId, supabase);
   const [members, drilldownByUser, unscheduled] = await Promise.all([
     loadWorkloadMembers(orgId, weekStart, supabase),
-    loadWorkloadDrilldownByOrg(orgId, weekStart, supabase),
-    loadUnscheduledWorkload(orgId, supabase),
+    loadWorkloadDrilldownByOrg(orgId, weekStart, supabase, boardNames),
+    loadUnscheduledWorkload(orgId, supabase, boardNames),
   ]);
   members.sort((a, b) => a.fullName.localeCompare(b.fullName, "pt-BR"));
   return { members, drilldownByUser, unscheduled };
