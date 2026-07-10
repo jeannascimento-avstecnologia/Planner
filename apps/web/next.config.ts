@@ -7,6 +7,20 @@ const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "tr
 
 const isDev = process.env.NODE_ENV !== "production";
 
+/** Hosts permitidos em Server Actions atras de reverse proxy (sem protocolo). */
+function serverActionAllowedOrigins(): string[] {
+  const origins = new Set<string>(["localhost:3001", "127.0.0.1:3001"]);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (appUrl) {
+    try {
+      origins.add(new URL(appUrl).host);
+    } catch {
+      // ignore URL invalida no build
+    }
+  }
+  return [...origins];
+}
+
 const nextConfig: NextConfig = {
   // Fixa a raiz do monorepo (evita inferencia errada por lockfiles vizinhos).
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
@@ -15,6 +29,9 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   experimental: {
     optimizePackageImports: ["lucide-react", "@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+    serverActions: {
+      allowedOrigins: serverActionAllowedOrigins(),
+    },
   },
   images: {
     remotePatterns: [

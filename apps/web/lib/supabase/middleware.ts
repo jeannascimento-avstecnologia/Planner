@@ -43,10 +43,28 @@ function copyCookies(from: NextResponse, to: NextResponse) {
   from.cookies.getAll().forEach((c) => to.cookies.set(c.name, c.value));
 }
 
+/** Alinha Host/x-forwarded-* com Origin para CSRF check de Server Actions atras de nginx. */
+function alignProxyHeadersForServerAction(request: NextRequest): Headers {
+  const headers = new Headers(request.headers);
+  const origin = request.headers.get("origin");
+  if (!origin) return headers;
+
+  try {
+    const parsed = new URL(origin);
+    headers.set("x-forwarded-host", parsed.host);
+    headers.set("x-forwarded-proto", parsed.protocol.replace(":", ""));
+    headers.set("host", parsed.host);
+  } catch {
+    // Origin invalido — mantem headers recebidos
+  }
+  return headers;
+}
+
 export async function updateSession(request: NextRequest) {
   // Server Actions set auth cookies themselves; session refresh here can break the action stream.
   if (request.headers.get("next-action")) {
-    return NextResponse.next();
+    const headers = alignProxyHeadersForServerAction(request);
+    return NextResponse.next({ request: { headers } });
   }
 
   const ip = getClientIp(request);
