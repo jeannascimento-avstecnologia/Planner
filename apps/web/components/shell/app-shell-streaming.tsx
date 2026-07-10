@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, use, useState } from "react";
+import { Suspense, use, useEffect, useState } from "react";
 import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OnboardingTourProvider, useOnboardingTour } from "@/components/onboarding/onboarding-tour-provider";
 import type { ShellCacheData } from "@/lib/loaders/shell-cache";
 
 type Props = {
@@ -33,6 +34,11 @@ function ShellChrome({
   setMobileOpen: (open: boolean) => void;
 }) {
   const shell = use(shellPromise);
+  const { notifyShowWorkload } = useOnboardingTour();
+
+  useEffect(() => {
+    notifyShowWorkload(shell.showWorkload);
+  }, [notifyShowWorkload, shell.showWorkload]);
 
   return (
     <AppSidebar
@@ -72,36 +78,38 @@ export function AppShellStreaming({ userEmail, shellPromise, notificationsSlot, 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
-      <Suspense fallback={<SidebarFallback />}>
-        <ShellChrome
-          shellPromise={shellPromise}
-          userEmail={userEmail}
-          mobileOpen={mobileOpen}
-          setMobileOpen={setMobileOpen}
-        />
-      </Suspense>
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-        <Suspense
-          fallback={
-            <header className="aurora-topbar-solid sticky top-0 z-40 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-2 sm:px-3 md:px-4">
-              <div />
-              <div />
-              <div className="flex items-center justify-end gap-1.5">
-                {notificationsSlot}
-                <TopbarProfileFallback />
-              </div>
-            </header>
-          }
-        >
-          <ShellTopbarProfile
+    <OnboardingTourProvider setMobileOpen={setMobileOpen}>
+      <div className="flex min-h-screen">
+        <Suspense fallback={<SidebarFallback />}>
+          <ShellChrome
             shellPromise={shellPromise}
-            notificationsSlot={notificationsSlot}
-            onOpenMobileMenu={() => setMobileOpen(true)}
+            userEmail={userEmail}
+            mobileOpen={mobileOpen}
+            setMobileOpen={setMobileOpen}
           />
         </Suspense>
-        <main className="flex-1 overflow-x-hidden p-3 sm:p-4">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
+          <Suspense
+            fallback={
+              <header className="aurora-topbar-solid sticky top-0 z-40 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-2 sm:px-3 md:px-4">
+                <div />
+                <div />
+                <div className="flex items-center justify-end gap-1.5">
+                  {notificationsSlot}
+                  <TopbarProfileFallback />
+                </div>
+              </header>
+            }
+          >
+            <ShellTopbarProfile
+              shellPromise={shellPromise}
+              notificationsSlot={notificationsSlot}
+              onOpenMobileMenu={() => setMobileOpen(true)}
+            />
+          </Suspense>
+          <main className="flex-1 overflow-x-hidden p-3 sm:p-4">{children}</main>
+        </div>
       </div>
-    </div>
+    </OnboardingTourProvider>
   );
 }

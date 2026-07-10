@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "driver.js/dist/driver.css";
 
 /* Tailwind dark: segue data-theme da app (nao prefers-color-scheme do SO) */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -729,4 +730,66 @@ body {
   .aurora-overlay {
     backdrop-filter: none;
   }
+}
+
+/* ---------- Tour guiado (Driver.js + Aurora) ---------- */
+.driver-overlay {
+  z-index: 60 !important;
+}
+
+.driver-popover.agify-tour-popover {
+  z-index: 61 !important;
+  max-width: min(22rem, calc(100vw - 2rem));
+  border-radius: var(--radius-aurora);
+  border: 1px solid var(--color-aurora-border);
+  background: var(--color-aurora-surface);
+  color: var(--color-aurora-fg);
+  box-shadow:
+    0 0 0 1px rgba(165, 180, 252, 0.15),
+    0 20px 40px -12px rgba(6, 10, 46, 0.35);
+}
+
+[data-theme="dark"] .driver-popover.agify-tour-popover {
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, 0.12),
+    0 20px 40px -12px rgba(0, 0, 0, 0.55);
+}
+
+.driver-popover.agify-tour-popover .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-aurora-fg);
+}
+
+.driver-popover.agify-tour-popover .driver-popover-description {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-aurora-muted);
+}
+
+.driver-popover.agify-tour-popover .driver-popover-progress-text {
+  font-size: 0.75rem;
+  color: var(--color-aurora-muted);
+}
+
+.driver-popover.agify-tour-popover .driver-popover-footer button {
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.driver-popover.agify-tour-popover .driver-popover-next-btn,
+.driver-popover.agify-tour-popover .driver-popover-prev-btn {
+  background: var(--color-aurora-brand);
+  color: #fff;
+  border: none;
+}
+
+.driver-popover.agify-tour-popover .driver-popover-close-btn {
+  color: var(--color-aurora-muted);
+}
+
+.driver-popover.agify-tour-popover .driver-popover-close-btn:hover {
+  color: var(--color-aurora-fg);
 }

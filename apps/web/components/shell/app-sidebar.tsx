@@ -11,6 +11,7 @@ import { isSamePath } from "@/lib/client-url-state";
 import { isNavigationInFlight, setNavigationInFlight } from "@/lib/navigation-in-flight";
 
 import type { BoardMeta } from "@/lib/recent-boards";
+import { useOnboardingTour } from "@/components/onboarding/onboarding-tour-provider";
 
 type Props = {
   userEmail: string;
@@ -33,6 +34,7 @@ export function AppSidebar({
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const { registerSidebarPrep } = useOnboardingTour();
   const [collapsed, setCollapsed] = useState(true);
 
   useEffect(() => {
@@ -42,6 +44,17 @@ export function AppSidebar({
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    registerSidebarPrep(() => {
+      setCollapsed(false);
+      try {
+        localStorage.setItem(COLLAPSE_KEY, "false");
+      } catch {
+        // ignore
+      }
+    });
+  }, [registerSidebarPrep]);
 
   function toggleCollapsed() {
     setCollapsed((c) => {
@@ -58,11 +71,13 @@ export function AppSidebar({
   const tight = collapsed && !mobileOpen;
 
   const nav = [
-    { href: "/boards", label: "Home", icon: Home },
-    { href: "/calendar", label: "Calendario", icon: Calendar },
-    { href: "/plan", label: "Meu plano", icon: CalendarClock },
-    { href: "/projects", label: "Projetos", icon: FolderKanban },
-    ...(showWorkload ? [{ href: "/workload", label: "Carga", icon: BarChart3 }] : []),
+    { href: "/boards", label: "Home", icon: Home, tourId: "nav-boards" },
+    { href: "/calendar", label: "Calendario", icon: Calendar, tourId: "nav-calendar" },
+    { href: "/plan", label: "Meu plano", icon: CalendarClock, tourId: "nav-plan" },
+    { href: "/projects", label: "Projetos", icon: FolderKanban, tourId: "nav-projects" },
+    ...(showWorkload
+      ? [{ href: "/workload", label: "Carga", icon: BarChart3, tourId: "nav-workload" }]
+      : []),
   ];
 
   const activeSettings = pathname === "/settings" || pathname.startsWith("/settings/");
@@ -113,7 +128,7 @@ export function AppSidebar({
       </div>
 
       <nav className="mt-4 space-y-1">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {nav.map(({ href, label, icon: Icon, tourId }) => {
           const activeHome = label === "Home" && pathname === "/boards";
           const activeProjetos =
             label === "Projetos" && (pathname === "/projects" || pathname.startsWith("/boards/"));
@@ -123,6 +138,7 @@ export function AppSidebar({
             <NavLink
               key={label}
               href={href}
+              data-tour={tourId}
               onClick={() => setMobileOpen(false)}
               title={tight ? label : undefined}
               className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition ${
@@ -148,6 +164,7 @@ export function AppSidebar({
         {!tight ? <p className="mb-2 truncate text-xs text-white/70">{userEmail}</p> : null}
         <NavLink
           href="/help"
+          data-tour="nav-help"
           onClick={() => setMobileOpen(false)}
           title={tight ? "Ajuda" : undefined}
           data-testid="sidebar-help-link"
@@ -162,6 +179,7 @@ export function AppSidebar({
         </NavLink>
         <NavLink
           href="/settings"
+          data-tour="nav-settings"
           onClick={() => setMobileOpen(false)}
           title={tight ? "Configuracoes" : undefined}
           data-testid="sidebar-settings-link"

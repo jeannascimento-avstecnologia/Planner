@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Compass } from "lucide-react";
 import { HELP_CATEGORIES, type HelpBadge, type HelpSection } from "@/lib/help-content";
-import { dataPanelClass, dataPanelEnterClass, linkClass } from "@/lib/ui-classes";
+import { useOnboardingTour } from "@/components/onboarding/onboarding-tour-provider";
+import { btnPrimary, dataPanelClass, dataPanelEnterClass, linkClass } from "@/lib/ui-classes";
 
 function HelpBadgePill({ badge }: { badge: HelpBadge }) {
   const colors =
@@ -68,8 +70,32 @@ function HelpSectionCard({ section }: { section: HelpSection }) {
 }
 
 export function HelpCenter() {
+  const { openOnboardingTour } = useOnboardingTour();
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[12rem_minmax(0,1fr)]" data-testid="help-center">
+    <div className="space-y-6">
+      <div
+        className={`${dataPanelClass} ${dataPanelEnterClass} flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between`}
+        data-testid="help-tour-card"
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-aurora-fg">Tour guiado</p>
+          <p className="text-sm text-aurora-muted">
+            Reveja o passo a passo interativo pelas areas principais do app.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openOnboardingTour}
+          className={`inline-flex shrink-0 items-center justify-center gap-2 ${btnPrimary}`}
+          data-testid="onboarding-tour-trigger"
+        >
+          <Compass className="h-4 w-4" aria-hidden />
+          Ver tour guiado
+        </button>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[12rem_minmax(0,1fr)]" data-testid="help-center">
       <nav
         className="hidden lg:block lg:sticky lg:top-20 lg:self-start"
         aria-label="Indice da ajuda"
@@ -111,6 +137,7 @@ export function HelpCenter() {
           </section>
         ))}
       </div>
+    </div>
     </div>
   );
 }
