@@ -22,6 +22,7 @@ function serverActionAllowedOrigins(): string[] {
 }
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   // Fixa a raiz do monorepo (evita inferencia errada por lockfiles vizinhos).
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   transpilePackages: ["@nextgen/contracts"],

@@ -1,0 +1,44 @@
+# Traefik v3 — setup base na VPS (rodar 1x antes do primeiro deploy).
+# Runbook: docs/70-ops/vps-deploy.md
+#
+# Pré-requisitos:
+#   docker network create network_public
+#   Portas 80/443 abertas; DNS apontando para este IP
+#
+# Uso:
+#   cd ~/traefik && docker compose up -d
+
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - "--api.dashboard=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=network_public"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencryptresolver.acme.email=SEU_EMAIL@dominio.com"
+      - "--certificatesresolvers.letsencryptresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencryptresolver.acme.tlschallenge=true"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    networks:
+      - network_public
+
+volumes:
+  traefik-letsencrypt:
+
+networks:
+  network_public:
+    external: true
