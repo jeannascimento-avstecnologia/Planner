@@ -23,7 +23,7 @@ insert into public.boards (id, org_id, name, created_by) values
 
 insert into public.board_members (board_id, user_id, role) values
   ('a4444444-4444-4444-4444-444444444444','a1111111-1111-1111-1111-111111111111','manager'),
-  ('a4444444-4444-4444-4444-444444444444','a2222222-2222-2222-2222-222222222222','member');
+  ('a4444444-4444-4444-4444-444444444444','a2222222-2222-2222-2222-222222222222','viewer');
 
 insert into public.columns (id, board_id, org_id, name, position) values
   ('a5555555-5555-5555-5555-555555555555','a4444444-4444-4444-4444-444444444444','a3333333-3333-3333-3333-333333333333','Todo','a');

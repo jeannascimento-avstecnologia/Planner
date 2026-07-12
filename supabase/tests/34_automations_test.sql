@@ -94,6 +94,9 @@ select is(
 );
 
 -- condicao nao bate: mover para To Start nao altera prioridade
+reset role;
+set local role service_role;
+
 update public.cards set priority = 'low' where id = 'e6666666-6666-6666-6666-666666666666';
 
 update public.cards
