@@ -10,11 +10,6 @@ insert into auth.users (instance_id, id, aud, role, email, created_at, updated_a
 insert into public.organizations (id, name, slug) values
   ('e3333333-3333-3333-3333-333333333333','Org Auto','org-auto');
 
-insert into public.profiles (id, full_name) values
-  ('e1111111-1111-1111-1111-111111111111','Auto Admin'),
-  ('e2222222-2222-2222-2222-222222222222','Auto View')
-on conflict (id) do nothing;
-
 insert into public.memberships (org_id, user_id, role) values
   ('e3333333-3333-3333-3333-333333333333','e1111111-1111-1111-1111-111111111111','viewer'),
   ('e3333333-3333-3333-3333-333333333333','e2222222-2222-2222-2222-222222222222','viewer');
@@ -96,6 +91,9 @@ select is(
 -- condicao nao bate: mover para To Start nao altera prioridade
 reset role;
 set local role service_role;
+select set_config('app.automation_depth', '0', true);
+select set_config('app.automation_root_event_id', '', true);
+select set_config('app.automation_running', '', true);
 
 update public.cards set priority = 'low' where id = 'e6666666-6666-6666-6666-666666666666';
 
