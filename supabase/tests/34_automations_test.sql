@@ -89,11 +89,12 @@ select is(
 );
 
 -- condicao nao bate: mover para To Start nao altera prioridade
-reset role;
-set local role service_role;
+select set_config('request.jwt.claims', json_build_object('sub','e1111111-1111-1111-1111-111111111111','role','authenticated')::text, true);
 select set_config('app.automation_depth', '0', true);
 select set_config('app.automation_root_event_id', '', true);
 select set_config('app.automation_running', '', true);
+
+update public.automation_rules set active = false where board_id = 'e4444444-4444-4444-4444-444444444444';
 
 update public.cards set priority = 'low' where id = 'e6666666-6666-6666-6666-666666666666';
 
@@ -112,8 +113,6 @@ select is(
 );
 
 -- profundidade >= 3 bloqueia motor
-reset role;
-set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub','e1111111-1111-1111-1111-111111111111','role','authenticated')::text, true);
 select set_config('app.automation_depth', '3', true);
 

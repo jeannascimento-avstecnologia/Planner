@@ -14,9 +14,6 @@ insert into public.memberships (org_id, user_id, role) values
   ('40333333-3333-3333-3333-333333333333','40111111-1111-1111-1111-111111111111','admin'),
   ('40333333-3333-3333-3333-333333333333','40222222-2222-2222-2222-222222222222','manager');
 
-reset role;
-set local role service_role;
-
 select is(
   app.field_access(
     '40333333-3333-3333-3333-333333333333'::uuid,
@@ -27,6 +24,9 @@ select is(
   'write',
   'manager default due_date is write'
 );
+
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub','40111111-1111-1111-1111-111111111111','role','authenticated')::text, true);
 
 insert into public.user_field_permission_overrides (org_id, user_id, resource, field_name, access)
 values (
@@ -47,10 +47,6 @@ select is(
   'read',
   'user override wins over role default'
 );
-
-reset role;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub','40111111-1111-1111-1111-111111111111','role','authenticated')::text, true);
 
 select lives_ok(
   $$insert into public.user_field_permission_overrides (org_id, user_id, resource, field_name, access)
@@ -78,9 +74,6 @@ select lives_ok(
       and field_name = 'due_date'$$,
   'admin can delete override'
 );
-
-reset role;
-set local role service_role;
 
 select is(
   app.field_access(
