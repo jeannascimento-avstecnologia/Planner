@@ -44,6 +44,10 @@ npm run dev
 - pgTAP roda no CI com `supabase start` no runner (`.github/workflows/ci.yml`).
 - Opcional local: Docker + `supabase start` + `supabase test db` antes de abrir PR.
 
+## Producao VPS (internet publica)
+
+Runbook: [vps-deploy.md](vps-deploy.md). GitHub Actions **Deploy Web** (manual) + Traefik na VPS.
+
 ## Gaps atuais
 
 - pnpm/corepack indisponivel -> npm workspaces.

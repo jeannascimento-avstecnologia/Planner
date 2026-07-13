@@ -1,0 +1,40 @@
+# Template Docker Compose — Next.js (Agify Planner)
+# Placeholders substituidos via sed em .github/workflows/deploy-web.yml
+#
+# __REGISTRY_USER__   usuario Docker Hub
+# __IMAGE_NAME__      agify-planner-web
+# __IMAGE_TAG__       latest
+# __CONTAINER_NAME__  agify-planner-web
+# __ROUTER_PREFIX__   agify-planner-web
+# __HOST_RULE__       Host(`apify.prosperfy.com.br`)
+# __ENV_FILENAME__    agify-planner-web.env
+
+version: "3.8"
+
+services:
+  app:
+    image: docker.io/__REGISTRY_USER__/__IMAGE_NAME__:__IMAGE_TAG__
+    container_name: __CONTAINER_NAME__
+    restart: unless-stopped
+    env_file:
+      - ./__ENV_FILENAME__
+    networks:
+      - network_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=network_public"
+      - "traefik.http.routers.__ROUTER_PREFIX__-secure.rule=__HOST_RULE__"
+      - "traefik.http.routers.__ROUTER_PREFIX__-secure.entrypoints=websecure"
+      - "traefik.http.routers.__ROUTER_PREFIX__-secure.tls=true"
+      - "traefik.http.routers.__ROUTER_PREFIX__-secure.tls.certresolver=letsencryptresolver"
+      - "traefik.http.routers.__ROUTER_PREFIX__-secure.service=__ROUTER_PREFIX__-service"
+      - "traefik.http.routers.__ROUTER_PREFIX__-insecure.rule=__HOST_RULE__"
+      - "traefik.http.routers.__ROUTER_PREFIX__-insecure.entrypoints=web"
+      - "traefik.http.routers.__ROUTER_PREFIX__-insecure.middlewares=__ROUTER_PREFIX__-redirect"
+      - "traefik.http.services.__ROUTER_PREFIX__-service.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.__ROUTER_PREFIX__-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.__ROUTER_PREFIX__-redirect.redirectscheme.permanent=true"
+
+networks:
+  network_public:
+    external: true

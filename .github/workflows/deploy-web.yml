@@ -1,0 +1,94 @@
+# Deploy Web — NextGen Planner (production)
+# Trigger manual. Build Docker -> push Docker Hub -> SSH VPS -> compose up.
+# Backend Supabase permanece na nuvem (sem deploy-backend).
+
+name: Deploy Web
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: agify-planner-web
+  CONTAINER_NAME: agify-planner-web
+  COMPOSE_PROJECT: agify-planner-web
+  TARGET_DIR: ~/agify-planner-web
+  ENV_FILENAME: agify-planner-web.env
+
+jobs:
+  deploy:
+    name: Build & Deploy Web
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.APP_HOST_FRONTEND }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASS }}
+
+      - name: Build e push da imagem (Next.js)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USER }}/${{ env.IMAGE_NAME }}:latest
+          secrets: |
+            env_file=${{ secrets.ENV_FILE_WEB }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Renderiza compose
+        run: |
+          mkdir -p deploy/rendered
+          sed -e "s|__REGISTRY_USER__|${{ secrets.REGISTRY_USER }}|g" \
+              -e "s|__IMAGE_NAME__|${{ env.IMAGE_NAME }}|g" \
+              -e "s|__IMAGE_TAG__|latest|g" \
+              -e "s|__CONTAINER_NAME__|${{ env.CONTAINER_NAME }}|g" \
+              -e "s|__ROUTER_PREFIX__|${{ env.CONTAINER_NAME }}|g" \
+              -e "s|__ENV_FILENAME__|${{ env.ENV_FILENAME }}|g" \
+              -e "s|__HOST_RULE__|Host(\`${{ vars.APP_HOST_FRONTEND }}\`)|g" \
+              deploy/web.compose.template.yml > deploy/rendered/docker-compose.yml
+          cat deploy/rendered/docker-compose.yml
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s' '${{ secrets.SSH_PRIVATE_KEY }}' > ~/.ssh/id_ed25519_ci
+          tr -d '\r' < ~/.ssh/id_ed25519_ci > ~/.ssh/id_ed25519_ci.tmp && mv ~/.ssh/id_ed25519_ci.tmp ~/.ssh/id_ed25519_ci
+          chmod 600 ~/.ssh/id_ed25519_ci
+          printf "Host vps\n  HostName %s\n  Port %s\n  User %s\n  IdentityFile ~/.ssh/id_ed25519_ci\n  StrictHostKeyChecking no\n" \
+            "${{ secrets.VPS_HOST }}" "${{ secrets.VPS_PORT }}" "${{ secrets.VPS_USER }}" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Envia arquivos para a VPS
+        env:
+          ENV_FILE_WEB: ${{ secrets.ENV_FILE_WEB }}
+        run: |
+          ssh vps "mkdir -p ${{ env.TARGET_DIR }}"
+          scp deploy/rendered/docker-compose.yml vps:${{ env.TARGET_DIR }}/docker-compose.yml
+          printf '%s' "$ENV_FILE_WEB" | ssh vps "cat > ${{ env.TARGET_DIR }}/${{ env.ENV_FILENAME }} && chmod 600 ${{ env.TARGET_DIR }}/${{ env.ENV_FILENAME }}"
+
+      - name: Deploy na VPS
+        run: |
+          ssh vps "docker login ${{ env.REGISTRY }} -u '${{ secrets.REGISTRY_USER }}' -p '${{ secrets.REGISTRY_PASS }}'"
+          ssh vps "cd ${{ env.TARGET_DIR }} && docker compose -p ${{ env.COMPOSE_PROJECT }} pull"
+          ssh vps "cd ${{ env.TARGET_DIR }} && docker compose -p ${{ env.COMPOSE_PROJECT }} up -d --force-recreate --remove-orphans"
+
+      - name: Limpeza de imagens antigas (opcional)
+        run: |
+          ssh vps "docker image prune -f" || true
