@@ -26,30 +26,16 @@ function LoginForm() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const msAvailable = isMicrosoftLoginAvailable();
-    const queryError = searchParams.get("error");
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-      body: JSON.stringify({
-        sessionId: "c84914",
-        runId: "pre-fix",
-        hypothesisId: "A,B,C",
-        location: "login/page.tsx:LoginForm",
-        message: "login mount auth env",
-        data: {
-          supabaseHost: supabaseUrl ? new URL(supabaseUrl).hostname : null,
-          microsoftAvailable: msAvailable,
-          hasQueryError: Boolean(queryError),
-          queryErrorPrefix: queryError ? queryError.slice(0, 40) : null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [searchParams]);
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+    if (!hash) return;
+    const hashParams = new URLSearchParams(hash);
+    const oauthError = hashParams.get("error_description") ?? hashParams.get("error");
+    if (oauthError) {
+      setError(decodeURIComponent(oauthError.replace(/\+/g, " ")));
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

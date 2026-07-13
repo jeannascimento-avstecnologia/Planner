@@ -120,6 +120,13 @@ fi
 
 if pm2 describe agify 2>/dev/null | grep -q 'status.*online'; then
   ok "PM2 agify online"
+  PM2_PID="$(pm2 pid agify 2>/dev/null || echo '')"
+  PORT_PID="$(ss -tlnp "sport = :${PORT}" 2>/dev/null | grep -oP 'pid=\K\d+' | head -1 || echo '')"
+  if [ -n "$PM2_PID" ] && [ -n "$PORT_PID" ] && [ "$PM2_PID" = "$PORT_PID" ]; then
+    ok "PM2 pid=${PM2_PID} escuta na porta ${PORT}"
+  else
+    fail "PM2 pid=${PM2_PID:-?} difere do listener ${PORT} pid=${PORT_PID:-?}"
+  fi
 else
   fail "PM2 agify nao esta online"
 fi
@@ -160,11 +167,15 @@ PERSIST_HEADERS="$(curl -sS -D - -o /dev/null -X POST "${BASE}/api/auth/persiste
   --data '{"rememberMe":false}' 2>/dev/null || true)"
 if printf '%s' "$PERSIST_HEADERS" | grep -qE '^HTTP/[^ ]+ 200'; then
   ok "POST /api/auth/persistence"
+elif printf '%s' "$PERSIST_HEADERS" | grep -qE '^HTTP/[^ ]+ 401'; then
+  ok "POST /api/auth/persistence (401 sem sessao — esperado no smoke)"
 else
-  fail "POST /api/auth/persistence nao retornou 200"
+  fail "POST /api/auth/persistence nao retornou 200/401"
 fi
 if printf '%s' "$PERSIST_HEADERS" | grep -qi '^set-cookie: ngp-auth-persist=0'; then
   ok "cookie de persistencia aceito pelo browser"
+elif printf '%s' "$PERSIST_HEADERS" | grep -qE '^HTTP/[^ ]+ 401'; then
+  warn "cookie ngp-auth-persist omitido sem sessao (esperado)"
 else
   fail "cookie ngp-auth-persist ausente ou invalido"
 fi

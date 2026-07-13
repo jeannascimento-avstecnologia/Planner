@@ -25,21 +25,6 @@ export async function getOAuthLoginRedirectUrl(
   if (configError) return { error: configError };
 
   if (provider === "azure" && isLocalSupabaseUrl()) {
-    // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-      body: JSON.stringify({
-        sessionId: "c84914",
-        runId: "pre-fix",
-        hypothesisId: "C",
-        location: "auth-oauth-start.ts:getOAuthLoginRedirectUrl",
-        message: "azure blocked local supabase",
-        data: { supabaseHost: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://x").hostname },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     return { error: MICROSOFT_LOGIN_LOCAL_MESSAGE };
   }
 
@@ -47,6 +32,20 @@ export async function getOAuthLoginRedirectUrl(
   const supabase = await createClient();
   const appUrl = getConfiguredAppUrl();
   const redirectTo = `${appUrl}/auth/callback?next=${encodeURIComponent(next)}`;
+
+  // #region agent log
+  console.info(
+    JSON.stringify({
+      sessionId: "c84914",
+      runId: "pre-fix",
+      hypothesisId: "B,C",
+      location: "auth-oauth-start.ts:getOAuthLoginRedirectUrl",
+      message: "oauth start",
+      data: { provider, redirectToHost: new URL(redirectTo).host },
+      timestamp: Date.now(),
+    }),
+  );
+  // #endregion
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -56,41 +55,28 @@ export async function getOAuthLoginRedirectUrl(
             redirectTo,
             queryParams: { access_type: "offline", prompt: "consent" },
           }
-        : { redirectTo },
+        : {
+            redirectTo,
+            scopes: "email openid profile",
+            queryParams: { prompt: "select_account" },
+          },
   });
 
   if (error || !data.url) {
     // #region agent log
-    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-      body: JSON.stringify({
+    console.error(
+      JSON.stringify({
         sessionId: "c84914",
         runId: "pre-fix",
-        hypothesisId: "E",
+        hypothesisId: "C",
         location: "auth-oauth-start.ts:signInWithOAuth",
         message: "oauth signIn failed",
         data: { provider, errorMessage: error?.message ?? null, hasUrl: Boolean(data.url) },
         timestamp: Date.now(),
       }),
-    }).catch(() => {});
+    );
     // #endregion
     return { error: "callback" };
   }
-  // #region agent log
-  fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
-    body: JSON.stringify({
-      sessionId: "c84914",
-      runId: "pre-fix",
-      hypothesisId: "E",
-      location: "auth-oauth-start.ts:signInWithOAuth",
-      message: "oauth redirect ok",
-      data: { provider, redirectHost: data.url ? new URL(data.url).hostname : null },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   return { url: data.url };
 }

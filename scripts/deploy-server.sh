@@ -29,8 +29,23 @@ fi
 echo "==> [2/6] npm install..."
 npm install
 
-echo "==> [3/6] PM2 stop + build limpo..."
+echo "==> [3/6] PM2 stop + liberar porta ${PORT} + build limpo..."
 pm2 stop "$PM2_NAME" 2>/dev/null || true
+pm2 delete "$PM2_NAME" 2>/dev/null || true
+if command -v runuser >/dev/null 2>&1; then
+  runuser -u agify -- pm2 kill 2>/dev/null || true
+fi
+for pid in $(ss -tlnp "sport = :${PORT}" 2>/dev/null | grep -oP 'pid=\K\d+' || true); do
+  kill -9 "$pid" 2>/dev/null || true
+done
+pkill -9 -f 'next-server' 2>/dev/null || true
+pkill -9 -f 'next start' 2>/dev/null || true
+sleep 2
+if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
+  echo "ERRO: porta ${PORT} ainda em uso apos limpeza" >&2
+  ss -tlnp | grep ":${PORT} " >&2 || true
+  exit 1
+fi
 rm -rf apps/web/.next
 cd apps/web
 npm run build
@@ -45,11 +60,15 @@ if [ "$CHUNK_COUNT" = "0" ] || [ "$BUILD_ID" = "MISSING" ]; then
 fi
 
 echo "==> [4/6] PM2 start (fork)..."
-if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
-  pm2 delete "$PM2_NAME" 2>/dev/null || true
-fi
-pm2 start infra/pm2/ecosystem.config.cjs
+pm2 start infra/pm2/ecosystem.config.cjs --update-env
 pm2 save
+PM2_PID="$(pm2 pid "$PM2_NAME" 2>/dev/null || echo '')"
+PORT_PID="$(ss -tlnp "sport = :${PORT}" 2>/dev/null | grep -oP 'pid=\K\d+' | head -1 || echo '')"
+if [ -n "$PM2_PID" ] && [ -n "$PORT_PID" ] && [ "$PM2_PID" != "$PORT_PID" ]; then
+  echo "ERRO: PM2 pid=${PM2_PID} difere do listener na porta ${PORT} pid=${PORT_PID}" >&2
+  exit 1
+fi
+echo "    PM2 pid=${PM2_PID:-?} porta pid=${PORT_PID:-?}"
 
 echo "==> [5/6] Aguardando app..."
 READY=0
