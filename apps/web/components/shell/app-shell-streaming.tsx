@@ -5,6 +5,7 @@ import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingTourProvider, useOnboardingTour } from "@/components/onboarding/onboarding-tour-provider";
+import { PageTourAutoTrigger } from "@/components/onboarding/page-tour-auto-trigger";
 import type { ShellCacheData } from "@/lib/loaders/shell-cache";
 
 type Props = {
@@ -34,11 +35,20 @@ function ShellChrome({
   setMobileOpen: (open: boolean) => void;
 }) {
   const shell = use(shellPromise);
-  const { notifyShowWorkload } = useOnboardingTour();
+  const { notifyShowWorkload, setPageTourContext } = useOnboardingTour();
 
   useEffect(() => {
     notifyShowWorkload(shell.showWorkload);
-  }, [notifyShowWorkload, shell.showWorkload]);
+    setPageTourContext({
+      showWorkload: shell.showWorkload,
+      showAdminSettings: shell.showAdminSettings,
+    });
+  }, [
+    notifyShowWorkload,
+    setPageTourContext,
+    shell.showWorkload,
+    shell.showAdminSettings,
+  ]);
 
   return (
     <AppSidebar
@@ -79,6 +89,7 @@ export function AppShellStreaming({ userEmail, shellPromise, notificationsSlot, 
 
   return (
     <OnboardingTourProvider setMobileOpen={setMobileOpen}>
+      <PageTourAutoTrigger />
       <div className="flex min-h-screen">
         <Suspense fallback={<SidebarFallback />}>
           <ShellChrome

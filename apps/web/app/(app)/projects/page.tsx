@@ -6,6 +6,8 @@ import { ProjectsHubLayout } from "@/components/projects/projects-hub-shell";
 import { CreateProjectForm } from "@/components/projects/create-project-form";
 import { ProjectsFiltersPanel } from "@/components/projects/projects-filters-panel";
 import { PlanningPageHeader } from "@/components/shell/planning-page-header";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
+import { ProjectsPageTourPrep } from "@/components/onboarding/page-tour-preps";
 import { FolderKanban } from "lucide-react";
 import { loadOrgProjectsCached } from "@/lib/loaders/cached-queries";
 import { loadOrgProjects } from "@/lib/load-org-projects";
@@ -80,10 +82,15 @@ export default async function ProjectsPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6" data-testid="projects-page">
-      <PlanningPageHeader
-        title={PAGE_COPY.projects.title}
-        icon={<FolderKanban className="h-5 w-5" aria-hidden />}
-        description={
+      <Suspense fallback={null}>
+        <ProjectsPageTourPrep firstBoardId={boards[0]?.id ?? null} />
+      </Suspense>
+      <div data-tour="projects-header">
+        <PlanningPageHeader
+          title={PAGE_COPY.projects.title}
+          icon={<FolderKanban className="h-5 w-5" aria-hidden />}
+          actions={<PageTourTrigger />}
+          description={
           <>
             {PAGE_COPY.projects.description}
             {deptLabel ? (
@@ -93,10 +100,13 @@ export default async function ProjectsPage({ searchParams }: Props) {
             ) : null}
           </>
         }
-      />
+        />
+      </div>
 
       <Suspense fallback={null}>
-        <ProjectsFiltersPanel orgs={orgOptions} activeOrgId={activeOrgId} deptOptions={deptOptions} />
+        <div data-tour="projects-filters">
+          <ProjectsFiltersPanel orgs={orgOptions} activeOrgId={activeOrgId} deptOptions={deptOptions} />
+        </div>
       </Suspense>
 
       {boards.length === 0 ? (

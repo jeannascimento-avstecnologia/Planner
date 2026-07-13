@@ -76,6 +76,7 @@ export function PlanSidebar({ cards, canEdit, testId = "plan-sidebar" }: Props) 
       className={`hub-panel-enter w-full shrink-0 space-y-4 rounded-xl border border-aurora-border bg-aurora-surface-2/40 p-3 md:w-56 lg:w-64`}
       aria-label="Cards para agendar"
       data-testid={testId}
+      data-tour="plan-sidebar"
     >
       {canEdit ? (
         <p className="text-xs text-aurora-muted">Arraste cards para o calendario. Depois, clique em um dia para apontar horas.</p>

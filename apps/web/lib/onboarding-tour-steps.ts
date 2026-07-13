@@ -8,69 +8,69 @@ export type OnboardingTourStepDef = {
   requiresWorkload?: boolean;
 };
 
-/** Definicoes estaticas — copy resumida de help-content.ts */
+/** Tour global da sidebar — tom premium, orientacao espacial. */
 export const ONBOARDING_TOUR_STEP_DEFS: OnboardingTourStepDef[] = [
   {
     id: "welcome",
     title: "Bem-vindo ao Agify",
     description:
-      "Este tour rapido mostra onde encontrar cada area do app. Use Proximo para avancar ou Fechar para pular — voce pode rever em Ajuda.",
+      "Planeje, execute e acompanhe projetos com clareza. Este passeio mostra onde cada area vive na barra lateral — leva menos de um minuto.",
   },
   {
     id: "home",
     tourTarget: "nav-boards",
-    title: "Home",
+    title: "Home — visao do portifolio",
     description:
-      "Painel inicial com grade de projetos, mini-calendario dos proximos 7 dias e lista de prazos. Clique em um projeto para abrir o kanban.",
+      "Sua base apos o login: projetos por org, prazos dos proximos 7 dias e alertas de atraso. Um clique no tile abre o kanban.",
   },
   {
     id: "projects",
     tourTarget: "nav-projects",
-    title: "Projetos",
+    title: "Projetos — comparar sem entrar",
     description:
-      "Hub para comparar e filtrar projetos sem entrar no kanban. Selecione um tile para ver detalhes no painel lateral.",
+      "Filtre, ordene e inspecione boards no painel lateral antes de mergulhar no trabalho. Ideal para priorizar a semana.",
   },
   {
     id: "calendar",
     tourTarget: "nav-calendar",
-    title: "Calendario",
+    title: "Calendario — prazos unificados",
     description:
-      "Visao unificada de prazos e entregas de todos os projetos aos quais voce tem acesso.",
+      "Todos os due dates da organizacao em uma grade. Arraste para reagendar e exporte feed iCal para seu calendario externo.",
   },
   {
     id: "plan",
     tourTarget: "nav-plan",
-    title: "Meu plano",
+    title: "Meu plano — seu foco diario",
     description:
-      "Organize o trabalho do dia: cards atribuidos a voce, ordenados por prioridade e prazo.",
+      "Alocacao pessoal em 11 dias: arraste cards, distribua horas e acompanhe utilizacao. Seu compromisso com o que importa hoje.",
   },
   {
     id: "workload",
     tourTarget: "nav-workload",
-    title: "Carga",
+    title: "Carga — capacidade da equipe",
     description:
-      "Visao de carga da equipe por periodo — disponivel para gestores e admins da organizacao.",
+      "Para gestores: utilizacao por membro, capacidade editavel e drilldown de alocacoes. Evite sobrecarga antes que vire gargalo.",
     requiresWorkload: true,
   },
   {
     id: "help",
     tourTarget: "nav-help",
-    title: "Ajuda",
+    title: "Ajuda — quando precisar de detalhe",
     description:
-      "Centro de ajuda com guias detalhados. Use Ver tour guiado para rever este passo a passo quando quiser.",
+      "Guias por area e tours interativos por pagina. Volte aqui para treinar a equipe ou rever um fluxo especifico.",
   },
   {
     id: "settings",
     tourTarget: "nav-settings",
-    title: "Configuracoes",
+    title: "Configuracoes — org e conta",
     description:
-      "Gerencie membros, convites, integracoes e permissoes da organizacao ativa.",
+      "Membros, convites, integracoes Slack/Teams/Google, auditoria e permissoes por campo — tudo no contexto da org ativa.",
   },
   {
     id: "finish",
-    title: "Pronto para comecar",
+    title: "Pronto para trabalhar",
     description:
-      "Explore os projetos na Home ou abra Ajuda para aprofundar. Bom trabalho!",
+      "Abra a Home e escolha um projeto — cada pagina tem um tour proprio na primeira visita. Bom trabalho.",
   },
 ];
 

@@ -1319,7 +1319,7 @@ export function PlanClient({ sections, orgLogoById = {}, showWeekends }: PlanCli
   const showOrgHeaders = visibleSections.length > 0;
 
   return (
-    <div className="relative space-y-8" data-testid="plan-client">
+    <div className="relative space-y-8" data-testid="plan-client" data-tour="plan-grid">
       {sections.length > 0 ? (
         <PlanToolbar
           orgs={orgOptions}

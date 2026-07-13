@@ -5,6 +5,7 @@ import { inputClass, btnPrimary } from "@/lib/ui-classes";
 import { DeadlineTiles } from "@/components/home/deadline-tiles";
 import { HomeProjectsGrouped } from "@/components/home/home-projects-grouped";
 import { CreateProjectForm } from "@/components/projects/create-project-form";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
 import { loadOrgProjectsCached } from "@/lib/loaders/cached-queries";
 import { loadOrgProjects } from "@/lib/load-org-projects";
 import { getSessionUser } from "@/lib/loaders/session";
@@ -89,16 +90,20 @@ async function BoardsPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
+      <div
+        className="flex flex-wrap items-center justify-between gap-3"
+        data-tour="home-header"
+      >
         <div>
           <h2 className="text-lg font-semibold text-aurora-fg">Home</h2>
           <p className="mt-1 text-sm text-aurora-muted">{PAGE_COPY.home.description}</p>
         </div>
+        <PageTourTrigger />
       </div>
 
       <DeadlineTiles items={deadlineItems} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3" data-tour="home-create-project">
         {creatableOrgs.length > 0 ? (
           <CreateProjectForm orgOptions={creatableOrgs} defaultOrgId={activeOrgId} />
         ) : (
@@ -108,7 +113,7 @@ async function BoardsPageContent() {
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3" data-tour="home-projects">
         <ProjectsSection
           sections={sections}
           boardMembersByBoardId={boardMembersByBoardId}

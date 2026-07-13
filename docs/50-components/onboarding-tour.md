@@ -2,80 +2,114 @@
 
 ## Objetivo
 
-Tour interativo na primeira visita autenticada ao app, estilo spotlight, destacando itens reais da sidebar. Controles Voltar / Proximo / Fechar, persistencia em `localStorage` e botao em `/help` para reabrir.
+Dois niveis de tour interativo estilo spotlight (Driver.js):
+
+1. **Tour global** — primeira visita autenticada; orienta pelas areas da sidebar.
+2. **Tours por pagina** — primeira visita a cada rota principal (apos o global); ensina ferramentas e fluxos da tela.
+
+Copy com tom de produto premium (beneficio + nomes reais de ferramentas), derivada de `apps/web/lib/help-content.ts`.
 
 ## Rotas
 
-- Qualquer rota autenticada `(app)/*` — tour montado no shell (`AppShellStreaming`).
-- Reabrir manualmente: `/help` → botao **Ver tour guiado**.
+- Shell: `(app)/*` via `AppShellStreaming` + `OnboardingTourProvider`.
+- Reabrir global: `/help` → **Ver tour guiado**.
+- Reabrir por pagina: botao **Ver tour desta pagina** no header + secao **Tours por area** em `/help`.
 
 ## Biblioteca
 
-- **Driver.js** (MIT) — spotlight + popover, import dinamico no cliente.
+- **Driver.js** (MIT) — import dinamico no cliente; motor em `tour-driver.ts`.
 
-## Passos do tour
+## Tour global (sidebar)
 
-| # | Alvo `data-tour` | Titulo | Conteudo (resumo) |
-|---|------------------|--------|-------------------|
-| 1 | — (central) | Bem-vindo ao Agify | Introducao rapida ao tour |
-| 2 | `nav-boards` | Home | Grade de projetos, prazos e mini-calendario |
-| 3 | `nav-projects` | Projetos | Hub com filtros e painel lateral |
-| 4 | `nav-calendar` | Calendario | Visao unificada de prazos |
-| 5 | `nav-plan` | Meu plano | Trabalho do dia por responsavel |
-| 6 | `nav-workload` | Carga | Visao de carga da equipe *(so se `showWorkload`)* |
-| 7 | `nav-help` | Ajuda | Centro de ajuda; menciona reabrir o tour |
-| 8 | `nav-settings` | Configuracoes | Org, membros, integracoes |
-| 9 | — (central) | Pronto | CTA para comecar |
+| # | Alvo `data-tour` | Foco |
+|---|------------------|------|
+| 1 | — | Boas-vindas |
+| 2 | `nav-boards` | Home |
+| 3 | `nav-projects` | Projetos |
+| 4 | `nav-calendar` | Calendario |
+| 5 | `nav-plan` | Meu plano |
+| 6 | `nav-workload` | Carga *(so `showWorkload`)* |
+| 7 | `nav-help` | Ajuda |
+| 8 | `nav-settings` | Configuracoes |
+| 9 | — | Encerramento |
 
-Copy derivada de `apps/web/lib/help-content.ts`.
+## Tours por pagina
+
+| tourId | Rota | Passos (resumo) |
+|--------|------|-----------------|
+| `home` | `/boards` (exato) | Header, prazos 7d, visualizacao, grade, novo projeto |
+| `projects` | `/projects` | Header, filtros, grade, painel lateral |
+| `calendar` | `/calendar` | Header, iCal, grade mensal, lista |
+| `plan` | `/plan` | Header, legenda, toolbar, sidebar, grade |
+| `workload` | `/workload` | Header, modo semana/15d, tabela/heatmap *(so gestores)* |
+| `settings` | `/settings` (hub) | Header, org switcher, cards org/admin |
+| `help` | `/help` | Busca/indice, categorias, tour global |
+| `board-kanban` | `/boards/[boardId]` (sem subpath) | Header, visoes, filtros, colunas, acoes |
+
+Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
+
+**Disparo automatico:** ~600 ms apos navegar, somente se tour global completo e tour da pagina incompleto.
+
+## Diretrizes de copy
+
+- Segunda pessoa, confiante; titulo = outcome; descricao = 2–3 frases com ferramentas reais.
+- Evitar "Use Proximo", "clique aqui", jargao vazio.
 
 ## Componentes
 
 | Arquivo | Papel |
 |---------|-------|
-| `apps/web/lib/onboarding-tour-steps.ts` | Definicao dos passos |
-| `apps/web/lib/onboarding-tour-storage.ts` | `ngp:onboarding-tour-completed` |
-| `apps/web/components/onboarding/onboarding-tour-provider.tsx` | Context + Driver.js |
-| `apps/web/components/shell/app-sidebar.tsx` | `data-tour` nos links |
-| `apps/web/components/shell/app-shell-streaming.tsx` | Mount do provider |
-| `apps/web/components/help/help-center.tsx` | Botao reabrir |
-| `apps/web/app/globals.css` | Tema `.agify-tour-popover` |
+| `lib/tour-driver.ts` | Motor Driver.js compartilhado |
+| `lib/onboarding-tour-steps.ts` | Passos tour global |
+| `lib/page-tour-registry.ts` | `pathname` → `tourId` |
+| `lib/page-tour-steps.ts` | Passos por pagina |
+| `lib/page-tour-storage.ts` | Persistencia por pagina |
+| `lib/help-tour-copy.ts` | Helper `helpSectionToTourSteps` |
+| `components/onboarding/onboarding-tour-provider.tsx` | Context + fila unica |
+| `components/onboarding/page-tour-auto-trigger.tsx` | Auto-start por rota |
+| `components/onboarding/page-tour-trigger.tsx` | Botao reabrir |
+| `components/shell/app-sidebar.tsx` | `data-tour` nav |
+| Paginas `(app)/*` | `data-tour` por regiao |
 
 ## Persistencia
 
-- Chave: `ngp:onboarding-tour-completed` = `"1"` apos fechar ou concluir.
+- Global: `ngp:onboarding-tour-completed`
+- Por pagina: `ngp:page-tour-completed:{tourId}`
 - Por browser/dispositivo (sem Supabase no MVP).
 
 ## UX
 
-- Auto-start ~600 ms na 1a visita se chave ausente.
-- Sidebar expandida ao iniciar; drawer mobile aberto em viewport `< md`.
-- `prefers-reduced-motion`: desativa animacao do Driver.
-- `aria-live="polite"` anuncia mudanca de passo.
+- Global auto-start na 1a visita; page tour apos global.
+- Sidebar expandida no global; drawer mobile `< md`.
+- `prefers-reduced-motion`: sem animacao Driver.
+- `aria-live="polite"` no provider.
 
 ## Nao-objetivos
 
 - Persistencia server-side
-- Tour multi-rota com navegacao entre paginas
 - CMS de passos
+- Tours em Whiteboard, Automacoes, subpaginas de Settings *(fast-follow)*
 
 ## Criterios de aceite
 
-- [ ] Tour abre na 1a visita autenticada (`localStorage` vazio)
-- [ ] Spotlight em cada link da sidebar
-- [ ] Voltar, Proximo, Fechar e progresso funcionam
-- [ ] Fechar/concluir nao reabre automaticamente
-- [ ] `/help` tem botao **Ver tour guiado** (`data-testid="onboarding-tour-trigger"`)
-- [ ] Passo Carga omitido sem `showWorkload`
-- [ ] E2E `onboarding-tour.spec.ts` verde
+- [ ] Tour global abre na 1a visita; copy premium (nao generico)
+- [ ] Tour por pagina abre na 1a visita apos global
+- [ ] Tours nao empilham (fila unica)
+- [ ] `/boards` ≠ `/boards/[id]` (tours distintos)
+- [ ] Carga omitida sem `showWorkload`
+- [ ] Botao **Ver tour desta pagina** nas rotas com tour
+- [ ] `/help` lista tours por area
+- [ ] E2E `onboarding-tour.spec.ts` e `page-tour.spec.ts` verdes
 
 ## Matriz Spec → Codigo → Teste
 
 | Requisito | Codigo | Teste |
 |-----------|--------|-------|
-| Passos | `onboarding-tour-steps.ts` | E2E contagem de passos |
-| Storage | `onboarding-tour-storage.ts` | E2E dismiss persiste |
-| Spotlight | `onboarding-tour-provider.tsx` | E2E popover visivel |
-| `data-tour` | `app-sidebar.tsx` | E2E highlight |
-| Auto 1a visita | `onboarding-tour-provider.tsx` | E2E init script |
-| Reabrir | `help-center.tsx` | E2E botao Ajuda |
+| Passos global | `onboarding-tour-steps.ts` | `onboarding-tour-steps.test.ts` |
+| Registry rotas | `page-tour-registry.ts` | `page-tour-registry.test.ts` |
+| Passos pagina | `page-tour-steps.ts` | `page-tour-steps.test.ts` |
+| Storage global | `onboarding-tour-storage.ts` | E2E dismiss |
+| Storage pagina | `page-tour-storage.ts` | E2E page tour |
+| Motor | `tour-driver.ts` | E2E popover |
+| Auto page | `page-tour-auto-trigger.tsx` | E2E navegacao |
+| Reabrir | `page-tour-trigger.tsx`, `help-center.tsx` | E2E botao |

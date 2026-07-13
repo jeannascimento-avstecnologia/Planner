@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signUp, type AuthState } from "../auth-actions";
-import { AuthOAuthDivider, GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { AuthOAuthDivider, OAuthSignInButtons } from "@/components/auth/oauth-sign-in-buttons";
 import { authInputClass, btnPrimary, authLinkClass } from "@/lib/ui-classes";
 
 const initialState: AuthState = {};
@@ -22,7 +22,7 @@ export function SignupForm({ next, inviteMode, invitedEmail, boardName }: Props)
     <div className="space-y-4">
       {!inviteMode ? (
         <>
-          <GoogleSignInButton next={next} />
+          <OAuthSignInButtons next={next} />
           <AuthOAuthDivider />
         </>
       ) : (

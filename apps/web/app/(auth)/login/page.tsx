@@ -1,15 +1,16 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { signInInput } from "@nextgen/contracts";
 import { AuthQueryAlert } from "@/components/auth/auth-query-alert";
-import { AuthOAuthDivider, GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { AuthOAuthDivider, OAuthSignInButtons } from "@/components/auth/oauth-sign-in-buttons";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { normalizeAuthEmail } from "@/lib/normalize-auth-email";
 import { authInputClass, btnPrimary, authLinkClass } from "@/lib/ui-classes";
 import { safeInternalPath } from "@/lib/safe-internal-path";
+import { isMicrosoftLoginAvailable } from "@/lib/supabase/is-local-url";
 import { createClient } from "@/lib/supabase/client";
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -23,6 +24,32 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const msAvailable = isMicrosoftLoginAvailable();
+    const queryError = searchParams.get("error");
+    // #region agent log
+    fetch("http://127.0.0.1:7735/ingest/ccfd0ebe-18ad-4f5a-9b22-eccef37739f9", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c84914" },
+      body: JSON.stringify({
+        sessionId: "c84914",
+        runId: "pre-fix",
+        hypothesisId: "A,B,C",
+        location: "login/page.tsx:LoginForm",
+        message: "login mount auth env",
+        data: {
+          supabaseHost: supabaseUrl ? new URL(supabaseUrl).hostname : null,
+          microsoftAvailable: msAvailable,
+          hasQueryError: Boolean(queryError),
+          queryErrorPrefix: queryError ? queryError.slice(0, 40) : null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [searchParams]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,7 +110,13 @@ function LoginForm() {
 
   return (
     <div className="space-y-4">
-      <GoogleSignInButton next={next} />
+      <OAuthSignInButtons next={next} />
+      {!isMicrosoftLoginAvailable() ? (
+        <p className="text-center text-xs text-aurora-muted" data-testid="microsoft-login-unavailable-hint">
+          Login Microsoft requer Supabase Cloud. Rode <code className="font-mono">npm run dev:cloud</code> ou use
+          admin@nextgen.dev.
+        </p>
+      ) : null}
       {process.env.NEXT_PUBLIC_SSO_ENABLED === "true" ? (
         <p className="text-center text-xs text-aurora-muted" data-testid="sso-hint">
           SSO empresarial disponivel — use o email corporativo no Google ou contate o admin.
@@ -103,7 +136,14 @@ function LoginForm() {
           <label htmlFor="password" className="text-sm font-medium">
             Senha
           </label>
-          <input id="password" name="password" type="password" required autoComplete="current-password" className={authInputClass} />
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            className={authInputClass}
+          />
         </div>
 
         <div className="flex items-center justify-between gap-3 rounded-lg border border-aurora-border/80 bg-aurora-surface-2/50 px-3 py-2.5">
@@ -129,7 +169,7 @@ function LoginForm() {
           {pending ? "Entrando..." : "Entrar"}
         </button>
 
-        <div className={`flex items-center justify-between text-sm text-aurora-muted`}>
+        <div className="flex items-center justify-between text-sm text-aurora-muted">
           <Link href="/forgot-password" className={authLinkClass}>
             Esqueci a senha
           </Link>

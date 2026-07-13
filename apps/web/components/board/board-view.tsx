@@ -52,6 +52,8 @@ const BoardAutomationsModal = dynamic(
   { ssr: false },
 );
 import { CardFilterBar } from "./card-filter-bar";
+import { BoardKanbanTourPrep } from "@/components/onboarding/page-tour-preps";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
 import { canEditBoardUI, canManageBoardMembers, canWriteBoard } from "@/lib/board-member-roles";
 import { BoardAppearanceEditor } from "./board-appearance-editor";
 import { BoardIcon } from "./board-icon";
@@ -260,8 +262,12 @@ function BoardViewInner({
 
   return (
     <div className="space-y-4">
+      <BoardKanbanTourPrep />
       <BoardPresenceLayer cursors={presenceCursors} />
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div
+        className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+        data-tour="board-header"
+      >
         <div className="flex min-w-0 items-center gap-2">
           <BoardIcon icon={board.icon} color={board.color} size="sm" />
           <div className="min-w-0 flex-1 text-sm text-aurora-muted">
@@ -279,7 +285,8 @@ function BoardViewInner({
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2" data-tour="board-actions">
+          <PageTourTrigger />
           {canEditBoard ? (
             <BoardAppearanceEditor boardId={board.id} icon={board.icon} color={board.color} />
           ) : null}
@@ -323,7 +330,8 @@ function BoardViewInner({
         </div>
       </div>
 
-      <CardFilterBar
+      <div data-tour="board-filters">
+        <CardFilterBar
         boardId={board.id}
         orgId={board.org_id}
         tags={localTags}
@@ -336,19 +344,20 @@ function BoardViewInner({
         onClear={() => setFilters(EMPTY_FILTERS)}
         onTagsChange={setLocalTags}
         onStagesChange={setLocalStages}
-      />
+        />
+      </div>
 
-      <BoardViewSwitcher value={viewMode} onChange={changeViewMode} />
-
-      {viewMode === "kanban" ? (
-        <label className="flex w-fit items-center gap-2 text-sm text-aurora-muted">
-          <input type="checkbox" checked={groupByAssignee} onChange={(e) => setGroupByAssignee(e.target.checked)} />
-          Agrupar por responsavel
-        </label>
-      ) : null}
+      <div data-tour="board-view-switcher">
+        <BoardViewSwitcher value={viewMode} onChange={changeViewMode} />
+      </div>
 
       {viewMode === "kanban" ? (
-        <BoardKanbanView
+        <div data-tour="board-kanban">
+          <label className="mb-2 flex w-fit items-center gap-2 text-sm text-aurora-muted">
+            <input type="checkbox" checked={groupByAssignee} onChange={(e) => setGroupByAssignee(e.target.checked)} />
+            Agrupar por responsavel
+          </label>
+          <BoardKanbanView
           boardId={board.id}
           columns={columns}
           stagesById={stagesById}
@@ -365,6 +374,7 @@ function BoardViewInner({
           onOpenTifluxLink={openTifluxLink ?? (() => {})}
           readOnlyTiflux={!canEditBoard}
         />
+        </div>
       ) : null}
 
       {viewMode === "timeline" ? (

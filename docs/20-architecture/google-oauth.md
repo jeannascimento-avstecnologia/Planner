@@ -15,9 +15,11 @@ Specs vinculadas: [multitenancy-security.md](multitenancy-security.md), [local-d
 
 ## Não-objetivos (MVP)
 
-- Login com outros providers (GitHub, Microsoft)
+- Login com outros providers (GitHub)
 - Onboarding de org em página dedicada
 - E2E automatizado do fluxo Google completo
+
+Login Microsoft: [microsoft-oauth.md](microsoft-oauth.md).
 
 ## Fluxo
 

@@ -68,13 +68,13 @@ export function SettingsHubCards({ orgName, userRoleLabel, organizationCards, ad
         </p>
       </div>
 
-      <section className="space-y-3">
+      <section className="space-y-3" data-tour="settings-org-cards">
         <h3 className="text-sm font-semibold text-aurora-fg">Organizacao</h3>
         <CardGrid cards={organizationCards} />
       </section>
 
       {adminCards.length ? (
-        <section className="space-y-3">
+        <section className="space-y-3" data-tour="settings-admin-cards">
           <h3 className="text-sm font-semibold text-aurora-fg">Administracao</h3>
           <CardGrid cards={adminCards} />
         </section>

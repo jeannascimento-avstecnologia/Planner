@@ -12,6 +12,7 @@ import { PlanWeekNav } from "@/components/plan/plan-week-nav";
 import { PlanAutoRefresh } from "@/components/plan/plan-auto-refresh";
 import { PlanLegend } from "@/components/plan/plan-legend";
 import { PlanningPageHeader } from "@/components/shell/planning-page-header";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
 import { PAGE_COPY } from "@/lib/page-copy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { linkClass } from "@/lib/ui-classes";
@@ -82,10 +83,12 @@ export default async function PlanPage({ searchParams }: Props) {
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 p-4 md:p-6" data-testid="plan-page">
       <PlanAutoRefresh />
-      <PlanningPageHeader
-        title={PAGE_COPY.plan.title}
-        icon={<CalendarRange className="h-5 w-5" aria-hidden />}
-        description={
+      <div data-tour="plan-header">
+        <PlanningPageHeader
+          title={PAGE_COPY.plan.title}
+          icon={<CalendarRange className="h-5 w-5" aria-hidden />}
+          actions={<PageTourTrigger />}
+          description={
           <>
             {PAGE_COPY.plan.description}{" "}
             <Link href="/calendar" className={linkClass}>
@@ -117,9 +120,12 @@ export default async function PlanPage({ searchParams }: Props) {
             </div>
           </>
         }
-      />
+        />
+      </div>
 
-      <PlanLegend />
+      <div data-tour="plan-legend">
+        <PlanLegend />
+      </div>
 
       <Suspense fallback={<PlanSectionsFallback />}>
         <PlanSections

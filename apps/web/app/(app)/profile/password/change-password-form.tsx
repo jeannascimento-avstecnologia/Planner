@@ -9,15 +9,17 @@ const initial: ChangePasswordResult = {};
 
 type Props = {
   hasPasswordProvider: boolean;
+  oauthProviderLabel?: string | null;
 };
 
-export function ChangePasswordForm({ hasPasswordProvider }: Props) {
+export function ChangePasswordForm({ hasPasswordProvider, oauthProviderLabel }: Props) {
   const [state, formAction, pending] = useActionState(changePassword, initial);
 
   if (!hasPasswordProvider) {
+    const provider = oauthProviderLabel ?? "provedor social";
     return (
       <p className="text-base font-bold text-white mb-4">
-        Sua conta usa login Google. Para alterar credenciais, gerencie no Google.
+        Sua conta usa login {provider}. Para alterar credenciais, gerencie na conta {provider}.
       </p>
     );
   }

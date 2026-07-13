@@ -64,7 +64,9 @@ function HomeProjectsGroupedInner({ sections, boardMembersByBoardId, currentUser
 
   return (
     <div className="space-y-6">
-      <ProjectsViewSwitcher value={layout} onChange={setLayout} />
+      <div data-tour="home-view-switcher">
+        <ProjectsViewSwitcher value={layout} onChange={setLayout} />
+      </div>
 
       {activeSection && filterOptions.length > 1 ? (
         <div className="flex flex-wrap gap-2" data-testid="home-dept-filter">

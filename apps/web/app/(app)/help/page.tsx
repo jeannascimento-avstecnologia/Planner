@@ -1,5 +1,6 @@
 import { CircleHelp } from "lucide-react";
 import { HelpCenter } from "@/components/help/help-center";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
 import { PlanningPageHeader } from "@/components/shell/planning-page-header";
 import { PAGE_COPY } from "@/lib/page-copy";
 
@@ -12,6 +13,7 @@ export default function HelpPage() {
         title={PAGE_COPY.help.title}
         description={PAGE_COPY.help.description}
         icon={<CircleHelp className="h-5 w-5" aria-hidden />}
+        actions={<PageTourTrigger />}
       />
       <HelpCenter />
     </div>

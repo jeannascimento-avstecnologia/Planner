@@ -20,6 +20,7 @@ import { Workload15DayGrid } from "@/components/workload/workload-15d-grid";
 import { WorkloadViewToggle } from "@/components/workload/workload-view-toggle";
 import { PlanWeekNav } from "@/components/plan/plan-week-nav";
 import { PlanningPageHeader } from "@/components/shell/planning-page-header";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
 import { PAGE_COPY } from "@/lib/page-copy";
 import { linkClass } from "@/lib/ui-classes";
 
@@ -76,10 +77,12 @@ export default async function WorkloadPage({ searchParams }: Props) {
 
     return (
       <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6" data-testid="workload-page">
-        <PlanningPageHeader
-          title={PAGE_COPY.workload15d.title}
-          icon={<BarChart3 className="h-5 w-5" aria-hidden />}
-          description={
+        <div data-tour="workload-header">
+          <PlanningPageHeader
+            title={PAGE_COPY.workload15d.title}
+            icon={<BarChart3 className="h-5 w-5" aria-hidden />}
+            actions={<PageTourTrigger />}
+            description={
             <>
               {descriptionWithContext}
               <span className="mt-1 block text-xs text-aurora-muted">
@@ -92,7 +95,7 @@ export default async function WorkloadPage({ searchParams }: Props) {
             </>
           }
           toolbar={
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3" data-tour="workload-mode">
               <WorkloadViewToggle mode={viewMode} weekStartIso={weekIso} planStartIso={planStartIso} />
               <Suspense fallback={<span className="text-sm text-aurora-muted">…</span>}>
                 <PlanWeekNav windowStartIso={planStartIso} basePath="/workload" />
@@ -100,13 +103,16 @@ export default async function WorkloadPage({ searchParams }: Props) {
             </div>
           }
         />
-        <Workload15DayGrid
+        </div>
+        <div data-tour="workload-main">
+          <Workload15DayGrid
           members={members15d}
           dayKeys={dayKeys}
           windowStartIso={planStartIso}
           drilldownByUser={drilldownByUser}
           planStartIso={planStartIso}
         />
+        </div>
       </div>
     );
   }
@@ -115,18 +121,22 @@ export default async function WorkloadPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6" data-testid="workload-page">
-      <PlanningPageHeader
-        title={PAGE_COPY.workloadWeek.title}
-        icon={<BarChart3 className="h-5 w-5" aria-hidden />}
-        description={descriptionWithContext}
-        toolbar={
-          <div className="flex flex-wrap items-center gap-3">
-            <WorkloadViewToggle mode={viewMode} weekStartIso={weekIso} planStartIso={planStartIso} />
-            <WorkloadWeekNav weekStart={weekStart} />
-          </div>
-        }
-      />
-      <WorkloadTable
+      <div data-tour="workload-header">
+        <PlanningPageHeader
+          title={PAGE_COPY.workloadWeek.title}
+          icon={<BarChart3 className="h-5 w-5" aria-hidden />}
+          actions={<PageTourTrigger />}
+          description={descriptionWithContext}
+          toolbar={
+            <div className="flex flex-wrap items-center gap-3" data-tour="workload-mode">
+              <WorkloadViewToggle mode={viewMode} weekStartIso={weekIso} planStartIso={planStartIso} />
+              <WorkloadWeekNav weekStart={weekStart} />
+            </div>
+          }
+        />
+      </div>
+      <div data-tour="workload-main">
+        <WorkloadTable
         orgId={orgId}
         members={members}
         weekIso={weekIso}
@@ -134,6 +144,7 @@ export default async function WorkloadPage({ searchParams }: Props) {
         unscheduled={unscheduled}
         canEditCapacity={canEditCapacity}
       />
+      </div>
     </div>
   );
 }

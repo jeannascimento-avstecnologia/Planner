@@ -58,7 +58,7 @@ export function DeadlineTiles({ items, subtitle }: Props) {
   const todayKey = toDayKeyFromDate(new Date());
 
   return (
-    <section className="rounded-xl border border-aurora-border bg-aurora-surface p-3">
+    <section className="rounded-xl border border-aurora-border bg-aurora-surface p-3" data-tour="home-deadlines">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-aurora-fg">Proximos 7 dias</h3>

@@ -30,7 +30,7 @@ export function PlanToolbar({
   const selectedOrg = orgFilter ? orgs.find((o) => o.id === orgFilter) : null;
 
   return (
-    <div className={toolbarStripClass} data-testid="plan-toolbar">
+    <div className={toolbarStripClass} data-testid="plan-toolbar" data-tour="plan-toolbar">
       <div className="flex flex-wrap items-center gap-3">
         {selectedOrg ? (
           <div className="flex items-center gap-2 pr-1" data-testid="plan-toolbar-org-logo">

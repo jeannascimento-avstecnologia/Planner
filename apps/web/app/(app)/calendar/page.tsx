@@ -8,6 +8,7 @@ import { DEFAULT_BOARD_COLOR } from "@/lib/ui-classes";
 import { PAGE_COPY } from "@/lib/page-copy";
 import { CalendarClient } from "./calendar-client";
 import { IcalFeedButton } from "./ical-feed-button";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
 
 export default async function CalendarPage() {
   const user = await getSessionUser();
@@ -22,17 +23,30 @@ export default async function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div
+        className="flex flex-wrap items-center justify-between gap-2"
+        data-tour="calendar-header"
+      >
         <div>
           <h2 className="text-lg font-semibold text-aurora-fg">Calendario de prazos</h2>
           <p className="text-sm text-aurora-muted">{PAGE_COPY.calendar.description}</p>
         </div>
-        <IcalFeedButton />
+        <div className="flex items-center gap-2">
+          <div data-tour="calendar-ical">
+            <IcalFeedButton />
+          </div>
+          <PageTourTrigger />
+        </div>
       </div>
 
-      <CalendarClient events={events} orgId={orgId} boards={boards} columns={columns} />
+      <div data-tour="calendar-grid">
+        <CalendarClient events={events} orgId={orgId} boards={boards} columns={columns} />
+      </div>
 
-      <section className="rounded-xl border border-aurora-border bg-aurora-surface p-4">
+      <section
+        className="rounded-xl border border-aurora-border bg-aurora-surface p-4"
+        data-tour="calendar-list"
+      >
         <h3 className="mb-2 text-sm font-semibold">Lista</h3>
         <ul className="space-y-2 text-sm">
           {events.length === 0 ? (

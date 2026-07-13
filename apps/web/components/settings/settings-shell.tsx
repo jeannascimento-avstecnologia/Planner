@@ -6,6 +6,7 @@ import { PlanningPageHeader } from "@/components/shell/planning-page-header";
 import { PAGE_COPY } from "@/lib/page-copy";
 import { SettingsNav } from "@/components/settings/settings-nav";
 import { SettingsOrgSwitcher } from "@/components/settings/settings-org-switcher";
+import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
 import type { UserOrgRow } from "@/lib/active-org-constants";
 import { dataPanelClass, dataPanelEnterClass } from "@/lib/ui-classes";
 
@@ -35,22 +36,27 @@ export function SettingsShell({
   return (
     <div className="bg-aurora-bg -m-4 min-h-[calc(100vh-3.5rem)] p-4 md:-m-6 md:p-6">
       <div className="mx-auto max-w-6xl space-y-6">
-        <PlanningPageHeader
-          backHref="/boards"
-          backLabel="Projetos"
-          title="Configuracoes"
-          description={PAGE_COPY.settingsShell.description}
-          icon={<Settings className="h-5 w-5" />}
-        />
+        <div data-tour="settings-header">
+          <PlanningPageHeader
+            backHref="/boards"
+            backLabel="Projetos"
+            title="Configuracoes"
+            description={PAGE_COPY.settingsShell.description}
+            icon={<Settings className="h-5 w-5" />}
+            actions={<PageTourTrigger />}
+          />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-            <SettingsOrgSwitcher
+            <div data-tour="settings-org-switcher">
+              <SettingsOrgSwitcher
               activeOrgId={orgId}
               activeOrgName={orgName}
               activeOrgLogoUrl={orgLogoUrl}
               orgs={userOrgs}
-            />
+              />
+            </div>
             <SettingsNav
               showAdminTabs={showAdminTabs}
               userFullName={userFullName}

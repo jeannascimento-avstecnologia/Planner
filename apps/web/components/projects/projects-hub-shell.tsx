@@ -75,9 +75,12 @@ function ProjectsHubLayoutInner({
         />
       ) : null}
       <div className={selectedBoard ? "grid items-start gap-6 lg:grid-cols-2" : "space-y-3"}>
-        <div className="space-y-3">{children}</div>
+        <div className="space-y-3" data-tour="projects-grid">
+          {children}
+        </div>
         {selectedBoard ? (
-          <ProjectHubDetail
+          <div data-tour="projects-detail">
+            <ProjectHubDetail
             board={selectedBoard}
             members={boardMembersByBoardId[selectedBoard.id] ?? []}
             upcomingTasks={upcomingTasksByBoard[selectedBoard.id] ?? []}
@@ -85,7 +88,8 @@ function ProjectsHubLayoutInner({
             userBoardRole={userBoardRole}
             onClearSelection={clearSelection}
             onOpenSettings={() => setSettingsOpen(true)}
-          />
+            />
+          </div>
         ) : null}
       </div>
       {selectedBoard && settingsOpen ? (

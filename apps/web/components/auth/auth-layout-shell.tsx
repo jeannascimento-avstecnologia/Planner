@@ -1,5 +1,3 @@
-"use client";
-
 import { AgifyLogo } from "@/components/shell/agify-logo";
 import { ThemeToggle } from "@/components/shell/theme-provider";
 

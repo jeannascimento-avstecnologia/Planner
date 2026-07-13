@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/revalidation";
 import { canViewWorkload } from "@/lib/workload/permissions";
+import { isOrgAdminRole } from "@/lib/org-member-roles";
 import type { BoardMeta } from "@/lib/recent-boards";
 import {
   createCachedSupabaseClient,
@@ -15,6 +16,7 @@ export type ShellCacheData = {
   accessibleBoardIds: string[];
   boardMetaById: Record<string, BoardMeta>;
   showWorkload: boolean;
+  showAdminSettings: boolean;
 };
 
 async function fetchShellData(
@@ -50,6 +52,7 @@ async function fetchShellData(
     accessibleBoardIds: (accessibleBoards ?? []).map((b) => b.id),
     boardMetaById,
     showWorkload: canViewWorkload(membership?.role),
+    showAdminSettings: isOrgAdminRole(membership?.role),
   };
 }
 

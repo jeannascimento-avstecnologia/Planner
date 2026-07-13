@@ -90,6 +90,41 @@ Após `npm run dev:local`, teste em `http://localhost:3001/login` → **Continua
 
 ---
 
+## Microsoft OAuth (login — configurar 1x)
+
+Segredos ficam no **Supabase Dashboard**, não no `.env` do app (login). Spec: [microsoft-oauth.md](../20-architecture/microsoft-oauth.md).
+
+**Requer Supabase Cloud** (`NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co`). Não funciona com Supabase Docker local (`127.0.0.1:54321`) sem config extra.
+
+**Comando dev com OAuth Microsoft/Google:**
+
+```powershell
+npm run dev:cloud
+```
+
+Gera `.env.local` apontando para Cloud e sobe Next em `http://localhost:3001`. Para email/senha local sem OAuth, use `npm run dev:local`.
+
+### Microsoft Entra ID
+
+No App Registration existente (mesmo app do Teams, se reutilizar):
+
+1. **Authentication → Web → Redirect URIs** — adicionar:
+   - `https://<PROJECT_REF>.supabase.co/auth/v1/callback`
+2. Manter redirect do Teams: `{APP_URL}/api/auth/microsoft/callback`
+3. **API permissions** (delegated): `User.Read` (login); Teams adiciona `Tasks.ReadWrite`, `Group.Read.All`
+4. **Grant admin consent** para o tenant
+
+### Supabase Dashboard
+
+1. **Authentication → Providers → Azure** → Enable
+2. Client ID + Client Secret do Entra
+3. **Azure Tenant URL**: `https://login.microsoftonline.com/<TENANT_ID>` (single-tenant)
+4. **URL Configuration**: Site URL e Redirect URLs iguais ao Google (`{APP_URL}/auth/callback`)
+
+Teste: `http://localhost:3001/login` → **Continuar com Microsoft** (com `.env.local` apontando para Cloud).
+
+---
+
 ## Erros comuns e como mitigar
 
 | Sintoma | Causa | Solução |
@@ -103,6 +138,8 @@ Após `npm run dev:local`, teste em `http://localhost:3001/login` → **Continua
 | Login não entra | Seed não aplicado ou Auth URLs erradas | Rode `supabase/seed.sql` no SQL Editor; confira URLs acima |
 | Google login falha / redirect_uri_mismatch | Redirect URI errada no Google Cloud | URI = `https://<ref>.supabase.co/auth/v1/callback` (não `/auth/callback` do Next) |
 | Google "Access blocked" (Testing) | Email não está em Test users | Adicione seu Gmail no OAuth consent screen |
+| Microsoft login falha | Supabase local ou provider Azure off | Use Supabase Cloud; habilite Azure no Dashboard |
+| Microsoft redirect_uri_mismatch | URI errada no Entra | URI = `https://<ref>.supabase.co/auth/v1/callback` |
 
 ### Reset completo (último recurso)
 

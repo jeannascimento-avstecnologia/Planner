@@ -9,27 +9,39 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { buildOnboardingDriveSteps } from "@/lib/onboarding-tour-steps";
 import {
   isOnboardingTourCompleted,
   markOnboardingTourCompleted,
 } from "@/lib/onboarding-tour-storage";
+import { resolvePageTourId } from "@/lib/page-tour-registry";
+import { buildPageDriveSteps, type PageTourId } from "@/lib/page-tour-steps";
+import { isPageTourCompleted, markPageTourCompleted } from "@/lib/page-tour-storage";
+import { startDriverTour } from "@/lib/tour-driver";
 import type { Driver } from "driver.js";
 
+export type PageTourContext = {
+  showWorkload: boolean;
+  showAdminSettings: boolean;
+};
+
 type OnboardingTourContextValue = {
+  openGlobalTour: () => void;
+  /** @deprecated use openGlobalTour */
   openOnboardingTour: () => void;
+  openPageTour: (tourId?: PageTourId) => void;
   registerSidebarPrep: (fn: () => void) => void;
+  registerTourPrep: (tourId: PageTourId, fn: () => void) => void;
   notifyShowWorkload: (show: boolean) => void;
+  setPageTourContext: (ctx: Partial<PageTourContext>) => void;
+  isTourActive: boolean;
+  tryAutoStartPageTour: (pathname: string) => void;
 };
 
 const OnboardingTourContext = createContext<OnboardingTourContextValue | null>(null);
 
 const AUTO_START_DELAY_MS = 600;
-
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 type Props = {
   children: ReactNode;
@@ -37,84 +49,151 @@ type Props = {
 };
 
 export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
+  const pathname = usePathname();
   const driverRef = useRef<Driver | null>(null);
   const sidebarPrepRef = useRef<(() => void) | null>(null);
+  const tourPrepRef = useRef<Partial<Record<PageTourId, () => void>>>({});
   const showWorkloadRef = useRef(false);
-  const autoStartedRef = useRef(false);
+  const pageTourCtxRef = useRef<PageTourContext>({
+    showWorkload: false,
+    showAdminSettings: false,
+  });
+  const globalAutoStartedRef = useRef(false);
   const [liveMessage, setLiveMessage] = useState("");
+  const [isTourActive, setIsTourActive] = useState(false);
 
   const registerSidebarPrep = useCallback((fn: () => void) => {
     sidebarPrepRef.current = fn;
   }, []);
 
+  const registerTourPrep = useCallback((tourId: PageTourId, fn: () => void) => {
+    tourPrepRef.current[tourId] = fn;
+  }, []);
+
+  const setPageTourContext = useCallback((ctx: Partial<PageTourContext>) => {
+    pageTourCtxRef.current = { ...pageTourCtxRef.current, ...ctx };
+    if (ctx.showWorkload !== undefined) {
+      showWorkloadRef.current = ctx.showWorkload;
+    }
+  }, []);
+
   const destroyDriver = useCallback(() => {
     driverRef.current?.destroy();
     driverRef.current = null;
+    setIsTourActive(false);
   }, []);
 
-  const startTour = useCallback(async () => {
-    destroyDriver();
-    sidebarPrepRef.current?.();
-
+  const prepareMobileSidebar = useCallback(() => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       setMobileOpen(true);
     }
+  }, [setMobileOpen]);
 
-    const { driver } = await import("driver.js");
+  const runTour = useCallback(
+    async (
+      steps: ReturnType<typeof buildOnboardingDriveSteps>,
+      onComplete: () => void,
+      options?: { doneBtnText?: string },
+    ) => {
+      destroyDriver();
+      setIsTourActive(true);
 
-    const driverObj = driver({
-      showProgress: true,
-      progressText: "{{current}} de {{total}}",
-      nextBtnText: "Proximo",
-      prevBtnText: "Voltar",
-      doneBtnText: "Comecar",
-      showButtons: ["previous", "next", "close"],
-      popoverClass: "agify-tour-popover",
-      animate: !prefersReducedMotion(),
-      steps: buildOnboardingDriveSteps(showWorkloadRef.current),
-      onHighlightStarted: (_el, _step, { state }) => {
-        const idx = state.activeIndex ?? 0;
-        const steps = buildOnboardingDriveSteps(showWorkloadRef.current);
-        const step = steps[idx];
-        const title =
-          step && "popover" in step && step.popover && typeof step.popover === "object"
-            ? String(step.popover.title ?? "")
-            : "";
-        if (title) setLiveMessage(`Passo ${idx + 1} de ${steps.length}: ${title}`);
-      },
-      onDestroyed: () => {
-        markOnboardingTourCompleted();
-        driverRef.current = null;
-      },
-    });
+      const driverObj = await startDriverTour(steps, {
+        doneBtnText: options?.doneBtnText,
+        onHighlightStarted: (idx, total, title) => {
+          if (title) setLiveMessage(`Passo ${idx + 1} de ${total}: ${title}`);
+        },
+        onDestroyed: () => {
+          onComplete();
+          driverRef.current = null;
+          setIsTourActive(false);
+        },
+      });
 
-    driverRef.current = driverObj;
-    driverObj.drive();
-  }, [destroyDriver, setMobileOpen]);
+      driverRef.current = driverObj;
+    },
+    [destroyDriver],
+  );
+
+  const startGlobalTour = useCallback(async () => {
+    sidebarPrepRef.current?.();
+    prepareMobileSidebar();
+    pageTourCtxRef.current.showWorkload = showWorkloadRef.current;
+
+    await runTour(buildOnboardingDriveSteps(showWorkloadRef.current), () => {
+      markOnboardingTourCompleted();
+    }, { doneBtnText: "Comecar" });
+  }, [prepareMobileSidebar, runTour]);
+
+  const startPageTour = useCallback(
+    async (tourId: PageTourId) => {
+      tourPrepRef.current[tourId]?.();
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      prepareMobileSidebar();
+
+      const ctx = pageTourCtxRef.current;
+      await runTour(buildPageDriveSteps(tourId, ctx), () => {
+        markPageTourCompleted(tourId);
+      });
+    },
+    [prepareMobileSidebar, runTour],
+  );
+
+  const openGlobalTour = useCallback(() => {
+    void startGlobalTour();
+  }, [startGlobalTour]);
+
+  const openPageTour = useCallback(
+    (tourId?: PageTourId) => {
+      const id = tourId ?? resolvePageTourId(pathname);
+      if (!id) return;
+      void startPageTour(id);
+    },
+    [pathname, startPageTour],
+  );
+
+  const tryAutoStartPageTour = useCallback(
+    (path: string) => {
+      if (isTourActive) return;
+      if (!isOnboardingTourCompleted()) return;
+
+      const tourId = resolvePageTourId(path);
+      if (!tourId) return;
+      if (isPageTourCompleted(tourId)) return;
+
+      void startPageTour(tourId);
+    },
+    [isTourActive, startPageTour],
+  );
 
   const notifyShowWorkload = useCallback(
     (show: boolean) => {
       showWorkloadRef.current = show;
-      if (autoStartedRef.current) return;
+      pageTourCtxRef.current.showWorkload = show;
+
+      if (globalAutoStartedRef.current) return;
       if (isOnboardingTourCompleted()) return;
-      autoStartedRef.current = true;
+      globalAutoStartedRef.current = true;
+
       window.setTimeout(() => {
-        if (!isOnboardingTourCompleted()) void startTour();
+        if (!isOnboardingTourCompleted()) void startGlobalTour();
       }, AUTO_START_DELAY_MS);
     },
-    [startTour],
+    [startGlobalTour],
   );
-
-  const openOnboardingTour = useCallback(() => {
-    void startTour();
-  }, [startTour]);
 
   useEffect(() => () => destroyDriver(), [destroyDriver]);
 
   const value: OnboardingTourContextValue = {
-    openOnboardingTour,
+    openGlobalTour,
+    openOnboardingTour: openGlobalTour,
+    openPageTour,
     registerSidebarPrep,
+    registerTourPrep,
     notifyShowWorkload,
+    setPageTourContext,
+    isTourActive,
+    tryAutoStartPageTour,
   };
 
   return (
@@ -135,7 +214,6 @@ export function useOnboardingTour(): OnboardingTourContextValue {
   return ctx;
 }
 
-/** Hook opcional fora do provider (ex.: testes) — retorna null se ausente. */
 export function useOnboardingTourOptional(): OnboardingTourContextValue | null {
   return useContext(OnboardingTourContext);
 }

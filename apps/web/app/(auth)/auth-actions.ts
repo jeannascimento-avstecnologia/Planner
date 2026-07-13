@@ -8,6 +8,7 @@ import { getConfiguredAppUrl } from "@/lib/app-url";
 import { signUpInput, inviteSignUpInput, forgotPasswordInput, type SignUpInput } from "@nextgen/contracts";
 import { isInviteAuthNext } from "@/lib/invite-auth";
 import { normalizeAuthEmail } from "@/lib/normalize-auth-email";
+import { getOAuthLoginRedirectUrl } from "@/lib/auth-oauth-start";
 import { safeInternalPath } from "@/lib/safe-internal-path";
 
 export type AuthState = { error?: string; message?: string };
@@ -148,21 +149,19 @@ export async function requestPasswordReset(
 }
 
 export async function signInWithGoogle(formData: FormData): Promise<void> {
-  const configError = authConfigError();
-  if (configError) redirect(`/login?error=${encodeURIComponent(configError)}`);
+  const result = await getOAuthLoginRedirectUrl("google", safeAuthNext(formData.get("next")));
+  if ("error" in result) {
+    redirect(result.error === "callback" ? "/login?error=callback" : `/login?error=${encodeURIComponent(result.error)}`);
+  }
+  redirect(result.url);
+}
 
-  const next = safeAuthNext(formData.get("next"));
-  const supabase = await createClient();
-  const appUrl = getConfiguredAppUrl();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(next)}`,
-      queryParams: { access_type: "offline", prompt: "consent" },
-    },
-  });
-  if (error || !data.url) redirect("/login?error=callback");
-  redirect(data.url);
+export async function signInWithMicrosoft(formData: FormData): Promise<void> {
+  const result = await getOAuthLoginRedirectUrl("azure", safeAuthNext(formData.get("next")));
+  if ("error" in result) {
+    redirect(result.error === "callback" ? "/login?error=callback" : `/login?error=${encodeURIComponent(result.error)}`);
+  }
+  redirect(result.url);
 }
 
 export async function signOut(formData: FormData): Promise<void> {

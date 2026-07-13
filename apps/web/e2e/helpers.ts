@@ -73,6 +73,12 @@ export function uniqueEmail(prefix = "qa"): string {
   return `${prefix}+${Date.now()}${Math.floor(Math.random() * 1000)}@nextgen.dev`;
 }
 
+/** E2E roda contra .env.local — Supabase Docker local nao tem OAuth Azure. */
+export function isLocalSupabaseEnv(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  return url.includes("127.0.0.1") || url.includes("localhost:54321");
+}
+
 /** Abre drawer e define prazo via campo DD.MM.AAAA. */
 export async function pickDueDateInDrawer(page: Page, daysFromToday: number): Promise<void> {
   const target = new Date();
