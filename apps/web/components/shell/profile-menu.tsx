@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -49,7 +48,8 @@ export function ProfileMenu({ avatarUrl, fullName }: Props) {
         className={`${topbarIconBtn} ${avatarUrl ? "overflow-hidden p-0" : ""} ${active ? "ring-2 ring-white/50" : ""}`}
       >
         {avatarUrl ? (
-          <Image src={avatarUrl} alt="" width={36} height={36} className="h-full w-full object-cover" priority />
+          // eslint-disable-next-line @next/next/no-img-element -- avatar_url e URL externa arbitraria (OAuth, Pinterest, etc.)
+          <img src={avatarUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
         ) : profileInitials(fullName) ? (
           <span className="text-xs font-semibold">{profileInitials(fullName)}</span>
         ) : (
