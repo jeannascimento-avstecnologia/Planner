@@ -33,20 +33,6 @@ export async function getOAuthLoginRedirectUrl(
   const appUrl = getConfiguredAppUrl();
   const redirectTo = `${appUrl}/auth/callback?next=${encodeURIComponent(next)}`;
 
-  // #region agent log
-  console.info(
-    JSON.stringify({
-      sessionId: "c84914",
-      runId: "pre-fix",
-      hypothesisId: "B,C",
-      location: "auth-oauth-start.ts:getOAuthLoginRedirectUrl",
-      message: "oauth start",
-      data: { provider, redirectToHost: new URL(redirectTo).host },
-      timestamp: Date.now(),
-    }),
-  );
-  // #endregion
-
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options:
@@ -63,19 +49,6 @@ export async function getOAuthLoginRedirectUrl(
   });
 
   if (error || !data.url) {
-    // #region agent log
-    console.error(
-      JSON.stringify({
-        sessionId: "c84914",
-        runId: "pre-fix",
-        hypothesisId: "C",
-        location: "auth-oauth-start.ts:signInWithOAuth",
-        message: "oauth signIn failed",
-        data: { provider, errorMessage: error?.message ?? null, hasUrl: Boolean(data.url) },
-        timestamp: Date.now(),
-      }),
-    );
-    // #endregion
     return { error: "callback" };
   }
   return { url: data.url };

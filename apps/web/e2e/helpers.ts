@@ -32,31 +32,87 @@ export function projectLink(page: Page, name: RegExp | string) {
 export async function openSeedBoard(page: Page): Promise<void> {
   await page.goto(`/boards/${SEED_BOARD_ID}`);
   await expect(page.getByRole("button", { name: "Walking skeleton de auth" })).toBeVisible({ timeout: 15_000 });
+  await page.waitForLoadState("networkidle");
+}
+
+/** Impede auto-start de tours globais/pagina que bloqueiam cliques nos E2E. */
+export async function disableToursForE2E(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem("ngp:onboarding-tour-completed", "1");
+    for (const id of [
+      "home",
+      "projects",
+      "calendar",
+      "plan",
+      "workload",
+      "settings",
+      "help",
+      "board-kanban",
+    ]) {
+      localStorage.setItem(`ngp:page-tour-completed:${id}`, "1");
+    }
+  });
 }
 
 /** Loga com o usuario padrao do seed e espera cair em /boards. */
-export async function loginAsStandard(page: Page): Promise<void> {
+export async function loginAsStandard(
+  page: Page,
+  options?: { disableTours?: boolean },
+): Promise<void> {
+  if (options?.disableTours !== false) {
+    await disableToursForE2E(page);
+  }
   await page.goto("/login");
   await page.getByLabel("Email").fill(STANDARD_USER.email);
   await page.getByLabel("Senha").fill(STANDARD_USER.password);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
+  await page.waitForLoadState("networkidle");
+  await dismissBlockingTour(page);
 }
 
-export async function loginAsViewer(page: Page): Promise<void> {
+/** Fecha tour global que bloqueia cliques na Home (nao altera localStorage). */
+export async function dismissBlockingTour(page: Page): Promise<void> {
+  const dialog = page.getByRole("dialog", { name: "Bem-vindo ao Agify" });
+  if (await dialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
+    return;
+  }
+  const driverClose = page.locator(".driver-popover-close-btn");
+  if (await driverClose.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await driverClose.click();
+  }
+}
+
+export async function loginAsViewer(
+  page: Page,
+  options?: { disableTours?: boolean },
+): Promise<void> {
+  if (options?.disableTours !== false) {
+    await disableToursForE2E(page);
+  }
   await page.goto("/login");
   await page.getByLabel("Email").fill(VIEWER_USER.email);
   await page.getByLabel("Senha").fill(VIEWER_USER.password);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
+  await page.waitForLoadState("networkidle");
 }
 
-export async function loginAsOrgAdmin(page: Page): Promise<void> {
+export async function loginAsOrgAdmin(
+  page: Page,
+  options?: { disableTours?: boolean },
+): Promise<void> {
+  if (options?.disableTours !== false) {
+    await disableToursForE2E(page);
+  }
   await page.goto("/login");
   await page.getByLabel("Email").fill(ORG_ADMIN_USER.email);
   await page.getByLabel("Senha").fill(ORG_ADMIN_USER.password);
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
+  await page.waitForLoadState("networkidle");
 }
 
 /** Coleta erros de console do navegador para asserts de UX. */

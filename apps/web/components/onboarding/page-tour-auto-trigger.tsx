@@ -4,23 +4,33 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useOnboardingTour } from "@/components/onboarding/onboarding-tour-provider";
 
-const AUTO_START_DELAY_MS = 600;
+const AUTO_START_DELAY_MS = 1_500;
+
+function scheduleAutoStart(callback: () => void): () => void {
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    const idleId = window.requestIdleCallback(callback, { timeout: AUTO_START_DELAY_MS + 500 });
+    return () => window.cancelIdleCallback(idleId);
+  }
+  const timerId = setTimeout(callback, AUTO_START_DELAY_MS);
+  return () => clearTimeout(timerId);
+}
 
 export function PageTourAutoTrigger() {
   const pathname = usePathname();
   const { tryAutoStartPageTour, isTourActive } = useOnboardingTour();
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    cancelRef.current?.();
     if (isTourActive) return;
 
-    timerRef.current = setTimeout(() => {
+    cancelRef.current = scheduleAutoStart(() => {
       tryAutoStartPageTour(pathname);
-    }, AUTO_START_DELAY_MS);
+    });
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      cancelRef.current?.();
+      cancelRef.current = null;
     };
   }, [pathname, tryAutoStartPageTour, isTourActive]);
 

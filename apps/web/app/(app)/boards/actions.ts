@@ -27,11 +27,20 @@ export async function createOrganization(formData: FormData): Promise<void> {
   const name = String(formData.get("orgName") ?? "").trim();
   if (!name) return;
   const supabase = await createClient();
-  const { data: org } = await supabase.rpc("create_organization", { p_name: name, p_slug: slugify(name) });
+  const slug = slugify(name);
+  const { data: org, error: orgError } = await supabase.rpc("create_organization", {
+    p_name: name,
+    p_slug: slug,
+    p_legal_name: name,
+    p_cnpj: null,
+  });
+  if (orgError || !org?.id) {
+    throw new Error(orgError?.message ?? "Nao foi possivel criar a organizacao.");
+  }
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (org?.id) {
+  if (org.id) {
     const cookieStore = await cookies();
     cookieStore.set(ACTIVE_ORG_COOKIE, org.id, {
       httpOnly: true,

@@ -106,6 +106,8 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
         const { error: orgError } = await supabase.rpc("create_organization", {
           p_name: orgName,
           p_slug: slugify(orgName),
+          p_legal_name: orgName,
+          p_cnpj: null,
         });
         if (orgError) return { error: "Nao foi possivel criar a organizacao." };
       }

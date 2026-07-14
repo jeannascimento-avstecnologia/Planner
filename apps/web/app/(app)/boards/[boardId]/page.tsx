@@ -6,8 +6,6 @@ import { BoardThemeScope } from "@/components/board/board-theme-scope";
 import { TrackRecentBoard } from "@/components/shell/track-recent-board";
 import { BoardSkeleton } from "@/components/ui/skeleton";
 
-export const experimental_ppr = true;
-
 async function BoardPageContent({ boardId }: { boardId: string }) {
   const user = await getSessionUser();
   const snapshot = await loadBoardSnapshotCached(boardId, user?.id ?? "anon");

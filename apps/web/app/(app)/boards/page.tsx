@@ -13,8 +13,6 @@ import type { OrgProjectSection } from "@/lib/load-org-projects";
 import type { BoardMember } from "@/components/board/share-project-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const experimental_ppr = true;
-
 type ProjectsSectionProps = {
   sections: OrgProjectSection[];
   boardMembersByBoardId: Record<string, BoardMember[]>;

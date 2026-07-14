@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   devIndicators: false,
   experimental: {
-    optimizePackageImports: ["lucide-react", "@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
+    optimizePackageImports: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"],
     serverActions: {
       allowedOrigins: serverActionAllowedOrigins(),
     },

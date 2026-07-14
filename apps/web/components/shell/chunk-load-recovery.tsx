@@ -5,7 +5,10 @@ import { useEffect } from "react";
 const RELOAD_KEY = "ngp:chunk-reload";
 
 function isChunkLoadFailure(message: string): boolean {
-  return /ChunkLoadError|Loading chunk \d+ failed/i.test(message);
+  return (
+    /ChunkLoadError|Loading chunk \d+ failed/i.test(message) ||
+    /Cannot read properties of undefined \(reading 'call'\)/i.test(message)
+  );
 }
 
 /** Recarrega uma vez quando chunks stale (pos-deploy) causam 404 em /_next/static. */

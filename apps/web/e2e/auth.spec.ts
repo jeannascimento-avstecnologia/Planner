@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { STANDARD_USER, collectConsoleErrors, uniqueEmail } from "./helpers";
+import { STANDARD_USER, collectConsoleErrors, disableToursForE2E, dismissBlockingTour, uniqueEmail } from "./helpers";
 
 test.describe("Auth", () => {
   test("login page renderiza campos e acoes", async ({ page }) => {
@@ -137,13 +137,17 @@ test.describe("Auth", () => {
   });
 
   test("logout retorna para /login", async ({ page }) => {
+    await disableToursForE2E(page);
     await page.goto("/login");
     await page.getByLabel("Email").fill(STANDARD_USER.email);
     await page.getByLabel("Senha").fill(STANDARD_USER.password);
     await page.getByRole("button", { name: "Entrar" }).click();
     await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
+    await page.waitForLoadState("networkidle");
+    await dismissBlockingTour(page);
 
     await page.getByTestId("sign-out-button").click();
+    await expect(page.getByRole("alertdialog")).toBeVisible({ timeout: 10_000 });
     await page.getByRole("alertdialog").getByRole("button", { name: "Sair" }).click();
     await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
   });

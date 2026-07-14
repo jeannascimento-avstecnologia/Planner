@@ -7,7 +7,7 @@ const PAGE_TOUR_PREFIX = "ngp:page-tour-completed:";
 async function expandSidebar(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1280, height: 800 });
   const expand = page.getByRole("button", { name: "Expandir" });
-  if (await expand.isVisible()) await expand.click();
+  if (await expand.isVisible({ timeout: 2_000 }).catch(() => false)) await expand.click();
 }
 
 function tourPopover(page: import("@playwright/test").Page) {
@@ -24,7 +24,7 @@ test.describe("Tour por pagina", () => {
       { globalKey: ONBOARDING_TOUR_COMPLETED_KEY, pageKey: `${PAGE_TOUR_PREFIX}projects` },
     );
 
-    await loginAsStandard(page);
+    await loginAsStandard(page, { disableTours: false });
     await expandSidebar(page);
     await page.goto("/projects");
 
@@ -42,7 +42,7 @@ test.describe("Tour por pagina", () => {
       { globalKey: ONBOARDING_TOUR_COMPLETED_KEY, pageKey: `${PAGE_TOUR_PREFIX}projects` },
     );
 
-    await loginAsStandard(page);
+    await loginAsStandard(page, { disableTours: false });
     await expandSidebar(page);
     await page.goto("/projects");
 

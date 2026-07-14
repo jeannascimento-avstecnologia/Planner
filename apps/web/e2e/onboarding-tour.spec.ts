@@ -6,7 +6,7 @@ const ONBOARDING_TOUR_COMPLETED_KEY = "ngp:onboarding-tour-completed";
 async function expandSidebar(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1280, height: 800 });
   const expand = page.getByRole("button", { name: "Expandir" });
-  if (await expand.isVisible()) await expand.click();
+  if (await expand.isVisible({ timeout: 2_000 }).catch(() => false)) await expand.click();
 }
 
 function tourPopover(page: import("@playwright/test").Page) {
@@ -19,7 +19,7 @@ test.describe("Tour guiado (onboarding)", () => {
       localStorage.removeItem(key);
     }, ONBOARDING_TOUR_COMPLETED_KEY);
 
-    await loginAsStandard(page);
+    await loginAsStandard(page, { disableTours: false });
     await expandSidebar(page);
 
     const popover = tourPopover(page);
@@ -32,7 +32,7 @@ test.describe("Tour guiado (onboarding)", () => {
       localStorage.removeItem(key);
     }, ONBOARDING_TOUR_COMPLETED_KEY);
 
-    await loginAsStandard(page);
+    await loginAsStandard(page, { disableTours: false });
     await expandSidebar(page);
 
     const popover = tourPopover(page);
@@ -50,7 +50,7 @@ test.describe("Tour guiado (onboarding)", () => {
       localStorage.setItem(key, "1");
     }, ONBOARDING_TOUR_COMPLETED_KEY);
 
-    await loginAsStandard(page);
+    await loginAsStandard(page, { disableTours: false });
     await expandSidebar(page);
     await page.goto("/help");
     await expect(page.getByTestId("onboarding-tour-trigger")).toBeVisible();
@@ -66,7 +66,7 @@ test.describe("Tour guiado (onboarding)", () => {
       localStorage.removeItem(key);
     }, ONBOARDING_TOUR_COMPLETED_KEY);
 
-    await loginAsViewer(page);
+    await loginAsViewer(page, { disableTours: false });
     await expandSidebar(page);
 
     const popover = tourPopover(page);

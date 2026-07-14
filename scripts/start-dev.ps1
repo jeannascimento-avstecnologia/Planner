@@ -27,9 +27,8 @@ Write-Host "==> Limpando portas dev 3000-3002..." -ForegroundColor Cyan
 Start-Sleep -Seconds 1
 
 $dotNext = Join-Path $web ".next"
-$manifest = Join-Path $dotNext "prerender-manifest.json"
-if ((Test-Path $dotNext) -and -not (Test-Path $manifest)) {
-  Write-Host "==> Cache .next incompleto - removendo..." -ForegroundColor Yellow
+if (Test-Path $dotNext) {
+  Write-Host "==> Limpando .next (evita chunks stale pos-refactor RSC)..." -ForegroundColor Yellow
   Remove-Item -Path $dotNext -Recurse -Force
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { safeInternalPath } from "@/lib/safe-internal-path";
@@ -19,6 +18,14 @@ type Props = {
   confirmBeforeSignOut?: boolean;
 };
 
+function resolveSignOutTarget(loginNext?: string, redirectTo?: string): string {
+  if (redirectTo) return safeInternalPath(redirectTo, "/login");
+  if (loginNext) {
+    return `/login?next=${encodeURIComponent(safeInternalPath(loginNext, "/boards"))}`;
+  }
+  return "/login";
+}
+
 export function SignOutButton({
   className,
   loginNext,
@@ -28,22 +35,24 @@ export function SignOutButton({
   iconOnly = false,
   confirmBeforeSignOut = false,
 }: Props) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   function handleSignOut() {
     startTransition(async () => {
+      const target = resolveSignOutTarget(loginNext, redirectTo);
       const supabase = createClient();
       await supabase.auth.signOut();
-      router.push(
-        redirectTo
-          ? safeInternalPath(redirectTo, "/login")
-          : loginNext
-            ? `/login?next=${encodeURIComponent(safeInternalPath(loginNext, "/boards"))}`
-            : "/login",
-      );
-      router.refresh();
+      try {
+        await fetch("/api/auth/sign-out", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch {
+        // client signOut ja limpou sessao local; API complementa cookie httpOnly
+      }
+      window.location.assign(target);
     });
   }
 
