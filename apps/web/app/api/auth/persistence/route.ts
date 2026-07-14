@@ -12,6 +12,22 @@ const persistenceInput = z.object({ rememberMe: z.boolean() }).strict();
 const PERSISTENCE_RATE_LIMIT = 20;
 const PERSISTENCE_WINDOW_MS = 60_000;
 
+function isLoopbackEquivalentHost(a: string, b: string): boolean {
+  const split = (host: string) => {
+    const idx = host.lastIndexOf(":");
+    if (idx <= 0) return { name: host, port: "" };
+    return { name: host.slice(0, idx), port: host.slice(idx + 1) };
+  };
+  const left = split(a);
+  const right = split(b);
+  const loopback = new Set(["localhost", "127.0.0.1"]);
+  return (
+    left.port === right.port &&
+    loopback.has(left.name) &&
+    loopback.has(right.name)
+  );
+}
+
 function isSameOrigin(request: NextRequest): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return false;
@@ -24,7 +40,8 @@ function isSameOrigin(request: NextRequest): boolean {
     if (process.env.NODE_ENV !== "production") {
       const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
       const requestHost = forwardedHost || request.headers.get("host");
-      return Boolean(requestHost && received.host === requestHost);
+      if (requestHost && received.host === requestHost) return true;
+      if (requestHost && isLoopbackEquivalentHost(received.host, requestHost)) return true;
     }
     return false;
   } catch {
