@@ -7,6 +7,10 @@ APP_DIR="${APP_DIR:-/opt/agify}"
 BRANCH="${BRANCH:-main}"
 PM2_NAME="${PM2_NAME:-agify}"
 PORT="${PORT:-3001}"
+PM2_OWNER="$(id -un)"
+if [ "$(id -u)" -eq 0 ] && id agify >/dev/null 2>&1; then
+  PM2_OWNER="agify"
+fi
 
 cd "$APP_DIR"
 
@@ -29,9 +33,34 @@ fi
 echo "==> [2/6] npm install..."
 npm install
 
-echo "==> [3/6] PM2 delete + matar porta ${PORT} + build limpo..."
-pm2 stop "$PM2_NAME" 2>/dev/null || true
-pm2 delete "$PM2_NAME" 2>/dev/null || true
+echo "==> [3/6] PM2 kill (root + agify) + matar porta ${PORT} + build limpo..."
+
+# Encerra PM2 do usuario alvo (evita respawn de next-server via autorestart).
+pm2_user_kill() {
+  local user="$1"
+  if [ "$user" = "$(id -un)" ]; then
+    pm2 stop "$PM2_NAME" 2>/dev/null || true
+    pm2 delete "$PM2_NAME" 2>/dev/null || true
+    pm2 kill 2>/dev/null || true
+    return 0
+  fi
+  if [ "$(id -u)" -ne 0 ]; then
+    return 0
+  fi
+  if ! id "$user" >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "$user" -- pm2 kill 2>/dev/null || true
+  elif command -v su >/dev/null 2>&1; then
+    su - "$user" -c 'pm2 kill' 2>/dev/null || true
+  fi
+}
+
+pm2_user_kill "$(id -un)"
+if [ "$(id -u)" -eq 0 ]; then
+  pm2_user_kill agify
+fi
 
 # Libera :PORT sem depender de fuser (nem grep -P).
 kill_port_pids() {
@@ -44,15 +73,38 @@ kill_port_pids() {
   # shellcheck disable=SC2086
   kill -9 $pids 2>/dev/null || true
 }
-kill_port_pids
-pkill -9 -f 'next-server' 2>/dev/null || true
-pkill -9 -f 'next start' 2>/dev/null || true
-sleep 2
-kill_port_pids
-sleep 1
-if ss -tlnp 2>/dev/null | grep -qE ":${PORT}\\b"; then
-  echo "ERRO: porta ${PORT} ainda em uso apos limpeza — abortando (nao buildar em cima de zumbi)" >&2
-  ss -tlnp | grep -E ":${PORT}\\b" >&2 || true
+
+port_owner_evidence() {
+  local port_pid ppid
+  echo "    evidencia — quem segura :${PORT}:" >&2
+  ss -tlnp 2>/dev/null | grep -E ":${PORT}\\b" >&2 || true
+  port_pid="$(ss -tlnp 2>/dev/null | grep -E ":${PORT}\\b" | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
+  if [ -n "$port_pid" ]; then
+    ps -o pid,ppid,user,cmd -p "$port_pid" >&2 || true
+    ppid="$(ps -o ppid= -p "$port_pid" 2>/dev/null | tr -d ' ' || true)"
+    if [ -n "$ppid" ] && [ "$ppid" != "0" ] && [ "$ppid" != "1" ]; then
+      ps -o pid,ppid,user,cmd -p "$ppid" >&2 || true
+    fi
+  fi
+  ps -ef | grep -E '[n]ext|[p]m2' >&2 || true
+  systemctl list-units --type=service --all 2>/dev/null | grep -iE 'pm2|agify' >&2 || true
+}
+
+PORT_FREE=0
+for attempt in $(seq 1 5); do
+  kill_port_pids
+  pkill -9 -f 'next-server' 2>/dev/null || true
+  pkill -9 -f 'next start' 2>/dev/null || true
+  sleep 2
+  if ! ss -tlnp 2>/dev/null | grep -qE ":${PORT}\\b"; then
+    PORT_FREE=1
+    break
+  fi
+  echo "    tentativa ${attempt}/5: porta ${PORT} ainda ocupada (PM2 pode ter respawnado)"
+done
+if [ "$PORT_FREE" != "1" ]; then
+  echo "ERRO: porta ${PORT} ainda em uso apos 5 tentativas — abortando (nao buildar em cima de zumbi)" >&2
+  port_owner_evidence
   exit 1
 fi
 echo "    porta ${PORT} livre"
@@ -79,10 +131,24 @@ if [ "$WEBPACK_COUNT" = "0" ]; then
   exit 1
 fi
 
-echo "==> [4/6] PM2 start (fork)..."
-pm2 start infra/pm2/ecosystem.config.cjs --update-env
-pm2 save
-PM2_PID="$(pm2 pid "$PM2_NAME" 2>/dev/null || echo '')"
+echo "==> [4/6] PM2 start (fork, usuario ${PM2_OWNER})..."
+if [ "$PM2_OWNER" = "$(id -un)" ]; then
+  pm2 start infra/pm2/ecosystem.config.cjs --update-env
+  pm2 save
+elif [ "$(id -u)" -eq 0 ]; then
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "$PM2_OWNER" -- bash -lc "cd '$APP_DIR' && pm2 start infra/pm2/ecosystem.config.cjs --update-env && pm2 save"
+  else
+    su - "$PM2_OWNER" -c "cd '$APP_DIR' && pm2 start infra/pm2/ecosystem.config.cjs --update-env && pm2 save"
+  fi
+fi
+if [ "$PM2_OWNER" = "$(id -un)" ]; then
+  PM2_PID="$(pm2 pid "$PM2_NAME" 2>/dev/null || echo '')"
+elif command -v runuser >/dev/null 2>&1; then
+  PM2_PID="$(runuser -u "$PM2_OWNER" -- pm2 pid "$PM2_NAME" 2>/dev/null || echo '')"
+else
+  PM2_PID="$(su - "$PM2_OWNER" -c "pm2 pid $PM2_NAME" 2>/dev/null || echo '')"
+fi
 PORT_PID="$(ss -tlnp 2>/dev/null | grep -E ":${PORT}\\b" | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
 if [ -n "$PM2_PID" ] && [ -n "$PORT_PID" ] && [ "$PM2_PID" != "$PORT_PID" ]; then
   echo "ERRO: PM2 pid=${PM2_PID} difere do listener na porta ${PORT} pid=${PORT_PID}" >&2
@@ -101,7 +167,13 @@ for i in $(seq 1 30); do
 done
 if [ "$READY" != "1" ]; then
   echo "ERRO: app nao respondeu em 30s. pm2 logs agify --lines 40" >&2
-  pm2 logs "$PM2_NAME" --lines 20 --nostream || true
+  if [ "$PM2_OWNER" = "$(id -un)" ]; then
+    pm2 logs "$PM2_NAME" --lines 20 --nostream || true
+  elif command -v runuser >/dev/null 2>&1; then
+    runuser -u "$PM2_OWNER" -- pm2 logs "$PM2_NAME" --lines 20 --nostream || true
+  else
+    su - "$PM2_OWNER" -c "pm2 logs $PM2_NAME --lines 20 --nostream" || true
+  fi
   exit 1
 fi
 
