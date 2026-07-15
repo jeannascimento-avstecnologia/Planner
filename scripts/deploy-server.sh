@@ -29,11 +29,12 @@ fi
 echo "==> [2/6] npm install..."
 npm install
 
-echo "==> [3/6] PM2 stop + liberar porta ${PORT} + build limpo..."
+echo "==> [3/6] PM2 delete + matar porta ${PORT} + build limpo..."
 pm2 stop "$PM2_NAME" 2>/dev/null || true
 pm2 delete "$PM2_NAME" 2>/dev/null || true
-if command -v runuser >/dev/null 2>&1; then
-  runuser -u agify -- pm2 kill 2>/dev/null || true
+# Mata QUALQUER next na porta (pkill por nome falha; zumbis mantem 3001)
+if command -v fuser >/dev/null 2>&1; then
+  fuser -k "${PORT}/tcp" 2>/dev/null || true
 fi
 for pid in $(ss -tlnp "sport = :${PORT}" 2>/dev/null | grep -oP 'pid=\K\d+' || true); do
   kill -9 "$pid" 2>/dev/null || true
@@ -42,10 +43,11 @@ pkill -9 -f 'next-server' 2>/dev/null || true
 pkill -9 -f 'next start' 2>/dev/null || true
 sleep 2
 if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
-  echo "ERRO: porta ${PORT} ainda em uso apos limpeza" >&2
+  echo "ERRO: porta ${PORT} ainda em uso apos limpeza — abortando (nao buildar em cima de zumbi)" >&2
   ss -tlnp | grep ":${PORT} " >&2 || true
   exit 1
 fi
+echo "    porta ${PORT} livre"
 rm -rf apps/web/.next
 cd apps/web
 npm run build
@@ -53,9 +55,19 @@ cd "$APP_DIR"
 
 BUILD_ID="$(cat apps/web/.next/BUILD_ID 2>/dev/null || echo 'MISSING')"
 CHUNK_COUNT="$(find apps/web/.next/static/chunks -name '*.js' 2>/dev/null | wc -l | tr -d ' ')"
-echo "    BUILD_ID=$BUILD_ID  chunks=$CHUNK_COUNT  commit=$AFTER"
+MANIFEST="apps/web/.next/static/${BUILD_ID}/_buildManifest.js"
+WEBPACK_COUNT="$(find apps/web/.next/static/chunks -name 'webpack-*.js' 2>/dev/null | wc -l | tr -d ' ')"
+echo "    BUILD_ID=$BUILD_ID  chunks=$CHUNK_COUNT  webpack=$WEBPACK_COUNT  commit=$AFTER"
 if [ "$CHUNK_COUNT" = "0" ] || [ "$BUILD_ID" = "MISSING" ]; then
   echo "ERRO: build incompleto" >&2
+  exit 1
+fi
+if [ ! -f "$MANIFEST" ]; then
+  echo "ERRO: falta $MANIFEST (static inconsistente com BUILD_ID)" >&2
+  exit 1
+fi
+if [ "$WEBPACK_COUNT" = "0" ]; then
+  echo "ERRO: nenhum webpack-*.js em .next/static/chunks" >&2
   exit 1
 fi
 
@@ -85,7 +97,42 @@ if [ "$READY" != "1" ]; then
   exit 1
 fi
 
-echo "==> [6/6] Validacao..."
+echo "==> [6/6] Validacao (version + login chunks)..."
+LIVE_JSON="$(curl -sf "http://127.0.0.1:${PORT}/api/version")"
+LIVE_BID="$(printf '%s' "$LIVE_JSON" | sed -n 's/.*"buildId":"\([^"]*\)".*/\1/p')"
+LIVE_COMMIT="$(printf '%s' "$LIVE_JSON" | sed -n 's/.*"commit":"\([^"]*\)".*/\1/p')"
+echo "    live version: $LIVE_JSON"
+if [ "$LIVE_BID" != "$BUILD_ID" ]; then
+  echo "ERRO: BUILD_ID live ($LIVE_BID) != disco ($BUILD_ID)" >&2
+  exit 1
+fi
+if [ "$LIVE_COMMIT" != "$AFTER" ]; then
+  echo "ERRO: commit live ($LIVE_COMMIT) != git HEAD ($AFTER). PM2 sem --update-env?" >&2
+  exit 1
+fi
+MANIFEST_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/_next/static/${BUILD_ID}/_buildManifest.js")"
+if [ "$MANIFEST_CODE" != "200" ]; then
+  echo "ERRO: _buildManifest.js HTTP $MANIFEST_CODE (esperado 200)" >&2
+  exit 1
+fi
+LOGIN_HTML="$(curl -sf "http://127.0.0.1:${PORT}/login")"
+WEBPACK_PATH="$(printf '%s' "$LOGIN_HTML" | grep -oE '/_next/static/chunks/webpack-[a-f0-9]+\.js' | head -1 || true)"
+PAGE_PATH="$(printf '%s' "$LOGIN_HTML" | grep -oE '/_next/static/chunks/app/\(auth\)/login/page-[a-f0-9]+\.js' | head -1 || true)"
+if [ -z "$WEBPACK_PATH" ]; then
+  echo "ERRO: HTML /login sem webpack-*.js (Suspense eterno no browser)" >&2
+  exit 1
+fi
+WEBPACK_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}${WEBPACK_PATH}")"
+PAGE_CODE="skip"
+if [ -n "$PAGE_PATH" ]; then
+  PAGE_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}${PAGE_PATH}")"
+fi
+echo "    webpack $WEBPACK_CODE $WEBPACK_PATH"
+echo "    login page $PAGE_CODE ${PAGE_PATH:-"(nao encontrado)"}"
+if [ "$WEBPACK_CODE" != "200" ] || { [ -n "$PAGE_PATH" ] && [ "$PAGE_CODE" != "200" ]; }; then
+  echo "ERRO: chunk do /login nao serve 200 — HTML/static dessincronizados" >&2
+  exit 1
+fi
 bash scripts/diagnose-server.sh
 
 echo ""

@@ -4,14 +4,16 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 
 function resolveGitCommit(): string {
-  const fromEnv =
-    process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? process.env.AGIFY_GIT_COMMIT?.slice(0, 7);
-  if (fromEnv) return fromEnv;
+  // Preferir git no disco: AGIFY_GIT_COMMIT no PM2 fica stale apos `pm2 restart` sem delete.
   try {
     const repoRoot = path.join(process.cwd(), "..", "..");
     return execSync("git rev-parse --short HEAD", { cwd: repoRoot, encoding: "utf8" }).trim();
   } catch {
-    return "local";
+    return (
+      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
+      process.env.AGIFY_GIT_COMMIT?.slice(0, 7) ??
+      "local"
+    );
   }
 }
 
