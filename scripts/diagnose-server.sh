@@ -153,6 +153,55 @@ while IFS= read -r asset; do
 done < <(grep -oE 'src="/_next/[^"]+\.js[^"]*"' "$LOGIN_HTML" | cut -d'"' -f2 | sort -u)
 if [ "$ASSET_FAILURES" -eq 0 ]; then ok "todos os chunks JS do login respondem 200"; else fail "${ASSET_FAILURES} chunks JS falharam"; fi
 
+# Soft-nav (/calendar etc.): chunks de route group `(app)` no disco + HTTP (local + nginx).
+# 404 com Content-Type text/html = HTML de erro servido como JS (ChunkLoadError no browser).
+DISK_BID="$(tr -d '\r\n' < "$BUILD_ID_FILE" 2>/dev/null || true)"
+LIVE_BID="$(printf '%s' "$VERSION_JSON" | sed -n 's/.*"buildId":"\([^"]*\)".*/\1/p')"
+if [ -n "$DISK_BID" ] && [ "$DISK_BID" = "$LIVE_BID" ]; then
+  ok "BUILD_ID disco=runtime (${DISK_BID})"
+else
+  fail "BUILD_ID disco (${DISK_BID:-?}) != runtime (${LIVE_BID:-?})"
+fi
+
+MANIFEST_DISK="apps/web/.next/static/${DISK_BID}/_buildManifest.js"
+WEBPACK_DISK="$(find apps/web/.next/static/chunks -name 'webpack-*.js' 2>/dev/null | head -1 || true)"
+CAL_DISK="$(find apps/web/.next/static/chunks -path '*calendar/page-*.js' 2>/dev/null | head -1 || true)"
+if [ -f "$MANIFEST_DISK" ]; then ok "disco tem _buildManifest.js"; else fail "falta ${MANIFEST_DISK}"; fi
+if [ -n "$WEBPACK_DISK" ]; then ok "disco tem $(basename "$WEBPACK_DISK")"; else fail "falta webpack-*.js em .next/static/chunks"; fi
+if [ -n "$CAL_DISK" ]; then ok "disco tem calendar page chunk"; else fail "falta chunk calendar/page-*.js (build incompleto?)"; fi
+
+check_js_asset() {
+  local label="$1"
+  local url="$2"
+  local tmp code ctype head
+  tmp="$(mktemp)"
+  code="$(curl -skS --path-as-is -o "$tmp" -w '%{http_code}' "$url" 2>/dev/null || echo '000')"
+  ctype="$(file -b --mime-type "$tmp" 2>/dev/null || echo unknown)"
+  head="$(head -c 80 "$tmp" 2>/dev/null | tr '\n' ' ' || true)"
+  rm -f "$tmp"
+  if [ "$code" = "200" ] && [[ "$ctype" != text/html* ]] && [[ "$head" != \<!* ]] && [[ "$head" != \<html* ]]; then
+    ok "${label} HTTP 200 ctype=${ctype}"
+  else
+    fail "${label} HTTP ${code} ctype=${ctype} (esperado JS; head=${head})"
+  fi
+}
+
+if [ -n "$WEBPACK_DISK" ]; then
+  WEBPACK_URL="/_next/static/chunks/$(basename "$WEBPACK_DISK")"
+  check_js_asset "localhost webpack" "${BASE}${WEBPACK_URL}"
+  check_js_asset "nginx webpack" "${HTTPS}${WEBPACK_URL}"
+fi
+if [ -n "$CAL_DISK" ]; then
+  # Preserva parenteses do route group: .../chunks/app/(app)/calendar/page-*.js
+  CAL_REL="${CAL_DISK#apps/web/.next/static/}"
+  CAL_URL="/_next/static/${CAL_REL}"
+  check_js_asset "localhost calendar chunk" "${BASE}${CAL_URL}"
+  check_js_asset "nginx calendar chunk" "${HTTPS}${CAL_URL}"
+fi
+if [ -n "$DISK_BID" ]; then
+  check_js_asset "nginx _buildManifest" "${HTTPS}/_next/static/${DISK_BID}/_buildManifest.js"
+fi
+
 if curl -fskS "${HTTPS}/login" -o /dev/null; then ok "GET nginx HTTPS /login"; else fail "GET nginx HTTPS /login"; fi
 if curl -fskS "${HTTPS}/api/version" | grep -q "\"commit\":\"${HEAD_COMMIT}\""; then
   ok "nginx aponta para o runtime atual"
@@ -193,6 +242,12 @@ if [ "$(id -u)" -eq 0 ]; then
     ok "nginx encaminha X-Forwarded-Host"
   else
     fail "nginx sem X-Forwarded-Host correto"
+  fi
+  STATIC_BLOCK="$(nginx -T 2>/dev/null | awk '/location \/_next\/static\//,/^[[:space:]]*}/' || true)"
+  if printf '%s' "$STATIC_BLOCK" | grep -qE 'alias[[:space:]]+.*/\.next/static/'; then
+    ok "nginx /_next/static usa alias no disco"
+  else
+    fail "nginx /_next/static sem alias (proxy HTML 404 → ChunkLoadError)"
   fi
 else
   warn "checks internos do nginx exigem root; rode somente se os checks HTTPS falharem"

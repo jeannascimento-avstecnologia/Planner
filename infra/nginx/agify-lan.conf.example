@@ -42,13 +42,13 @@ server {
     # Limite de corpo (uploads vao para Cloudinary via API assinada)
     client_max_body_size 4m;
 
-    # Chunks Next.js: cache longo (hash no nome = immutable)
+    # Chunks Next.js: servir do disco (nao proxy). Evita 404 HTML do Next
+    # (MIME text/html em .js) e paths com parenteses de route groups `(app)`.
+    # Ajuste o alias se APP_DIR != /opt/agify.
     location /_next/static/ {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        alias /opt/agify/apps/web/.next/static/;
         add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
     }
 
     # HTML/API: nunca cachear shell pos-deploy (evita ChunkLoadError)

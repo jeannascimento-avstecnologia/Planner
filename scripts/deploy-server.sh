@@ -213,6 +213,18 @@ if [ "$WEBPACK_CODE" != "200" ] || { [ -n "$PAGE_PATH" ] && [ "$PAGE_CODE" != "2
   echo "ERRO: chunk do /login nao serve 200 — HTML/static dessincronizados" >&2
   exit 1
 fi
+CAL_DISK="$(find apps/web/.next/static/chunks -path '*calendar/page-*.js' 2>/dev/null | head -1 || true)"
+if [ -z "$CAL_DISK" ]; then
+  echo "ERRO: falta chunk calendar/page-*.js (soft-nav /calendar quebraria)" >&2
+  exit 1
+fi
+CAL_REL="${CAL_DISK#apps/web/.next/static/}"
+CAL_CODE="$(curl -s --path-as-is -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/_next/static/${CAL_REL}")"
+echo "    calendar $CAL_CODE /_next/static/${CAL_REL}"
+if [ "$CAL_CODE" != "200" ]; then
+  echo "ERRO: chunk /calendar nao serve 200 (HTTP $CAL_CODE)" >&2
+  exit 1
+fi
 bash scripts/diagnose-server.sh
 
 echo ""

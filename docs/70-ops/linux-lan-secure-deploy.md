@@ -202,12 +202,15 @@ Deve retornar `200` ou `307` — **não** deve ser acessível de outro PC em `:3
 ```bash
 sudo cp /opt/agify/infra/nginx/agify-lan.conf.example /etc/nginx/sites-available/agify
 sudo nano /etc/nginx/sites-available/agify
-# Ajuste server_name e caminhos ssl_certificate*
+# Ajuste server_name, ssl_certificate* e alias /_next/static/ (APP_DIR)
 
 sudo ln -sf /etc/nginx/sites-available/agify /etc/nginx/sites-enabled/agify
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+`/_next/static/` deve usar **`alias` no disco** (`.next/static/`), nao `proxy_pass` para o Next.
+Proxy de static costuma devolver HTML 404 com MIME `text/html` → `ChunkLoadError` no soft-nav (`/calendar`, etc.).
 
 ---
 
@@ -350,9 +353,11 @@ O script não recebe senha e não imprime chaves. Interprete cada falha:
    - `PM2 offline`: processo não iniciou; veja somente logs posteriores ao horário do deploy.
    - `runtime nao corresponde ao HEAD`: PM2 serve outro diretório/build.
    - Confirme `cwd=/opt/agify/apps/web` e porta `127.0.0.1:3001`.
-7. **chunk JS falhou**
-   - Causa: build incompleto, nginx/cache servindo HTML de outra versão ou arquivo removido.
+7. **chunk JS falhou** / **nginx calendar chunk** / **ctype=text/html**
+   - Causa: build incompleto, HTML stale pos-deploy, ou nginx `proxy_pass` em `/_next/static/` (deve ser `alias` no disco).
+   - Soft-nav home→`/calendar` quebra quando o chunk `app/(app)/calendar/page-*.js` 404 com HTML.
    - Não tente corrigir no browser antes de o diagnóstico ficar verde.
+   - No servidor: confira `alias /opt/agify/apps/web/.next/static/;` em `/etc/nginx/sites-available/agify` e `nginx -t && systemctl reload nginx`.
 8. **nginx HTTPS falhou**
    - Causa: DNS, certificado, upstream, site habilitado ou firewall.
    - Como root: `nginx -t`, `nginx -T`, `systemctl status nginx`.
@@ -376,7 +381,7 @@ Use janela anônima com extensões desativadas e DevTools → Network:
 3. `/api/auth/persistence`: HTTP 200.
 4. Navegação `/boards`: HTTP 200/307, nunca POST `/login` com `Next-Action`.
 5. Console:
-   - `ChunkLoadError`: cache de browser/proxy; feche todas as abas e limpe dados do site.
+   - `ChunkLoadError` / MIME `text/html` em `.js`: rode diagnose; se FAIL em `nginx calendar chunk`, corrija alias nginx + redeploy. Se diagnose verde: hard refresh (Ctrl+Shift+R) ou janela anônima — HTML/RSC stale no browser.
    - erro em script de extensão: teste sem extensões.
    - CSP `connect-src`: env/build aponta para Supabase diferente.
    - certificado: instale a CA interna no computador cliente e confira o relógio.
