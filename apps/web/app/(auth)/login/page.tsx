@@ -12,6 +12,7 @@ import { authInputClass, btnPrimary, authLinkClass } from "@/lib/ui-classes";
 import { safeInternalPath } from "@/lib/safe-internal-path";
 import { isMicrosoftLoginAvailable } from "@/lib/supabase/is-local-url";
 import { createClient } from "@/lib/supabase/client";
+import { clearSupabaseAuthCookies } from "@/lib/supabase/browser-auth-cookies";
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   "Invalid login credentials": "Email ou senha incorretos.",
@@ -26,6 +27,7 @@ function LoginForm() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
+    clearSupabaseAuthCookies();
     if (typeof window === "undefined") return;
     const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
     if (!hash) return;
@@ -55,15 +57,11 @@ function LoginForm() {
     }
 
     try {
-      const supabase = createClient({ sessionOnly: !rememberMe });
+      clearSupabaseAuthCookies();
+      const supabase = createClient({ sessionOnly: !rememberMe, isSingleton: false });
       const loginEmail = normalizeAuthEmail(parsed.data.email);
-      const {
-        data: { user: existingUser },
-      } = await supabase.auth.getUser();
 
-      if (existingUser && normalizeAuthEmail(existingUser.email ?? "") !== loginEmail) {
-        await supabase.auth.signOut();
-      }
+      await supabase.auth.signOut();
 
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
@@ -71,6 +69,15 @@ function LoginForm() {
       });
       if (authError) {
         setError(AUTH_ERROR_MESSAGES[authError.message] ?? "Nao foi possivel entrar. Tente novamente.");
+        return;
+      }
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        setError("Nao foi possivel estabelecer a sessao. Tente novamente.");
         return;
       }
 
@@ -110,7 +117,7 @@ function LoginForm() {
       ) : null}
       <AuthOAuthDivider />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form method="post" onSubmit={handleSubmit} className="space-y-4">
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <div className="space-y-1">
           <label htmlFor="email" className="text-sm font-medium">

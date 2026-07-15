@@ -28,24 +28,6 @@ function ShellChrome({
 }) {
   const { notifyShowWorkload, setPageTourContext } = useOnboardingTour();
 
-  // #region agent log
-  useEffect(() => {
-    fetch("http://127.0.0.1:7753/ingest/8f86d503-56e3-4323-8498-bfd2c5e951ff", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3ef40b" },
-      body: JSON.stringify({
-        sessionId: "3ef40b",
-        runId: "post-fix-v2",
-        hypothesisId: "H6",
-        location: "app-shell-streaming.tsx:ShellChrome",
-        message: "ShellChrome mounted with context",
-        data: { buildMarker: "shell-v3-static-tour", hasShellData: shellData != null },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, [shellData]);
-  // #endregion
-
   useEffect(() => {
     notifyShowWorkload(shellData.showWorkload);
     setPageTourContext({

@@ -1,7 +1,12 @@
+import "server-only";
+
+import { assertNoClientExposedSecrets } from "@/lib/env-guard";
+
 let resendWarned = false;
 
 /** Avisos de configuracao em producao (nao quebra build). */
 export function warnProductionEmailEnv(): void {
+  assertNoClientExposedSecrets();
   if (process.env.NODE_ENV !== "production" || resendWarned) return;
   resendWarned = true;
 

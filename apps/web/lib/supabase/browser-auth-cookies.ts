@@ -32,6 +32,16 @@ export function serializeSessionCookie(
   return parts.join("; ");
 }
 
+/** Remove cookies Supabase Auth (todas instancias: local 127, Cloud, chunks). */
+export function clearSupabaseAuthCookies(): void {
+  if (typeof document === "undefined") return;
+  for (const { name } of parseBrowserCookies(document.cookie)) {
+    if (/^sb-.+-auth-token/.test(name)) {
+      document.cookie = serializeSessionCookie(name, "", { path: "/", maxAge: 0 });
+    }
+  }
+}
+
 /** Storage Supabase que cria cookies de sessao desde a primeira escrita. */
 export function sessionOnlyCookieMethods(): CookieMethodsBrowser {
   return {

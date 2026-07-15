@@ -16,6 +16,8 @@ build/
 .env.supabase
 **/.env.local.override
 apps/web/.env.local.override
+apps/web/env.local
+apps/web/env.local.override
 
 # logs
 *.log
@@ -37,6 +39,7 @@ Thumbs.db
 
 # security
 docs/security_audit_log.md
+.cursor/debug-*.log
 
 # notas/comandos locais (nao versionar)
 .local/

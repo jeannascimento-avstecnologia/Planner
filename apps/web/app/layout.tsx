@@ -4,6 +4,9 @@ import { ThemeScript } from "@/components/shell/theme-provider";
 import { ChunkLoadRecovery } from "@/components/shell/chunk-load-recovery";
 import { AuroraToaster } from "@/components/ui/sonner";
 import { PRODUCT_NAME } from "@/lib/brand";
+import { assertNoClientExposedSecrets } from "@/lib/env-guard";
+
+assertNoClientExposedSecrets();
 
 export const metadata: Metadata = {
   title: PRODUCT_NAME,
