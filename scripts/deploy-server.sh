@@ -32,19 +32,27 @@ npm install
 echo "==> [3/6] PM2 delete + matar porta ${PORT} + build limpo..."
 pm2 stop "$PM2_NAME" 2>/dev/null || true
 pm2 delete "$PM2_NAME" 2>/dev/null || true
-# Mata QUALQUER next na porta (pkill por nome falha; zumbis mantem 3001)
-if command -v fuser >/dev/null 2>&1; then
-  fuser -k "${PORT}/tcp" 2>/dev/null || true
-fi
-for pid in $(ss -tlnp "sport = :${PORT}" 2>/dev/null | grep -oP 'pid=\K\d+' || true); do
-  kill -9 "$pid" 2>/dev/null || true
-done
+
+# Libera :PORT sem depender de fuser (nem grep -P).
+kill_port_pids() {
+  local pids
+  pids="$(ss -tlnp 2>/dev/null | grep -E ":${PORT}\\b" | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u || true)"
+  if [ -z "$pids" ]; then
+    return 0
+  fi
+  echo "    matando PIDs na porta ${PORT}: $pids"
+  # shellcheck disable=SC2086
+  kill -9 $pids 2>/dev/null || true
+}
+kill_port_pids
 pkill -9 -f 'next-server' 2>/dev/null || true
 pkill -9 -f 'next start' 2>/dev/null || true
 sleep 2
-if ss -tlnp 2>/dev/null | grep -q ":${PORT} "; then
+kill_port_pids
+sleep 1
+if ss -tlnp 2>/dev/null | grep -qE ":${PORT}\\b"; then
   echo "ERRO: porta ${PORT} ainda em uso apos limpeza — abortando (nao buildar em cima de zumbi)" >&2
-  ss -tlnp | grep ":${PORT} " >&2 || true
+  ss -tlnp | grep -E ":${PORT}\\b" >&2 || true
   exit 1
 fi
 echo "    porta ${PORT} livre"
@@ -75,7 +83,7 @@ echo "==> [4/6] PM2 start (fork)..."
 pm2 start infra/pm2/ecosystem.config.cjs --update-env
 pm2 save
 PM2_PID="$(pm2 pid "$PM2_NAME" 2>/dev/null || echo '')"
-PORT_PID="$(ss -tlnp "sport = :${PORT}" 2>/dev/null | grep -oP 'pid=\K\d+' | head -1 || echo '')"
+PORT_PID="$(ss -tlnp 2>/dev/null | grep -E ":${PORT}\\b" | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
 if [ -n "$PM2_PID" ] && [ -n "$PORT_PID" ] && [ "$PM2_PID" != "$PORT_PID" ]; then
   echo "ERRO: PM2 pid=${PM2_PID} difere do listener na porta ${PORT} pid=${PORT_PID}" >&2
   exit 1
