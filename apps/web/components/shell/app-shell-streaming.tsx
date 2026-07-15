@@ -10,6 +10,7 @@ import type { ShellCacheData } from "@/lib/loaders/shell-cache";
 type Props = {
   userEmail: string;
   shellData: ShellCacheData;
+  hasActiveOrg: boolean;
   notificationsSlot: React.ReactNode;
   children: React.ReactNode;
 };
@@ -53,7 +54,13 @@ function ShellChrome({
   );
 }
 
-export function AppShellStreaming({ userEmail, shellData, notificationsSlot, children }: Props) {
+export function AppShellStreaming({
+  userEmail,
+  shellData,
+  hasActiveOrg,
+  notificationsSlot,
+  children,
+}: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   if (!shellData) {
@@ -61,7 +68,7 @@ export function AppShellStreaming({ userEmail, shellData, notificationsSlot, chi
   }
 
   return (
-    <OnboardingTourProvider setMobileOpen={setMobileOpen}>
+    <OnboardingTourProvider setMobileOpen={setMobileOpen} hasActiveOrg={hasActiveOrg}>
       <PageTourAutoTrigger />
       <div className="flex min-h-screen">
         <ShellChrome

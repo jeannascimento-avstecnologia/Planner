@@ -18,6 +18,7 @@ import {
 import { resolvePageTourId } from "@/lib/page-tour-registry";
 import { buildPageDriveSteps, type PageTourId } from "@/lib/page-tour-steps";
 import { isPageTourCompleted, markPageTourCompleted } from "@/lib/page-tour-storage";
+import { areRequiredTourTargetsPresent } from "@/lib/tour-targets-ready";
 import { startDriverTour } from "@/lib/tour-driver";
 import type { Driver } from "driver.js";
 
@@ -37,6 +38,7 @@ type OnboardingTourContextValue = {
   setPageTourContext: (ctx: Partial<PageTourContext>) => void;
   isTourActive: boolean;
   tryAutoStartPageTour: (pathname: string) => void;
+  hasActiveOrg: boolean;
 };
 
 const OnboardingTourContext = createContext<OnboardingTourContextValue | null>(null);
@@ -46,9 +48,11 @@ const AUTO_START_DELAY_MS = 600;
 type Props = {
   children: ReactNode;
   setMobileOpen: (open: boolean) => void;
+  /** Auto-start so com org ativa (spec onboarding-tour). */
+  hasActiveOrg: boolean;
 };
 
-export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
+export function OnboardingTourProvider({ children, setMobileOpen, hasActiveOrg }: Props) {
   const pathname = usePathname();
   const driverRef = useRef<Driver | null>(null);
   const sidebarPrepRef = useRef<(() => void) | null>(null);
@@ -59,8 +63,13 @@ export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
     showAdminSettings: false,
   });
   const globalAutoStartedRef = useRef(false);
+  const hasActiveOrgRef = useRef(hasActiveOrg);
   const [liveMessage, setLiveMessage] = useState("");
   const [isTourActive, setIsTourActive] = useState(false);
+
+  useEffect(() => {
+    hasActiveOrgRef.current = hasActiveOrg;
+  }, [hasActiveOrg]);
 
   const registerSidebarPrep = useCallback((fn: () => void) => {
     sidebarPrepRef.current = fn;
@@ -104,6 +113,7 @@ export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
           if (title) setLiveMessage(`Passo ${idx + 1} de ${total}: ${title}`);
         },
         onDestroyed: () => {
+          // Sempre persiste (X, Esc, Concluir, destroy) — anti-loop.
           onComplete();
           driverRef.current = null;
           setIsTourActive(false);
@@ -115,24 +125,53 @@ export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
     [destroyDriver],
   );
 
-  const startGlobalTour = useCallback(async () => {
+  const startGlobalTour = useCallback(async (opts?: { requireTargets?: boolean }) => {
     sidebarPrepRef.current?.();
     prepareMobileSidebar();
     pageTourCtxRef.current.showWorkload = showWorkloadRef.current;
 
-    await runTour(buildOnboardingDriveSteps(showWorkloadRef.current), () => {
+    const steps = buildOnboardingDriveSteps(showWorkloadRef.current);
+    if (opts?.requireTargets !== false && !areRequiredTourTargetsPresent(steps)) {
+      globalAutoStartedRef.current = false;
+      return;
+    }
+
+    await runTour(steps, () => {
       markOnboardingTourCompleted();
     }, { doneBtnText: "Comecar" });
   }, [prepareMobileSidebar, runTour]);
 
+  // Apos criar org: hasActiveOrg vira true sem re-chamar notifyShowWorkload.
+  useEffect(() => {
+    if (!hasActiveOrg) return;
+    if (isOnboardingTourCompleted()) return;
+    if (globalAutoStartedRef.current) return;
+    if (isTourActive) return;
+
+    const timer = window.setTimeout(() => {
+      if (!hasActiveOrgRef.current) return;
+      if (isOnboardingTourCompleted()) return;
+      if (globalAutoStartedRef.current) return;
+      globalAutoStartedRef.current = true;
+      void startGlobalTour({ requireTargets: true });
+    }, AUTO_START_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [hasActiveOrg, isTourActive, startGlobalTour]);
+
   const startPageTour = useCallback(
-    async (tourId: PageTourId) => {
+    async (tourId: PageTourId, opts?: { requireTargets?: boolean }) => {
       tourPrepRef.current[tourId]?.();
       await new Promise((resolve) => setTimeout(resolve, 400));
       prepareMobileSidebar();
 
       const ctx = pageTourCtxRef.current;
-      await runTour(buildPageDriveSteps(tourId, ctx), () => {
+      const steps = buildPageDriveSteps(tourId, ctx);
+      if (opts?.requireTargets !== false && !areRequiredTourTargetsPresent(steps)) {
+        return;
+      }
+
+      await runTour(steps, () => {
         markPageTourCompleted(tourId);
       });
     },
@@ -140,20 +179,21 @@ export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
   );
 
   const openGlobalTour = useCallback(() => {
-    void startGlobalTour();
+    void startGlobalTour({ requireTargets: false });
   }, [startGlobalTour]);
 
   const openPageTour = useCallback(
     (tourId?: PageTourId) => {
       const id = tourId ?? resolvePageTourId(pathname);
       if (!id) return;
-      void startPageTour(id);
+      void startPageTour(id, { requireTargets: false });
     },
     [pathname, startPageTour],
   );
 
   const tryAutoStartPageTour = useCallback(
     (path: string) => {
+      if (!hasActiveOrgRef.current) return;
       if (isTourActive) return;
       if (!isOnboardingTourCompleted()) return;
 
@@ -161,7 +201,7 @@ export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
       if (!tourId) return;
       if (isPageTourCompleted(tourId)) return;
 
-      void startPageTour(tourId);
+      void startPageTour(tourId, { requireTargets: true });
     },
     [isTourActive, startPageTour],
   );
@@ -171,12 +211,16 @@ export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
       showWorkloadRef.current = show;
       pageTourCtxRef.current.showWorkload = show;
 
+      if (!hasActiveOrgRef.current) return;
       if (globalAutoStartedRef.current) return;
       if (isOnboardingTourCompleted()) return;
-      globalAutoStartedRef.current = true;
 
       window.setTimeout(() => {
-        if (!isOnboardingTourCompleted()) void startGlobalTour();
+        if (!hasActiveOrgRef.current) return;
+        if (globalAutoStartedRef.current) return;
+        if (isOnboardingTourCompleted()) return;
+        globalAutoStartedRef.current = true;
+        void startGlobalTour({ requireTargets: true });
       }, AUTO_START_DELAY_MS);
     },
     [startGlobalTour],
@@ -194,6 +238,7 @@ export function OnboardingTourProvider({ children, setMobileOpen }: Props) {
     setPageTourContext,
     isTourActive,
     tryAutoStartPageTour,
+    hasActiveOrg,
   };
 
   return (

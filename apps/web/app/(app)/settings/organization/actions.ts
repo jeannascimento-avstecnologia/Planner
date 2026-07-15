@@ -24,7 +24,17 @@ import {
   type OrgInviteBatchInput,
 } from "@nextgen/contracts";
 
-export type OrgActionResult = { ok: true } | { ok: false; error: string };
+export type OrgActionResult = { ok: true; nextPath?: string } | { ok: false; error: string };
+
+function activeOrgCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  };
+}
 
 export type OrgInviteBatchItemResult = {
   email: string;
@@ -176,13 +186,27 @@ export async function deleteOrganizationAction(orgId: string): Promise<OrgAction
   const { error } = await supabase.rpc("delete_organization", { p_org: parsed.data.orgId });
   if (error) return { ok: false, error: mapOrgRpcError(error.message) };
 
+  const { data: remainingMemberships } = await supabase
+    .from("memberships")
+    .select("org_id")
+    .eq("user_id", access.userId)
+    .order("created_at", { ascending: true });
+  const remainingOrgIds = (remainingMemberships ?? []).map((m) => m.org_id);
+
   const cookieStore = await cookies();
-  if (cookieStore.get(ACTIVE_ORG_COOKIE)?.value === parsed.data.orgId) {
+  let nextPath = "/boards";
+  if (remainingOrgIds.length === 0) {
     cookieStore.delete(ACTIVE_ORG_COOKIE);
+  } else {
+    const previous = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
+    const nextOrgId =
+      previous && remainingOrgIds.includes(previous) ? previous : remainingOrgIds[0];
+    cookieStore.set(ACTIVE_ORG_COOKIE, nextOrgId, activeOrgCookieOptions());
+    nextPath = "/settings/organizations";
   }
 
   revalidateOrgIdentity(parsed.data.orgId);
-  return { ok: true };
+  return { ok: true, nextPath };
 }
 
 export async function setOrgMultiOwnerAction(input: {

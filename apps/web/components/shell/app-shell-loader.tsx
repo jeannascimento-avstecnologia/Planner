@@ -18,16 +18,18 @@ function NotificationFallback() {
 
 const getShellData = cache(async (userId: string) => {
   const orgId = await getActiveOrgIdCached();
-  return loadShellDataCached(userId, orgId);
+  const shellData = await loadShellDataCached(userId, orgId);
+  return { shellData, activeOrgId: orgId };
 });
 
 export async function AppShellLoader({ userId, userEmail, children }: Props) {
-  const shellData = await getShellData(userId);
+  const { shellData, activeOrgId } = await getShellData(userId);
 
   return (
     <AppShellStreaming
       userEmail={userEmail}
       shellData={shellData}
+      hasActiveOrg={Boolean(activeOrgId)}
       notificationsSlot={
         <Suspense fallback={<NotificationFallback />}>
           <NotificationsLoader userId={userId} variant="topbar" />

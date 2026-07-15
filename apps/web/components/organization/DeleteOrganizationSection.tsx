@@ -34,7 +34,7 @@ export function DeleteOrganizationSection({ orgId, orgName, onDeleted }: Props) 
       setConfirmName("");
       appToast.success("Organizacao excluida");
       onDeleted?.();
-      router.push("/settings/organizations");
+      router.push(res.nextPath ?? "/boards");
       router.refresh();
     });
   }

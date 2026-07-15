@@ -53,6 +53,7 @@ Complementa multi-tenancy (`organizations` + `memberships`) com operacoes privil
 |-----------|-----------|
 | Cookie `ngp:active-org` | UUID org ativa; validado contra memberships |
 | `setActiveOrgAction` | Server action define cookie |
+| Pos-`delete_organization` | Limpa cookie da org apagada; se restam orgs, seta a proxima; UI: hub orgs ou `/boards` (0 orgs). Layout settings: sem org autenticado → `/boards`, nao `/login` |
 
 ## Convite org
 

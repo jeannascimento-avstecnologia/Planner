@@ -48,7 +48,14 @@ Copy com tom de produto premium (beneficio + nomes reais de ferramentas), deriva
 
 Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 
-**Disparo automatico:** ~600 ms apos navegar, somente se tour global completo e tour da pagina incompleto.
+**Disparo automatico:** ~600 ms–1,5 s apos navegar, somente se:
+1. existe **organizacao ativa** (`ngp:active-org` / membership valida);
+2. tour global completo (para page tours);
+3. tour da pagina incompleto no `localStorage`.
+
+**Sem organizacao ativa:** nenhum auto-start (global nem pagina). Reabrir manual via `/help` ou botao do header permanece permitido.
+
+**Anti-loop:** fechar (X), Esc, Concluir ou `destroy` do Driver **sempre** grava completed. Se alvos `data-tour` nao existirem no DOM, nao iniciar auto-start (evitar overlay quebrado + reabertura infinita).
 
 ## Diretrizes de copy
 
@@ -92,14 +99,17 @@ Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 
 ## Criterios de aceite
 
-- [ ] Tour global abre na 1a visita; copy premium (nao generico)
-- [ ] Tour por pagina abre na 1a visita apos global
+- [ ] Tour global abre na 1a visita **com org ativa**; copy premium (nao generico)
+- [ ] Tour por pagina abre na 1a visita apos global **com org ativa**
+- [ ] **Sem org ativa: auto-start nao dispara** (global nem pagina)
+- [ ] Fechar/dismiss/concluir **persiste**; reload da mesma rota **nao** reabre automaticamente
+- [ ] Sem alvos no DOM: auto-start nao inicia (sem loop)
 - [ ] Tours nao empilham (fila unica)
 - [ ] `/boards` ≠ `/boards/[id]` (tours distintos)
 - [ ] Carga omitida sem `showWorkload`
 - [ ] Botao **Ver tour desta pagina** nas rotas com tour
 - [ ] `/help` lista tours por area
-- [ ] E2E `onboarding-tour.spec.ts` e `page-tour.spec.ts` verdes
+- [ ] E2E `onboarding-tour.spec.ts` e `page-tour.spec.ts` verdes (incluir caso sem org + persistencia dismiss)
 
 ## Matriz Spec → Codigo → Teste
 
@@ -112,4 +122,5 @@ Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 | Storage pagina | `page-tour-storage.ts` | E2E page tour |
 | Motor | `tour-driver.ts` | E2E popover |
 | Auto page | `page-tour-auto-trigger.tsx` | E2E navegacao |
+| Gate org + alvos | `onboarding-tour-provider.tsx`, `tour-targets-ready.ts` | `tour-targets-ready.test.ts` + E2E sem org |
 | Reabrir | `page-tour-trigger.tsx`, `help-center.tsx` | E2E botao |
