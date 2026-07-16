@@ -37,6 +37,12 @@ describe("isKanbanVisibleCard", () => {
     );
   });
 
+  it("shows tree +Filho organogram child (null parent_id + tree edge)", () => {
+    expect(
+      isKanbanVisibleCard(stub({ id: "child", parent_id: null, treeParentIds: ["parent"] })),
+    ).toBe(true);
+  });
+
   it("hides Kanban subtarefas regardless of treeParentIds seed/union", () => {
     expect(
       isKanbanVisibleCard(stub({ id: "s", parent_id: "p", treeParentIds: ["p"] })),

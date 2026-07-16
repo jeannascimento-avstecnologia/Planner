@@ -180,8 +180,9 @@ function TreeCardFlowNode({ data, selected }: NodeProps) {
       <div className="border-b border-board-border/60 px-2 py-1.5">
         <button
           type="button"
-          className="w-full truncate text-left text-sm font-medium text-aurora-fg hover:underline"
+          className="nodrag nopan w-full truncate text-left text-sm font-medium text-aurora-fg hover:underline"
           onClick={() => d.onSelectCard(d.card.id)}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {d.card.title}
         </button>
@@ -230,23 +231,19 @@ function TreeCardFlowNode({ data, selected }: NodeProps) {
           </div>
         ) : null}
       </div>
-      <div className="px-2 py-1.5">
-        <ChecklistEditor
-          cardId={d.card.id}
-          boardId={d.boardId}
-          items={d.card.checklistItems}
-          canEdit={d.canEdit}
-          compact
-        />
-      </div>
+      {/* CTA acima do checklist e longe do handle de output (evita “sumir” sob o handle / drag). */}
       {d.canEdit && canAdd ? (
-        <div className="border-t border-board-border/40 px-2 py-1">
+        <div
+          className="nodrag nopan border-b border-board-border/40 px-2 py-1.5"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {creating ? (
             <form
               className="flex gap-1"
               data-testid={`tree-create-child-${d.card.id}`}
               onSubmit={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const t = childTitle.trim();
                 if (!t) return;
                 d.onCreateChild(d.card, t);
@@ -257,9 +254,10 @@ function TreeCardFlowNode({ data, selected }: NodeProps) {
               <input
                 value={childTitle}
                 onChange={(e) => setChildTitle(e.target.value)}
-                placeholder="Novo filho"
+                placeholder="Novo card filho"
                 className={`min-w-0 flex-1 ${inputBoardClassSm}`}
                 data-testid="create-child-title"
+                autoFocus
               />
               <button type="submit" className={btnBoardSecondary}>
                 Criar
@@ -269,14 +267,28 @@ function TreeCardFlowNode({ data, selected }: NodeProps) {
             <button
               type="button"
               data-testid={`tree-add-child-${d.card.id}`}
-              className="inline-flex items-center gap-0.5 text-[11px] text-aurora-muted hover:text-aurora-fg"
-              onClick={() => setCreating(true)}
+              className={`inline-flex w-full items-center justify-center gap-1 ${btnBoardSecondary} text-[11px]`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCreating(true);
+              }}
             >
-              <Plus className="h-3 w-3" /> Filho
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar card Filho
             </button>
           )}
         </div>
       ) : null}
+      <div className="px-2 py-1.5 pb-3">
+        <ChecklistEditor
+          cardId={d.card.id}
+          boardId={d.boardId}
+          items={d.card.checklistItems}
+          canEdit={d.canEdit}
+          compact
+          collapsed
+        />
+      </div>
       {canConnectOut ? (
         <Handle
           type="source"
@@ -719,27 +731,28 @@ function TreeFlowInner({
       const fd = new FormData();
       fd.set("boardId", boardId);
       fd.set("columnId", parent.column_id);
-      // Sem parentId: card raiz no Kanban; hierarquia só via card_tree_edges.
+      // Sem parentId: card raiz em Kanban/tabela/calendário; hierarquia só via card_tree_edges.
       fd.set("title", title);
+      const key = boardCardsQueryKey(boardId);
       startTransition(async () => {
-        const result = await createCard(fd);
-        if ("error" in result) {
-          appToast.error(result.error);
-          return;
-        }
-        const linked = await linkTreeEdgeAction({
-          boardId,
-          parentCardId: parent.id,
-          childCardId: result.cardId,
-        });
-        if (!linked.ok) {
-          appToast.error(linked.error);
-          void queryClient.invalidateQueries({ queryKey: boardCardsQueryKey(boardId) });
-          return;
-        }
-        const key = boardCardsQueryKey(boardId);
-        const previous = queryClient.getQueryData<BoardCard[]>(key) ?? [];
-        if (!previous.some((c) => c.id === result.cardId)) {
+        try {
+          const result = await createCard(fd);
+          if ("error" in result) {
+            appToast.error(result.error);
+            return;
+          }
+          const linked = await linkTreeEdgeAction({
+            boardId,
+            parentCardId: parent.id,
+            childCardId: result.cardId,
+          });
+          if (!linked.ok) {
+            appToast.error(linked.error);
+            // Card raiz já existe — invalida para aparecer nas outras views mesmo sem aresta.
+            void queryClient.invalidateQueries({ queryKey: key });
+            return;
+          }
+          const previous = queryClient.getQueryData<BoardCard[]>(key) ?? [];
           const stub: BoardCard = {
             id: result.cardId,
             column_id: parent.column_id,
@@ -765,16 +778,29 @@ function TreeFlowInner({
             tiflux_ticket_id: null,
             tiflux_canceled_tickets: [],
           };
-          queryClient.setQueryData(key, [...previous, stub]);
-        } else {
-          queryClient.setQueryData(key, applyTreeLinkToList(previous, result.cardId, parent.id));
+          const withoutDup = previous.filter((c) => c.id !== result.cardId);
+          queryClient.setQueryData(
+            key,
+            applyTreeLinkToList([...withoutDup, stub], result.cardId, parent.id),
+          );
+          appToast.success("Card criado");
+          void queryClient.invalidateQueries({ queryKey: key });
+        } catch {
+          appToast.error(
+            "Falha ao criar card (acao do servidor desatualizada). Recarregue a pagina e tente de novo.",
+          );
         }
-        appToast.success("Card criado");
-        void queryClient.invalidateQueries({ queryKey: key });
       });
     },
     [boardId, queryClient],
   );
+
+  /** Ref estável: node.data do React Flow nao atualiza quando so o callback muda (topologyKey). */
+  const onCreateChildRef = useRef(onCreateChild);
+  onCreateChildRef.current = onCreateChild;
+  const stableCreateChild = useCallback((parent: BoardCard, title: string) => {
+    onCreateChildRef.current(parent, title);
+  }, []);
 
   const initial = useMemo(() => {
     const source = visibleCards;
@@ -788,7 +814,7 @@ function TreeFlowInner({
       tagsById,
       allCards,
       onSelectCard: stableSelectCard,
-      onCreateChild,
+      onCreateChild: stableCreateChild,
       highlight,
       onRemoveEdge: (edgeId) => {
         if (removeEdgeByIdRef.current) removeEdgeByIdRef.current(edgeId);
@@ -806,7 +832,7 @@ function TreeFlowInner({
     profilesById,
     tagsById,
     stableSelectCard,
-    onCreateChild,
+    stableCreateChild,
     highlight,
   ]);
 
@@ -1062,6 +1088,7 @@ function TreeFlowInner({
   return (
     <div
       data-testid="board-tree-view"
+      data-tour="board-tree-view"
       data-org-chart-canvas=""
       className="flex h-[min(70vh,720px)] min-h-[420px] flex-col gap-2"
     >
@@ -1106,8 +1133,11 @@ function TreeFlowInner({
               Remover conexao
             </button>
           ) : (
-            <span className="text-[11px] text-aurora-muted">
-              Clique na seta (ou duplo clique) para remover · pan = botao do meio/direito
+            <span className="max-w-xl text-[11px] leading-snug text-aurora-muted">
+              Como usar: scroll para zoom · botao do meio ou direito para mover o canvas ·
+              arraste do ponto inferior de um card ate o superior de outro para conectar ·
+              selecione a conexao e use Remover (ou Delete) · Adicionar card Filho cria um card
+              na mesma coluna, visivel tambem no Kanban, Tabela e Calendario.
             </span>
           )}
         </div>

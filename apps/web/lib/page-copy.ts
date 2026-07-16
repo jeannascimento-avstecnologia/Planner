@@ -27,7 +27,7 @@ export const PAGE_COPY = {
   },
   boardDashboard: {
     titlePrefix: "Dashboard",
-    description: "Indicadores de fluxo, throughput e gargalos do projeto.",
+    description: "Indicadores de fluxo, ritmo de entrega e gargalos do projeto.",
   },
   settingsShell: {
     title: "Configuracoes",

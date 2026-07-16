@@ -18,6 +18,8 @@ test.describe("Board Tree View", () => {
     const rootId = rootTestId?.replace("tree-node-", "") ?? "";
     expect(rootId).toBeTruthy();
 
+    await expect(page.getByTestId(`tree-add-child-${rootId}`)).toBeVisible();
+    await expect(page.getByTestId(`tree-add-child-${rootId}`)).toHaveText(/Adicionar card Filho/);
     await page.getByTestId(`tree-add-child-${rootId}`).click();
     const childTitle = `E2E child ${Date.now()}`;
     await page.getByTestId("create-child-title").fill(childTitle);

@@ -27,7 +27,7 @@ const BoardTimelineView = dynamic(
 );
 const BoardTreeView = dynamic(
   () =>
-    import(/* webpackChunkName: "board-tree-flow-zoom-v7" */ "./board-tree-flow-zoom-v7").then(
+    import(/* webpackChunkName: "board-tree-flow-zoom-v8" */ "./board-tree-flow-zoom-v7").then(
       (m) => ({ default: m.BoardTreeView }),
     ),
   { ssr: false, loading: () => <BoardSkeleton /> },

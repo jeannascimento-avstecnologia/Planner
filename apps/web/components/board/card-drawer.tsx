@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import type { CardPriority } from "@nextgen/contracts";
-import { deleteCard, getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/card-actions";
+import { getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/card-actions";
 import { inputBoardClassSm, btnBoardPrimarySm, btnBoardSecondary, btnDanger } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
+import { boardCardsQueryKey } from "@/lib/query/board-cards-keys";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AuroraDrawer } from "@/components/ui/aurora-drawer";
 import { stageCardStyle } from "@/lib/color-utils";
@@ -54,6 +56,7 @@ export function CardDrawer({
   onOpenTifluxLink,
   onClose,
 }: Props) {
+  const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -112,17 +115,36 @@ export function CardDrawer({
 
   function confirmDelete() {
     setDeleteError(null);
-    const fd = new FormData();
-    fd.set("cardId", card.id);
-    fd.set("boardId", boardId);
+    const key = boardCardsQueryKey(boardId);
+    const previous = queryClient.getQueryData<BoardCard[]>(key);
+    // Optimistic: some da arvore/kanban imediatamente
+    queryClient.setQueryData<BoardCard[]>(key, (curr) =>
+      (curr ?? []).filter((c) => c.id !== card.id),
+    );
     startTransition(async () => {
-      const result = await deleteCard(fd);
-      if ("error" in result) {
-        setDeleteError(result.error);
-        return;
+      try {
+        const res = await fetch(`/api/boards/${boardId}/cards/${card.id}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        });
+        const body = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+        if (!res.ok) {
+          if (previous) queryClient.setQueryData(key, previous);
+          const err = body.error ?? "Nao foi possivel excluir o card.";
+          setDeleteError(err);
+          appToast.error(err);
+          return;
+        }
+        setDeleteOpen(false);
+        onClose();
+        appToast.success("Card excluido");
+        void queryClient.invalidateQueries({ queryKey: key });
+      } catch {
+        if (previous) queryClient.setQueryData(key, previous);
+        const msg = "Nao foi possivel excluir o card.";
+        setDeleteError(msg);
+        appToast.error(msg);
       }
-      setDeleteOpen(false);
-      onClose();
     });
   }
 

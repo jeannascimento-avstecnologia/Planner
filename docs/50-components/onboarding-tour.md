@@ -41,10 +41,10 @@ Copy com tom de produto premium (beneficio + nomes reais de ferramentas), deriva
 | `projects` | `/projects` | Header, filtros, grade, painel lateral |
 | `calendar` | `/calendar` | Header, iCal, grade mensal, lista |
 | `plan` | `/plan` | Header, legenda, toolbar, sidebar, grade |
-| `workload` | `/workload` | Header, modo semana/15d, tabela/heatmap *(so gestores)* |
+| `workload` | `/workload` | Header, modo semana/15d, tabela/mapa de cores *(so gestores)* |
 | `settings` | `/settings` (hub) | Header, org switcher, cards org/admin |
 | `help` | `/help` | Busca/indice, categorias, tour global |
-| `board-kanban` | `/boards/[boardId]` (sem subpath) | Header, visoes, filtros, colunas, acoes |
+| `board-kanban` | `/boards/[boardId]` (sem subpath) | Header, visoes, guia Arvore, filtros, colunas, acoes |
 
 Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 
@@ -60,8 +60,12 @@ Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 
 ## Diretrizes de copy
 
-- Segunda pessoa, confiante; titulo = outcome; descricao = 2–3 frases com ferramentas reais.
-- Evitar "Use Proximo", "clique aqui", jargao vazio.
+- Segunda pessoa, confiante; titulo = outcome; descricao = **1–2 frases curtas** (ideal: uma linha), com ferramentas reais.
+- Evitar "Use Proximo", "clique aqui", jargao vazio e filler.
+- Preferir copy dedicada nos tours; nao concatenar `help-content` inteiro no popover.
+- **Tom didatico para usuario leigo (PT-BR):** descrever o que a pessoa ve/faz na tela; frases curtas e orientadas a acao.
+- **Proibido em copy de usuario** (tour, help e `PAGE_COPY`): jargao tecnico/ingles de UX — ex.: Breadcrumb, tile, drawer, swimlanes, heatmap, drilldown, handles, pan, chips, grip, chunk, Realtime, optimistic, RLS, RPC, SSR, MIME, `due_date`, WIP, throughput.
+- **Preferir:** caminho de volta, link Voltar, nome do projeto no topo, barra superior, cartao do projeto, quadro (Kanban), painel do card, faixas por responsavel, mapa de cores, detalhes, icone de arrastar, pontos de conexao.
 
 ## Componentes
 
@@ -111,6 +115,7 @@ Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 - [ ] Carga omitida sem `showWorkload`
 - [ ] Botao **Ver tour desta pagina** nas rotas com tour
 - [ ] `/help` lista tours por area
+- [ ] Copy do tour (global + pagina), help vinculada e `PAGE_COPY` **sem jargao** (breadcrumb, tile, drawer, etc.); tom didatico para leigo
 - [ ] E2E `onboarding-tour.spec.ts` e `page-tour.spec.ts` verdes (incluir caso sem org + persistencia dismiss)
 
 ## Matriz Spec → Codigo → Teste
