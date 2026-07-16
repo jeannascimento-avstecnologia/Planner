@@ -13,6 +13,9 @@ export const CARD_PERMISSION_FIELDS = [
   "assignee_id",
   "column_id",
   "estimated_hours",
+  "parent_id",
+  "tree_x",
+  "tree_y",
 ] as const;
 
 export type CardPermissionField = (typeof CARD_PERMISSION_FIELDS)[number];
@@ -42,6 +45,9 @@ export const cardFieldsPatchSchema = z
     assignee_id: z.string().uuid().nullable().optional(),
     column_id: z.string().uuid().optional(),
     estimated_hours: z.number().min(0).max(999.99).nullable().optional(),
+    parent_id: z.string().uuid().nullable().optional(),
+    tree_x: z.number().finite().min(-1_000_000).max(1_000_000).nullable().optional(),
+    tree_y: z.number().finite().min(-1_000_000).max(1_000_000).nullable().optional(),
   })
   .strict();
 

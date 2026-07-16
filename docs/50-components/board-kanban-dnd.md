@@ -4,11 +4,13 @@
 
 Arrastar cards entre colunas no modo Kanban padrao (colunas horizontais). Nao cobre swimlanes "Agrupar por responsavel".
 
+Estado: TanStack Query (`board:{id}:cards`) + Realtime invalidate — ver [board-cards-query-realtime.md](./board-cards-query-realtime.md). Move via Shared Kernel (`card-actions.moveCard`).
+
 ## Stack
 
 - `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
 - Posicao: `fractional-indexing` (`generateKeyBetween`) — 1 write O(1) por movimento
-- Server action `moveCard` em `boards/[boardId]/actions.ts`
+- Server action `moveCard` em `boards/[boardId]/card-actions.ts` (kernel: `lib/card-kernel`)
 
 ## Comportamento
 
@@ -31,8 +33,8 @@ Arrastar cards entre colunas no modo Kanban padrao (colunas horizontais). Nao co
 | Requisito | Codigo | Teste |
 |-----------|--------|-------|
 | Drag inter-coluna | `board-kanban-view.tsx`, `kanban-column.tsx` | `e2e/board-kanban-dnd.spec.ts` |
-| moveCard action | `actions.ts`, `schemas.ts` | typecheck |
-| Evento moved | `actions.ts` emitEvent | pgTAP (existente RLS cards_write) |
+| moveCard action | `card-actions.ts` → `lib/card-kernel`, `schemas.ts` | typecheck |
+| Evento moved | trigger DB / RLS cards_write | pgTAP (existente) |
 
 ## Codigo
 
@@ -40,4 +42,6 @@ Arrastar cards entre colunas no modo Kanban padrao (colunas horizontais). Nao co
 - `apps/web/components/board/kanban-column.tsx`
 - `apps/web/components/board/sortable-card-tile.tsx`
 - `apps/web/lib/fractional.ts`
-- `apps/web/app/(app)/boards/[boardId]/actions.ts`
+- `apps/web/app/(app)/boards/[boardId]/card-actions.ts`
+- `apps/web/lib/card-kernel/`
+- Spec: [shared-kernel-card.md](./shared-kernel-card.md)

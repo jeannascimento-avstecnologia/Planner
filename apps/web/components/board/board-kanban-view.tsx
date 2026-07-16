@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -13,11 +13,15 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { moveCard } from "@/app/(app)/boards/[boardId]/actions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { moveCard } from "@/app/(app)/boards/[boardId]/card-actions";
 import { positionBetween } from "@/lib/fractional";
+import { applyCardMoveToList, shouldIgnoreRemoteCardsSync } from "@/lib/query/board-cards-cache";
+import { boardCardsQueryKey } from "@/lib/query/board-cards-keys";
 import { appToast } from "@/lib/toast";
 import { BoardCardTile } from "./board-card-tile";
 import { KanbanColumn, NewColumnSection } from "./kanban-column";
+import { countChildrenProgress } from "@/lib/card-tree";
 import type { BoardCard, ColumnRow, ProfileRow, StageRow, TagRow } from "./types";
 
 type Props = {
@@ -25,6 +29,7 @@ type Props = {
   columns: ColumnRow[];
   stagesById: Map<string, StageRow>;
   cardsByColumn: Map<string, BoardCard[]>;
+  allCards: BoardCard[];
   swimlanes: { key: string; label: string; cards: BoardCard[] }[] | null;
   groupByAssignee: boolean;
   tags: TagRow[];
@@ -43,6 +48,9 @@ function stubCard(cardId: string, title: string, columnId: string): BoardCard {
     id: cardId,
     column_id: columnId,
     position: "zzzzzzzz",
+    parent_id: null,
+    tree_x: null,
+    tree_y: null,
     title,
     description: null,
     priority: "medium",
@@ -55,6 +63,8 @@ function stubCard(cardId: string, title: string, columnId: string): BoardCard {
     completed_at: null,
     stage_id: null,
     tagIds: [],
+    checklistItems: [],
+    treeParentIds: [],
     tiflux_ticket_number: null,
     tiflux_ticket_id: null,
     tiflux_canceled_tickets: [],
@@ -111,6 +121,7 @@ export function BoardKanbanView({
   columns,
   stagesById,
   cardsByColumn,
+  allCards,
   swimlanes,
   groupByAssignee,
   tags,
@@ -123,21 +134,61 @@ export function BoardKanbanView({
   onOpenTifluxCreate,
   onOpenTifluxLink,
 }: Props) {
-  const [pending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [extraCards, setExtraCards] = useState<Map<string, BoardCard>>(() => new Map());
   const [items, setItems] = useState<Record<string, string[]>>(() =>
     buildItemsMap(columns, cardsByColumn),
   );
   const itemsRef = useRef(items);
-  const movingRef = useRef(false);
+  const isDraggingRef = useRef(false);
+
+  const moveMutation = useMutation({
+    mutationFn: async (fd: FormData) => {
+      const result = await moveCard(fd);
+      if ("error" in result) throw new Error(result.error);
+      return result;
+    },
+    onMutate: async (fd) => {
+      const cardId = String(fd.get("cardId") ?? "");
+      const columnId = String(fd.get("columnId") ?? "");
+      const position = String(fd.get("position") ?? "");
+      const key = boardCardsQueryKey(boardId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<BoardCard[]>(key);
+      if (previous && cardId && columnId && position) {
+        queryClient.setQueryData(key, applyCardMoveToList(previous, cardId, columnId, position));
+      }
+      return { previous };
+    },
+    onError: (err, _fd, ctx) => {
+      appToast.error(err instanceof Error ? err.message : "Falha ao mover card.");
+      if (ctx?.previous) {
+        queryClient.setQueryData(boardCardsQueryKey(boardId), ctx.previous);
+      }
+      const next = buildItemsMap(columns, cardsByColumn);
+      itemsRef.current = next;
+      setItems(next);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: boardCardsQueryKey(boardId) });
+    },
+  });
 
   useEffect(() => {
+    if (
+      shouldIgnoreRemoteCardsSync({
+        isDragging: isDraggingRef.current,
+        isMutating: moveMutation.isPending,
+      })
+    ) {
+      return;
+    }
     const next = buildItemsMap(columns, cardsByColumn);
     itemsRef.current = next;
     setItems(next);
     setExtraCards(new Map());
-  }, [columns, cardsByColumn]);
+  }, [columns, cardsByColumn, moveMutation.isPending]);
 
   const cardById = useMemo(() => {
     const map = new Map<string, BoardCard>();
@@ -163,7 +214,8 @@ export function BoardKanbanView({
       itemsRef.current = next;
       return next;
     });
-  }, []);
+    void queryClient.invalidateQueries({ queryKey: boardCardsQueryKey(boardId) });
+  }, [boardId, queryClient]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -172,6 +224,7 @@ export function BoardKanbanView({
   const activeCard = activeCardId ? (cardById.get(activeCardId) ?? null) : null;
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    isDraggingRef.current = true;
     setActiveCardId(String(event.active.id));
   }, []);
 
@@ -193,8 +246,9 @@ export function BoardKanbanView({
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      isDraggingRef.current = false;
       setActiveCardId(null);
-      if (!canEditBoard || movingRef.current) return;
+      if (!canEditBoard || moveMutation.isPending) return;
 
       const { active, over } = event;
       if (!over) return;
@@ -232,23 +286,9 @@ export function BoardKanbanView({
       fd.set("columnId", targetContainer);
       fd.set("position", newPosition);
 
-      movingRef.current = true;
-      startTransition(async () => {
-        try {
-          const result = await moveCard(fd);
-          if ("error" in result) {
-            appToast.error(result.error);
-            const next = buildItemsMap(columns, cardsByColumn);
-            itemsRef.current = next;
-            setItems(next);
-            return;
-          }
-        } finally {
-          movingRef.current = false;
-        }
-      });
+      moveMutation.mutate(fd);
     },
-    [boardId, canEditBoard, cardById, cardsByColumn, columns],
+    [boardId, canEditBoard, cardById, columns, moveMutation],
   );
 
   if (groupByAssignee && swimlanes) {
@@ -260,7 +300,9 @@ export function BoardKanbanView({
               {lane.label} ({lane.cards.length})
             </h3>
             <div className="flex flex-wrap gap-2">
-              {lane.cards.map((card) => (
+              {lane.cards.map((card) => {
+                  const progress = countChildrenProgress(allCards, card.id);
+                  return (
                 <div key={card.id} className="w-72">
                   <BoardCardTile
                     card={card}
@@ -270,12 +312,14 @@ export function BoardKanbanView({
                     profilesById={profilesById}
                     tifluxEnabled={tifluxEnabled}
                     readOnlyTiflux={readOnlyTiflux}
+                    subtasksProgress={progress.total > 0 ? progress : null}
                     onSelect={onSelectCard}
                     onOpenTifluxCreate={onOpenTifluxCreate}
                     onOpenTifluxLink={onOpenTifluxLink}
                   />
                 </div>
-              ))}
+                  );
+                })}
             </div>
           </section>
         ))}
@@ -285,7 +329,7 @@ export function BoardKanbanView({
 
   return (
     <>
-      {pending ? (
+      {moveMutation.isPending ? (
         <p className="pointer-events-none fixed bottom-4 right-4 z-50 rounded-lg bg-board-surface px-3 py-1.5 text-xs text-aurora-muted shadow-lg" aria-live="polite">
           Salvando...
         </p>
@@ -297,6 +341,7 @@ export function BoardKanbanView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
+        isDraggingRef.current = false;
         setActiveCardId(null);
         const next = buildItemsMap(columns, cardsByColumn);
         itemsRef.current = next;
@@ -312,6 +357,7 @@ export function BoardKanbanView({
             columns={columns}
             cardIds={items[col.id] ?? []}
             cardsById={cardById}
+            allCards={allCards}
             stagesById={stagesById}
             tags={tags}
             profilesById={profilesById}
@@ -338,6 +384,10 @@ export function BoardKanbanView({
               profilesById={profilesById}
               tifluxEnabled={tifluxEnabled}
               readOnlyTiflux={readOnlyTiflux}
+              subtasksProgress={(() => {
+                const p = countChildrenProgress(allCards, activeCard.id);
+                return p.total > 0 ? p : null;
+              })()}
               onSelect={() => {}}
               onOpenTifluxCreate={() => {}}
               onOpenTifluxLink={() => {}}

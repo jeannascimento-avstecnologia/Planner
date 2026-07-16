@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import type { CardPriority } from "@nextgen/contracts";
-import { deleteCard, getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/actions";
+import { deleteCard, getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/card-actions";
 import { inputBoardClassSm, btnBoardPrimarySm, btnBoardSecondary, btnDanger } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -16,6 +16,9 @@ import { StageBadge } from "./badges";
 import { TifluxTicketBadges } from "./tiflux-ticket-badges";
 import { CardPlanWorkSection } from "@/components/plan/card-plan-work-section";
 import { CardDrawerReadOnly } from "./card-drawer-readonly";
+import { CreateCardForm } from "./create-card-form";
+import { ChecklistEditor } from "./checklist-editor";
+import { countDescendants, wouldExceedMaxDepth } from "@/lib/card-tree";
 import { resolveCardStage, isCardOverdue, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type Props = {
@@ -26,6 +29,7 @@ type Props = {
   stages: StageRow[];
   tags: TagRow[];
   members: ProfileRow[];
+  allCards?: BoardCard[];
   isOrgAdmin?: boolean;
   readOnly?: boolean;
   tifluxEnabled?: boolean;
@@ -42,6 +46,7 @@ export function CardDrawer({
   stages,
   tags,
   members,
+  allCards = [],
   isOrgAdmin = false,
   readOnly = false,
   tifluxEnabled = false,
@@ -68,14 +73,29 @@ export function CardDrawer({
     };
   }, [readOnly, deleteOpen, card.id, boardId]);
 
+  const children = useMemo(
+    () =>
+      allCards
+        .filter((c) => c.parent_id === card.id)
+        .sort((a, b) => a.position.localeCompare(b.position)),
+    [allCards, card.id],
+  );
+  const branchDescendants = useMemo(
+    () => countDescendants(allCards, card.id),
+    [allCards, card.id],
+  );
+  const canAddChild = !wouldExceedMaxDepth(allCards, card.id);
+
   if (readOnly) {
     return (
       <CardDrawerReadOnly
         card={card}
+        boardId={boardId}
         columns={columns}
         stages={stages}
         tags={tags}
         members={members}
+        allCards={allCards}
         tifluxEnabled={tifluxEnabled}
         onClose={onClose}
       />
@@ -285,6 +305,63 @@ export function CardDrawer({
         </form>
 
         <div className="flex flex-col gap-3 px-4 pb-4">
+          <div data-testid="drawer-subtasks">
+            <p className="mb-1 text-xs font-medium text-aurora-muted">
+              Subtarefas (cards filhos)
+            </p>
+            <p className="mb-2 text-[11px] leading-snug text-aurora-muted">
+              Cards vinculados via hierarquia — distintos dos to-dos (checklist) abaixo.
+            </p>
+            <div
+              className="mb-2 flex flex-wrap gap-2 text-[11px] text-aurora-muted"
+              data-testid="drawer-tree-counts"
+            >
+              <span data-testid="drawer-direct-children-count">
+                Filhos diretos: {children.length}
+              </span>
+              <span data-testid="drawer-branch-descendants-count">
+                No ramo: {branchDescendants}
+              </span>
+            </div>
+            {children.length === 0 ? (
+              <p className="mb-2 text-xs text-aurora-muted">Nenhuma subtarefa.</p>
+            ) : (
+              <ul className="mb-2 space-y-1">
+                {children.map((child) => (
+                  <li
+                    key={child.id}
+                    className="rounded-md border border-board-border px-2 py-1.5 text-sm"
+                    data-testid={`drawer-subtask-${child.id}`}
+                  >
+                    {child.title}
+                    {child.completed_at ? (
+                      <span className="ml-2 text-xs text-aurora-muted">concluida</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canAddChild ? (
+              <CreateCardForm
+                boardId={boardId}
+                columnId={card.column_id}
+                parentId={card.id}
+                compact
+                onCardCreated={() => appToast.success("Subtarefa criada")}
+              />
+            ) : (
+              <p className="text-xs text-aurora-muted">Profundidade maxima atingida.</p>
+            )}
+          </div>
+
+          <div data-testid="drawer-checklist">
+            <p className="mb-1 text-xs font-medium text-aurora-muted">To-dos (checklist)</p>
+            <p className="mb-2 text-[11px] leading-snug text-aurora-muted">
+              Itens de checklist neste card — nao criam card filho na arvore.
+            </p>
+            <ChecklistEditor cardId={card.id} boardId={boardId} items={card.checklistItems} canEdit />
+          </div>
+
           {tifluxEnabled ? (
             <div>
               <p className="mb-1 text-xs font-medium text-aurora-muted">Tiflux</p>

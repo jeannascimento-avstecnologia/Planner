@@ -49,13 +49,14 @@ Copy com tom de produto premium (beneficio + nomes reais de ferramentas), deriva
 Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 
 **Disparo automatico:** ~600 ms–1,5 s apos navegar, somente se:
-1. existe **organizacao ativa** (`ngp:active-org` / membership valida);
+1. existe **organizacao ativa** (`hasActiveOrg` no shell / cookie membership);
 2. tour global completo (para page tours);
-3. tour da pagina incompleto no `localStorage`.
+3. tour da pagina incompleto no `localStorage`;
+4. **ready** = `hasActiveOrg && targetsPresent` — wait com retry/backoff (`waitForRequiredTourTargets`, max ~8 tentativas). Abort ou esgotamento **nao** marca completed.
 
-**Sem organizacao ativa:** nenhum auto-start (global nem pagina). Reabrir manual via `/help` ou botao do header permanece permitido.
+**Sem organizacao ativa:** nenhum auto-start (global nem pagina), inclusive na UI “Crie sua organizacao”. Apos create-org (`hasActiveOrg` false→true), reavalia e tenta de novo. Reabrir manual via `/help` ou botao do header permanece permitido.
 
-**Anti-loop:** fechar (X), Esc, Concluir ou `destroy` do Driver **sempre** grava completed. Se alvos `data-tour` nao existirem no DOM, nao iniciar auto-start (evitar overlay quebrado + reabertura infinita).
+**Anti-loop:** fechar (X), Esc, Concluir ou `destroy` do Driver **sempre** grava completed (so apos tour iniciado). Abort do wait/retry **nao** grava completed.
 
 ## Diretrizes de copy
 
@@ -103,7 +104,8 @@ Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 - [ ] Tour por pagina abre na 1a visita apos global **com org ativa**
 - [ ] **Sem org ativa: auto-start nao dispara** (global nem pagina)
 - [ ] Fechar/dismiss/concluir **persiste**; reload da mesma rota **nao** reabre automaticamente
-- [ ] Sem alvos no DOM: auto-start nao inicia (sem loop)
+- [ ] Sem alvos no DOM: wait/retry; abort **nao** marca completed; sem loop
+- [ ] Apos create-org: reavalia e sobe uma vez quando targets prontos
 - [ ] Tours nao empilham (fila unica)
 - [ ] `/boards` ≠ `/boards/[id]` (tours distintos)
 - [ ] Carga omitida sem `showWorkload`
@@ -122,5 +124,5 @@ Storage: `ngp:page-tour-completed:{tourId}` = `"1"`.
 | Storage pagina | `page-tour-storage.ts` | E2E page tour |
 | Motor | `tour-driver.ts` | E2E popover |
 | Auto page | `page-tour-auto-trigger.tsx` | E2E navegacao |
-| Gate org + alvos | `onboarding-tour-provider.tsx`, `tour-targets-ready.ts` | `tour-targets-ready.test.ts` + E2E sem org |
+| Gate org + alvos + retry | `onboarding-tour-provider.tsx`, `tour-targets-ready.ts` | `tour-targets-ready.test.ts` (ready/abort/backoff) + E2E |
 | Reabrir | `page-tour-trigger.tsx`, `help-center.tsx` | E2E botao |

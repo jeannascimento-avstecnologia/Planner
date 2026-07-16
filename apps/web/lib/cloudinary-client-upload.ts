@@ -12,9 +12,15 @@ type SignResponse = {
 
 type UploadResponse = { secure_url: string };
 
+export type CloudinaryUploadPurpose = "avatar" | "logo" | "upload" | "card";
+
 export async function uploadImageToCloudinary(
   file: File,
-  options: { folder?: string; orgId?: string },
+  options: {
+    orgId: string;
+    purpose?: CloudinaryUploadPurpose;
+    cardId?: string;
+  },
 ): Promise<string> {
   const supabase = createClient();
   const {
@@ -28,7 +34,11 @@ export async function uploadImageToCloudinary(
       "Content-Type": "application/json",
       Authorization: `Bearer ${session?.access_token ?? ""}`,
     },
-    body: JSON.stringify({ folder: options.folder, orgId: options.orgId }),
+    body: JSON.stringify({
+      orgId: options.orgId,
+      purpose: options.purpose ?? "upload",
+      cardId: options.cardId,
+    }),
   });
   if (!sigRes.ok) throw new Error("Falha ao assinar o upload.");
   const sig = (await sigRes.json()) as SignResponse;

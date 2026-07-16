@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Kanban já usa Realtime para cards. Fase B adiciona cursores ao vivo (Presence) e edição colaborativa CRDT em descrição/comentários (Yjs + TipTap).
+**Kanban cards** já têm Realtime **invalidate-only** via TanStack Query (ciclo Hardening P2 — ver [board-cards-query-realtime.md](./board-cards-query-realtime.md) + [realtime-board-cards.md](../40-api/realtime-board-cards.md)). Esta spec (épico **B**) adiciona cursores ao vivo (Presence) e edição colaborativa CRDT em descrição/comentários (Yjs + TipTap) — **não** substitui o contrato Query+invalidate do Kanban.
 
 ## Objetivos
 
@@ -19,7 +19,8 @@ Kanban já usa Realtime para cards. Fase B adiciona cursores ao vivo (Presence) 
 - Yjs no título do card (single-line LWW OK).
 - Histórico Git / blame por caractere.
 - Video/audio (fast-follow).
-- Multiplayer no Kanban drag (mantém Realtime postgres).
+- Multiplayer CRDT no Kanban drag (mantém Query + Realtime postgres invalidate; payload wide / Yjs no drag = ADR).
+- Substituir TanStack Query por Presence/Yjs como SoT de entidades card.
 
 ## Requisitos
 
@@ -64,6 +65,7 @@ Kanban já usa Realtime para cards. Fase B adiciona cursores ao vivo (Presence) 
 
 - [card-drawer.md](./card-drawer.md)
 - [realtime-presence.md](../40-api/realtime-presence.md)
+- [board-cards-query-realtime.md](./board-cards-query-realtime.md) (Kanban cards — fora do escopo B)
 
 ## Matriz Spec → Código → Teste
 

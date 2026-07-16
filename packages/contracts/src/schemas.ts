@@ -184,6 +184,7 @@ export const createCardInput = z.object({
   dueDate: z.string().optional(),
   startDate: z.string().optional(),
   assigneeId: uuid.optional(),
+  parentId: uuid.optional(),
 });
 export type CreateCardInput = z.infer<typeof createCardInput>;
 
@@ -212,8 +213,48 @@ export const moveCardInput = z.object({
   boardId: uuid,
   columnId: uuid,
   position: z.string().min(1).max(64),
+  /** Tree canvas: skip RSC/calendar revalidation (client Query is SoT). */
+  skipRevalidate: z.boolean().optional(),
 });
 export type MoveCardInput = z.infer<typeof moveCardInput>;
+
+export const createChecklistItemInput = z.object({
+  cardId: uuid,
+  title: z.string().min(1).max(200),
+});
+export type CreateChecklistItemInput = z.infer<typeof createChecklistItemInput>;
+
+export const toggleChecklistItemInput = z.object({
+  itemId: uuid,
+  done: z.boolean(),
+});
+export type ToggleChecklistItemInput = z.infer<typeof toggleChecklistItemInput>;
+
+export const reorderChecklistItemInput = z.object({
+  itemId: uuid,
+  position: z.string().min(1).max(64),
+});
+export type ReorderChecklistItemInput = z.infer<typeof reorderChecklistItemInput>;
+
+export const deleteChecklistItemInput = z.object({
+  itemId: uuid,
+});
+export type DeleteChecklistItemInput = z.infer<typeof deleteChecklistItemInput>;
+
+/** ADR-0014: organograma multi-pai */
+export const linkTreeEdgeInput = z.object({
+  boardId: uuid,
+  parentCardId: uuid,
+  childCardId: uuid,
+});
+export type LinkTreeEdgeInput = z.infer<typeof linkTreeEdgeInput>;
+
+export const unlinkTreeEdgeInput = z.object({
+  boardId: uuid,
+  parentCardId: uuid,
+  childCardId: uuid,
+});
+export type UnlinkTreeEdgeInput = z.infer<typeof unlinkTreeEdgeInput>;
 
 export const createTagInput = z.object({
   boardId: uuid,

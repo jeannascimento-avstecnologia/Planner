@@ -40,9 +40,11 @@ Thumbs.db
 # security
 docs/security_audit_log.md
 .cursor/debug-*.log
+.cursor/video-frames*/
 
 # notas/comandos locais (nao versionar)
 .local/
+docs/local/
 
 # pacotes de export para mentor
 exports/

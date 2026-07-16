@@ -2,24 +2,34 @@
 
 Runbook curto para desenvolvimento diário. **Um comando** sobe Supabase local (Docker) + Next.js na porta **3001**.
 
+**macOS / Linux / Windows:** `npm run dev:local` detecta o OS e roda `scripts/start-dev.sh` ou `scripts/start-dev.ps1`.
+
 ---
 
 ## Comando recomendado (1 linha)
 
 Na raiz do repo:
 
-```powershell
+```bash
 npm run dev:local
 ```
 
-**Pré-requisito:** Docker Desktop rodando.
+**Pré-requisitos:**
 
-O script [`scripts/start-dev.ps1`](../../scripts/start-dev.ps1):
+| Item | Notas |
+|------|--------|
+| Node >= 20 | `brew install node@20` (macOS) |
+| Docker Desktop | Engine running (icone verde) |
+| Supabase CLI | `brew install supabase/tap/supabase` |
+
+O script (`scripts/start-dev.sh` / `.ps1`):
 
 1. Sobe **Supabase local** (`supabase start`) — repara volume PG se necessário
 2. Garante seed (`admin@nextgen.dev` / `password123`)
 3. Gera `apps/web/.env.local` apontando para `http://127.0.0.1:54321`
 4. Sobe Next.js em http://localhost:3001
+
+Se Docker estiver indisponível, faz **fallback** para Supabase Cloud (requer `.env.supabase` ou projeto linkado).
 
 Abra: **http://localhost:3001/login**
 
@@ -34,23 +44,23 @@ Studio local: http://127.0.0.1:54323
 
 ## Passo a passo manual (se preferir)
 
-```powershell
-cd C:\Projetos\Planner
-npm run supabase:env          # só se .env.local não existir ou chaves mudaram
-cd apps\web
+```bash
+cd ~/Documents/Projetos/Planner   # ou path do repo
+npm run supabase:env              # Cloud; ou supabase:env:local com stack Docker
+cd apps/web
 npx next dev -p 3001
 ```
 
-**Use sempre a porta 3001** — alinha com `NEXT_PUBLIC_APP_URL` e com as Auth URLs do Supabase Dashboard.
+**Use sempre a porta 3001** — alinha com `NEXT_PUBLIC_APP_URL` e com as Auth URLs do Supabase.
 
 ---
 
 ## Docker com UI aberta mas Engine parado
 
-Se `docker ps` falhar com `dockerDesktopLinuxEngine`:
+Se `docker ps` falhar com `dockerDesktopLinuxEngine` (Windows) ou connection refused (macOS):
 
 1. Docker Desktop -> aguarde **Engine running** (verde)
-2. **Troubleshoot -> Restart**
+2. **Troubleshoot -> Restart** (ou reinicie o app no Mac)
 3. `docker ps` deve listar containers sem erro
 
 O script tenta iniciar o Docker Desktop automaticamente e, se falhar, usa **Supabase Cloud** com seed.
@@ -98,7 +108,7 @@ Segredos ficam no **Supabase Dashboard**, não no `.env` do app (login). Spec: [
 
 **Comando dev com OAuth Microsoft/Google:**
 
-```powershell
+```bash
 npm run dev:cloud
 ```
 
@@ -143,9 +153,9 @@ Teste: `http://localhost:3001/login` → **Continuar com Microsoft** (com `.env.
 
 ### Reset completo (último recurso)
 
-```powershell
-cd C:\Projetos\Planner
-Remove-Item -Path "apps\web\.next" -Recurse -Force -ErrorAction SilentlyContinue
+```bash
+cd ~/Documents/Projetos/Planner
+rm -rf apps/web/.next
 npm run supabase:env
 npm run dev:local
 ```
@@ -154,22 +164,38 @@ npm run dev:local
 
 ## O que NÃO fazer
 
-- Não rodar `supabase start` / Docker para dev frontend
-- Não abrir vários `npm run dev` ao mesmo tempo
+- Não abrir vários `npm run dev` / `dev:local` ao mesmo tempo
 - Não commitar `apps/web/.env.local` nem `.env.supabase`
-- Não acessar porta diferente da configurada no Supabase Auth
+- Não acessar porta diferente da configurada no Auth (`3001`)
+- Não misturar `.env.local` Cloud e Local sem regenerar (`supabase:env` vs `supabase:env:local`)
 
 ---
 
 ## Setup inicial (máquina nova)
 
-Só na primeira vez — detalhes em [supabase-cloud-dev.md](supabase-cloud-dev.md):
+### macOS (recomendado: Docker + Supabase local)
 
-```powershell
+```bash
+brew install node@20
+brew install supabase/tap/supabase
+# Docker Desktop: https://www.docker.com/products/docker-desktop/
+
+cd ~/Documents/Projetos/Planner
+npm install
+npm run dev:local
+```
+
+### Alternativa Cloud (sem Docker)
+
+Detalhes em [supabase-cloud-dev.md](supabase-cloud-dev.md):
+
+```bash
 npm install
 supabase login
-supabase link --project-ref mkpjtvpstdjfmidvruor
+supabase link --project-ref <SEU_PROJECT_REF>
 supabase db push
+# Seed: SQL Editor com supabase/seed.sql
+cp .env.supabase.example .env.supabase   # preencher chaves
 npm run supabase:env
-npm run dev:local
+npm run dev:cloud
 ```

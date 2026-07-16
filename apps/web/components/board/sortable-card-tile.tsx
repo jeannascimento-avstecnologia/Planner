@@ -14,6 +14,7 @@ type Props = {
   tifluxEnabled: boolean;
   readOnlyTiflux: boolean;
   dragDisabled: boolean;
+  subtasksProgress?: { done: number; total: number } | null;
   onSelect: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
   onOpenTifluxLink: (id: string) => void;

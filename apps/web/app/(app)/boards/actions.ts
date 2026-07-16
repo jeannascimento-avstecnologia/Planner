@@ -73,7 +73,7 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Nao autenticado." };
 
-  const rl = rateLimitAction(user.id, "createBoard", 20, 60_000);
+  const rl = await rateLimitAction(user.id, "createBoard", 20, 60_000);
   if (!rl.ok) return { ok: false, error: "Muitas requisicoes. Aguarde alguns segundos." };
 
   const targetOrgId = parsed.data.orgId ?? (await getActiveOrgId());

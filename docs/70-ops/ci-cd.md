@@ -24,6 +24,8 @@
 - **Supabase Cloud:** Postgres, Auth, RLS, Realtime, Edge Functions — **nao** sobe na VPS.
 - **Migrations:** `supabase db push` (manual ou workflow futuro); **nao** Prisma/container.
 - **Edge Functions:** `supabase functions deploy` + secrets no Dashboard.
+- **P0 automation-runner:** secret `CRON_SECRET` (Bearer ou `x-cron-secret`); ver [edge-fn-automation-runner.md](../40-api/edge-fn-automation-runner.md).
+- **P0 integracoes + checklist ops (P0.1–P0.3):** deteccao seed / rotacao encryption key / limpar `TIFLUX_API_TOKEN` / deploy claim outbox — [integrations-encryption-key-rotation.md](integrations-encryption-key-rotation.md) (§6).
 
 ### Alternativa (preview / legado)
 

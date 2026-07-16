@@ -18,7 +18,15 @@ export const TIFLUX_SERVICE_UNAVAILABLE_MSG =
 
 export const TIFLUX_NOT_CONFIGURED_MSG = "Integracao Tiflux nao configurada neste projeto.";
 
+/** Legacy global token — never in production (P0). Opt-in only for local/dev. */
+export function isLegacyTifluxEnvAllowed(
+  nodeEnv: string | undefined = process.env.NODE_ENV,
+): boolean {
+  return nodeEnv !== "production";
+}
+
 function legacyEnvCredentials(): BoardTifluxCredentials | null {
+  if (!isLegacyTifluxEnvAllowed()) return null;
   const legacy = process.env.TIFLUX_API_TOKEN;
   if (!legacy) return null;
   return {
@@ -39,8 +47,6 @@ export async function resolveBoardTifluxTokenDetailed(boardId: string): Promise<
 
   const { data, error } = await service.rpc("get_board_tiflux_token", { p_board: boardId });
   if (error) {
-    const legacy = legacyEnvCredentials();
-    if (legacy) return { ok: true, creds: legacy, source: "legacy_env" };
     return {
       ok: false,
       code: "rpc_error",

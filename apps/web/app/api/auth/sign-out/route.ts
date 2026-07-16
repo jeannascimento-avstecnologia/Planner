@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "origin_not_allowed" }, { status: 403 });
   }
 
-  const rateLimit = checkRateLimit(
-    `auth-sign-out:${getClientIp(request)}`,
+  const rateLimit = await checkRateLimit(
+    ["ip", getClientIp(request), "auth-sign-out"],
     SIGN_OUT_RATE_LIMIT,
     SIGN_OUT_WINDOW_MS,
   );

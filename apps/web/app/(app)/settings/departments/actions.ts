@@ -44,7 +44,7 @@ export async function createDepartmentAction(formData: FormData): Promise<Action
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Nao autenticado." };
 
-  const rl = rateLimitAction(user.id, "createDepartment", 20, 60_000);
+  const rl = await rateLimitAction(user.id, "createDepartment", 20, 60_000);
   if (!rl.ok) return { ok: false, error: "Muitas requisicoes. Aguarde alguns segundos." };
 
   const { error } = await supabase.rpc("create_department", {
@@ -112,7 +112,7 @@ export async function addDepartmentMemberAction(input: unknown): Promise<ActionR
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Nao autenticado." };
 
-  const rl = rateLimitAction(user.id, "addDepartmentMember", 30, 60_000);
+  const rl = await rateLimitAction(user.id, "addDepartmentMember", 30, 60_000);
   if (!rl.ok) return { ok: false, error: "Muitas requisicoes. Aguarde alguns segundos." };
 
   const { error } = await supabase.rpc("add_department_member", {

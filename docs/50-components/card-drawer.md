@@ -31,8 +31,14 @@ Painel lateral para editar card: titulo, descricao, prioridade, prazo, responsav
 - Server action `getCardDeleteImpact` retorna contagens antes da confirmacao.
 - `deleteCard` remove o card e revalida board + calendario.
 
+## Hierarquia (arvore)
+
+- Contagem de **filhos diretos** + **descendentes no ramo** (via `parent_id`).
+- Lista de subtarefas (filhos) + create child.
+
 ## Criterios de aceite
-- Abre ao clicar no card no Kanban.
+- Abre ao clicar no card no Kanban; na arvore, **duplo clique** no no.
+- Drawer mostra filhos diretos e total de atividades no ramo.
 - Salvar persiste via server action `updateCard` + `card_events`.
 - Tags orfaos nao aparecem no card ate selecao explicita no `+`.
 - Excluir exige confirmacao explicita citando subtarefas/dependencias afetadas.

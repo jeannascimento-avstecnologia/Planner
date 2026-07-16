@@ -109,6 +109,7 @@ test.describe("Boards / Kanban", () => {
     await expect(page.getByRole("button", { name: "Linha do tempo" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Calendario" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Tabela" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Arvore" })).toBeVisible();
   });
 
   test("filtro de marcador persiste ao trocar para tabela", async ({ page }) => {

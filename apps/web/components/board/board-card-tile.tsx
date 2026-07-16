@@ -23,6 +23,7 @@ type Props = {
   profilesById: Record<string, ProfileRow>;
   tifluxEnabled: boolean;
   readOnlyTiflux?: boolean;
+  subtasksProgress?: { done: number; total: number } | null;
   moveHandle?: CardMoveHandleProps;
   onSelect: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
@@ -37,6 +38,7 @@ export function BoardCardTile({
   profilesById,
   tifluxEnabled,
   readOnlyTiflux = false,
+  subtasksProgress = null,
   moveHandle,
   onSelect,
   onOpenTifluxCreate,
@@ -105,6 +107,14 @@ export function BoardCardTile({
             </span>
           ) : null}
           {assignee ? <span className="text-xs text-aurora-muted">{memberLabel(assignee)}</span> : null}
+          {subtasksProgress && subtasksProgress.total > 0 ? (
+            <span
+              className="rounded bg-board-accent-muted/60 px-1.5 py-0.5 text-xs text-aurora-muted"
+              data-testid={`subtasks-badge-${card.id}`}
+            >
+              {subtasksProgress.done}/{subtasksProgress.total}
+            </span>
+          ) : null}
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {card.tagIds.map((tid) => {

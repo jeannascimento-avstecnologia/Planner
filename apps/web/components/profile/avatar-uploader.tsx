@@ -9,13 +9,14 @@ type Props = {
   value: string;
   onChange: (url: string) => void;
   cloudName: string;
+  orgId: string | null;
   fullName?: string;
 };
 
 type SignResponse = { signature: string; timestamp: number; apiKey: string; folder: string };
 type UploadResponse = { secure_url: string };
 
-export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) {
+export function AvatarUploader({ value, onChange, cloudName, orgId, fullName }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +30,10 @@ export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) 
     .toUpperCase();
 
   async function upload(file: File) {
+    if (!orgId) {
+      setError("Selecione uma organizacao para enviar avatar.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -41,7 +46,7 @@ export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) 
       const sigRes = await fetch(fnUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
-        body: JSON.stringify({ folder: "avatars" }),
+        body: JSON.stringify({ orgId, purpose: "avatar" }),
       });
       if (!sigRes.ok) throw new Error("Falha ao assinar o upload.");
       const sig = (await sigRes.json()) as SignResponse;
@@ -84,7 +89,7 @@ export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) 
 
       <div className="min-w-0 flex-1 space-y-1">
         <label className="text-sm font-medium text-aurora-fg">Foto de perfil</label>
-        {cloudName ? (
+        {cloudName && orgId ? (
           <div className="space-y-1">
             <input
               ref={fileRef}
@@ -114,6 +119,9 @@ export function AvatarUploader({ value, onChange, cloudName, fullName }: Props) 
             className={inputClassSm}
           />
         )}
+        {cloudName && !orgId ? (
+          <p className="text-xs text-aurora-muted">Ative uma organizacao para upload Cloudinary.</p>
+        ) : null}
         {error ? <p className="text-xs text-aurora-danger">{error}</p> : null}
       </div>
     </div>

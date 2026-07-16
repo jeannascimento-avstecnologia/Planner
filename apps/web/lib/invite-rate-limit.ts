@@ -3,14 +3,6 @@ const INVITE_RATE_LIMIT_WINDOW_SEC = 3600;
 
 type RateLimitResult = { allowed: true } | { allowed: false };
 
-async function upstashGet(key: string): Promise<number> {
-  const encoded = encodeURIComponent(key);
-  const data = await upstashCommand(`/get/${encoded}`);
-  if (!data || data.result === null || data.result === undefined) return 0;
-  const n = Number(data.result);
-  return Number.isFinite(n) ? n : 0;
-}
-
 async function upstashCommand(path: string): Promise<{ result?: number | string | null } | null> {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -28,20 +20,20 @@ async function upstashCommand(path: string): Promise<{ result?: number | string 
   }
 }
 
-/** Limite: 20 convites/hora por usuario (quando Upstash configurado). */
+/**
+ * Limite: 20 convites/hora por usuario.
+ * Key: `ratelimit:user:{userId}:invite_batch` + TTL 3600s.
+ * Fail-open se Upstash ausente/indisponível (mesmo contrato de `rate-limit.ts`).
+ * Contagem via INCRBY-first (sem TOCTOU get+incr).
+ */
 export async function checkInviteBatchRateLimit(
   userId: string,
   inviteCount: number,
 ): Promise<RateLimitResult> {
   if (inviteCount <= 0) return { allowed: true };
 
-  const key = `ratelimit:${userId}:invite_batch`;
+  const key = `ratelimit:user:${userId}:invite_batch`;
   const encoded = encodeURIComponent(key);
-
-  const current = await upstashGet(key);
-  if (current + inviteCount > INVITE_RATE_LIMIT_MAX) {
-    return { allowed: false };
-  }
 
   const incrBy = await upstashCommand(`/incrby/${encoded}/${inviteCount}`);
   if (!incrBy || typeof incrBy.result !== "number") {
@@ -50,6 +42,12 @@ export async function checkInviteBatchRateLimit(
 
   if (incrBy.result === inviteCount) {
     await upstashCommand(`/expire/${encoded}/${INVITE_RATE_LIMIT_WINDOW_SEC}`);
+  }
+
+  if (incrBy.result > INVITE_RATE_LIMIT_MAX) {
+    // Reverte incremento desta tentativa para nao "queimar" cota permanentemente.
+    await upstashCommand(`/incrby/${encoded}/${-inviteCount}`);
+    return { allowed: false };
   }
 
   return { allowed: true };

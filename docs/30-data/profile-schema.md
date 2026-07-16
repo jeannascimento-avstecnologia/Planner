@@ -12,7 +12,7 @@ Pagina de perfil com informacoes adicionais do usuario.
 
 ## Seguranca
 - RLS existente (`profiles_update` / `profiles_select`) cobre as colunas novas.
-- Upload de avatar: assinatura server-side via Edge Function `supabase/functions/cloudinary-sign` (segredo `CLOUDINARY_API_SECRET` nunca no cliente).
+- Upload de avatar: assinatura server-side via Edge Function `supabase/functions/cloudinary-sign` (segredo `CLOUDINARY_API_SECRET` nunca no cliente). Folder forçado `org/{orgId}/avatars` (membership + org ativa).
 - Fallback sem Cloudinary configurado: campo de URL do avatar.
 
 ## Criterios de aceite

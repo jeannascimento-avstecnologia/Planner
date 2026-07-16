@@ -6,6 +6,7 @@ import { AuroraDrawer } from "@/components/ui/aurora-drawer";
 import { stageCardStyle } from "@/lib/color-utils";
 import { PriorityBadge, StageBadge, TagChip } from "./badges";
 import { TifluxTicketBadges } from "./tiflux-ticket-badges";
+import { ChecklistEditor } from "./checklist-editor";
 import {
   formatDue,
   memberLabel,
@@ -19,10 +20,12 @@ import {
 
 type Props = {
   card: BoardCard;
+  boardId: string;
   columns: ColumnRow[];
   stages: StageRow[];
   tags: TagRow[];
   members: ProfileRow[];
+  allCards?: BoardCard[];
   tifluxEnabled?: boolean;
   onClose: () => void;
 };
@@ -38,10 +41,12 @@ function ReadOnlyField({ label, children }: { label: string; children: ReactNode
 
 export function CardDrawerReadOnly({
   card,
+  boardId,
   columns,
   stages,
   tags,
   members,
+  allCards = [],
   tifluxEnabled = false,
   onClose,
 }: Props) {
@@ -49,6 +54,9 @@ export function CardDrawerReadOnly({
   const stage = resolveCardStage(card, columns, stagesById);
   const headerStyle = stage ? stageCardStyle(stage.color) : undefined;
   const assignee = card.assignee_id ? members.find((m) => m.id === card.assignee_id) : undefined;
+  const children = allCards
+    .filter((c) => c.parent_id === card.id)
+    .sort((a, b) => a.position.localeCompare(b.position));
 
   return (
     <AuroraDrawer onClose={onClose} showHeader={false} testId="card-drawer-readonly">
@@ -114,6 +122,25 @@ export function CardDrawerReadOnly({
               <span className="text-aurora-muted">—</span>
             )}
           </ReadOnlyField>
+
+          <ReadOnlyField label="Subtarefas">
+            {children.length === 0 ? (
+              <span className="text-aurora-muted">Nenhuma</span>
+            ) : (
+              <ul className="space-y-1" data-testid="drawer-subtasks-readonly">
+                {children.map((child) => (
+                  <li key={child.id} className="text-sm">
+                    {child.title}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ReadOnlyField>
+
+          <div data-testid="drawer-checklist-readonly">
+            <p className="mb-1 text-xs font-medium text-aurora-muted">To-dos</p>
+            <ChecklistEditor cardId={card.id} boardId={boardId} items={card.checklistItems} canEdit={false} />
+          </div>
 
           {tifluxEnabled && card.tiflux_ticket_number ? (
             <ReadOnlyField label="Tiflux">

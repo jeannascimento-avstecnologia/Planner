@@ -1,28 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { revalidateHomeProjects, revalidateBoard, revalidatePlanViews } from "@/lib/revalidation";
-import { patchAffectsWorkloadViews } from "@/lib/workload/patch-affects-workload";
+import { revalidateHomeProjects, revalidateBoard } from "@/lib/revalidation";
 import { acceptBoardInviteByToken } from "@/lib/accept-board-invite";
 import { createClient } from "@/lib/supabase/server";
 import {
   attachTagInput,
-  createCardInput,
   createColumnInput,
   createTagInput,
   createTifluxTicketInput,
   deleteColumnInput,
   deleteTagInput,
-  deleteCardInput,
   detachTagInput,
   inviteBoardInput,
   inviteBoardBatchInput,
   linkTifluxTicketInput,
-  moveCardInput,
   tifluxSearchInput,
   updateBoardMemberRoleInput,
   removeBoardMemberInput,
-  updateCardInput,
   updateColumnInput,
   type Json,
   type InviteBoardBatchInput,
@@ -32,11 +27,8 @@ import {
 } from "@nextgen/contracts";
 import { lexoPosition } from "@/lib/fractional";
 import { normalizeBoardItemName } from "@/lib/board-item-names";
-import { resolveCardDateRange } from "@/lib/parse-date-br";
-import { sanitizeName } from "@/lib/sanitize";
 
 const DUPLICATE_COLUMN_MSG = "Ja existe uma coluna com este nome neste projeto.";
-const DUPLICATE_CARD_MSG = "Ja existe um card com este nome neste projeto.";
 
 async function boardHasColumnName(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -48,16 +40,6 @@ async function boardHasColumnName(
   return (data ?? []).some((row) => normalizeBoardItemName(row.name) === target);
 }
 
-async function boardHasCardTitle(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  boardId: string,
-  title: string,
-): Promise<boolean> {
-  const target = normalizeBoardItemName(title);
-  const { data } = await supabase.from("cards").select("title").eq("board_id", boardId);
-  return (data ?? []).some((row) => normalizeBoardItemName(row.title) === target);
-}
-
 function isUniqueViolation(error: { code?: string } | null): boolean {
   return error?.code === "23505";
 }
@@ -66,6 +48,7 @@ import { getAppUrl } from "@/lib/app-url";
 import type { EmailSendErrorCode } from "@/lib/email";
 import { inviteEmailFailureMessage } from "@/lib/invite-email-messages";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
+import { canWriteBoard } from "@/lib/board-member-roles";
 import { getActiveOrgId } from "@/lib/active-org";
 import { checkInviteBatchRateLimit } from "@/lib/invite-rate-limit";
 import { makeSecureToken } from "@/lib/tokens";
@@ -159,271 +142,6 @@ export async function deleteColumn(formData: FormData): Promise<DeleteColumnResu
     .eq("id", parsed.data.columnId)
     .eq("board_id", parsed.data.boardId);
   if (error) return { error: "Nao foi possivel excluir a coluna." };
-
-  revalidateBoard(parsed.data.boardId, { calendar: true });
-  return { ok: true };
-}
-
-export type CreateCardResult = { ok: true; cardId: string } | { error: string };
-
-export async function createCard(formData: FormData): Promise<CreateCardResult> {
-  const dueRaw = formData.get("dueDate");
-  const startRaw = formData.get("startDate");
-  const parsed = createCardInput.safeParse({
-    boardId: formData.get("boardId"),
-    columnId: formData.get("columnId"),
-    title: formData.get("title"),
-    priority: formData.get("priority") || undefined,
-    dueDate: dueRaw && String(dueRaw) !== "" ? `${dueRaw}T12:00:00.000Z` : undefined,
-    startDate: startRaw && String(startRaw) !== "" ? `${startRaw}T12:00:00.000Z` : undefined,
-    assigneeId: formData.get("assigneeId") || undefined,
-  });
-  if (!parsed.success) return { error: "Dados invalidos." };
-
-  let startDate = parsed.data.startDate ?? null;
-  const dueDate = parsed.data.dueDate ?? null;
-  const resolved = resolveCardDateRange(startDate, dueDate);
-  startDate = resolved.start;
-  if (
-    parsed.data.startDate &&
-    dueDate &&
-    startDate &&
-    new Date(parsed.data.startDate) > new Date(dueDate)
-  ) {
-    return { error: "Inicio nao pode ser depois do prazo." };
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: board } = await supabase
-    .from("boards")
-    .select("org_id")
-    .eq("id", parsed.data.boardId)
-    .single();
-  if (!board) return { error: "Projeto nao encontrado." };
-
-  const assigneeId = parsed.data.assigneeId ?? user?.id ?? null;
-
-  const sanitizedTitle = sanitizeName(parsed.data.title, 500);
-  if (await boardHasCardTitle(supabase, parsed.data.boardId, sanitizedTitle)) {
-    return { error: DUPLICATE_CARD_MSG };
-  }
-
-  const { data: card, error } = await supabase
-    .from("cards")
-    .insert({
-      board_id: parsed.data.boardId,
-      column_id: parsed.data.columnId,
-      org_id: board.org_id,
-      title: sanitizedTitle,
-      priority: parsed.data.priority,
-      due_date: dueDate,
-      start_date: startDate,
-      assignee_id: assigneeId,
-      position: lexoPosition(),
-      created_by: user?.id ?? null,
-    })
-    .select("id, assignee_id")
-    .single();
-
-  if (isUniqueViolation(error)) return { error: DUPLICATE_CARD_MSG };
-  if (error || !card) return { error: "Nao foi possivel criar o card." };
-
-  await supabase.rpc("notify_board", {
-    p_board: parsed.data.boardId,
-    p_type: "card_created",
-    p_title: "Nova entrega criada",
-    p_body: parsed.data.title,
-    p_entity_type: "board",
-    p_entity_id: parsed.data.boardId,
-  });
-  revalidateBoard(parsed.data.boardId, { calendar: Boolean(dueDate) });
-  if (card.assignee_id) {
-    revalidatePlanViews(user?.id);
-  }
-  return { ok: true, cardId: card.id };
-}
-
-export async function updateCard(formData: FormData): Promise<void> {
-  const dueRaw = formData.get("dueDate");
-  const startRaw = formData.get("startDate");
-  const targetRaw = formData.get("targetDate");
-  const assigneeRaw = formData.get("assigneeId");
-  const estRaw = formData.get("estimatedHours");
-  const parsed = updateCardInput.safeParse({
-    cardId: formData.get("cardId"),
-    boardId: formData.get("boardId"),
-    title: formData.get("title") || undefined,
-    description: formData.has("description") ? formData.get("description") || null : undefined,
-    priority: formData.get("priority") || undefined,
-    dueDate:
-      dueRaw === ""
-        ? null
-        : dueRaw
-          ? `${dueRaw}T12:00:00.000Z`
-          : undefined,
-    startDate:
-      startRaw === ""
-        ? null
-        : startRaw
-          ? `${startRaw}T12:00:00.000Z`
-          : undefined,
-    targetDate:
-      targetRaw === ""
-        ? null
-        : targetRaw
-          ? `${targetRaw}T12:00:00.000Z`
-          : undefined,
-    assigneeId: assigneeRaw === "" ? null : assigneeRaw || undefined,
-    estimatedHours: estRaw === "" ? null : estRaw ?? undefined,
-  });
-  if (!parsed.success) return;
-
-  const supabase = await createClient();
-
-  const { data: existing } = await supabase
-    .from("cards")
-    .select("start_date, due_date")
-    .eq("id", parsed.data.cardId)
-    .single();
-  if (!existing) return;
-
-  const nextStart =
-    parsed.data.startDate !== undefined ? parsed.data.startDate : existing.start_date;
-  const nextDue = parsed.data.dueDate !== undefined ? parsed.data.dueDate : existing.due_date;
-  const resolved = resolveCardDateRange(nextStart, nextDue);
-  const resolvedStart = resolved.start;
-
-  const patch: Record<string, string | number | null> = {};
-  if (parsed.data.title !== undefined) patch.title = parsed.data.title;
-  if (parsed.data.description !== undefined) patch.description = parsed.data.description;
-  if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
-  if (parsed.data.dueDate !== undefined) patch.due_date = parsed.data.dueDate;
-  if (parsed.data.targetDate !== undefined) patch.target_date = parsed.data.targetDate;
-  if (parsed.data.startDate !== undefined) {
-    patch.start_date = parsed.data.startDate === null ? null : resolvedStart;
-  } else if (parsed.data.dueDate !== undefined && resolvedStart !== existing.start_date) {
-    patch.start_date = resolvedStart;
-  }
-  if (parsed.data.assigneeId !== undefined) patch.assignee_id = parsed.data.assigneeId;
-  if (parsed.data.estimatedHours !== undefined) patch.estimated_hours = parsed.data.estimatedHours;
-
-  if (Object.keys(patch).length === 0) return;
-
-  const { error } = await supabase.rpc("update_card_fields", {
-    p_card_id: parsed.data.cardId,
-    p_patch: patch,
-  });
-  if (error) return;
-
-  revalidateBoard(parsed.data.boardId, { calendar: true });
-  if (patchAffectsWorkloadViews(patch)) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    revalidatePlanViews(user?.id);
-  }
-}
-
-export type DeleteCardResult = { ok: true } | { error: string };
-
-export type CardDeleteImpact = { subtasks: number; dependencies: number };
-
-export async function getCardDeleteImpact(cardId: string, boardId: string): Promise<CardDeleteImpact> {
-  const supabase = await createClient();
-  const [{ count: subtasks }, { count: depsAsBlocker }, { count: depsAsBlocked }] = await Promise.all([
-    supabase
-      .from("cards")
-      .select("id", { count: "exact", head: true })
-      .eq("parent_id", cardId)
-      .eq("board_id", boardId),
-    supabase
-      .from("card_dependencies")
-      .select("blocker_card_id", { count: "exact", head: true })
-      .eq("blocker_card_id", cardId),
-    supabase
-      .from("card_dependencies")
-      .select("blocked_card_id", { count: "exact", head: true })
-      .eq("blocked_card_id", cardId),
-  ]);
-  return {
-    subtasks: subtasks ?? 0,
-    dependencies: (depsAsBlocker ?? 0) + (depsAsBlocked ?? 0),
-  };
-}
-
-export async function deleteCard(formData: FormData): Promise<DeleteCardResult> {
-  const parsed = deleteCardInput.safeParse({
-    cardId: formData.get("cardId"),
-    boardId: formData.get("boardId"),
-  });
-  if (!parsed.success) return { error: "Dados invalidos." };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: card } = await supabase
-    .from("cards")
-    .select("id, assignee_id")
-    .eq("id", parsed.data.cardId)
-    .eq("board_id", parsed.data.boardId)
-    .single();
-  if (!card) return { error: "Card nao encontrado." };
-
-  const { error } = await supabase.from("cards").delete().eq("id", parsed.data.cardId);
-  if (error) return { error: "Nao foi possivel excluir o card." };
-
-  revalidateBoard(parsed.data.boardId, { calendar: true });
-  if (card.assignee_id) {
-    revalidatePlanViews(user?.id);
-  }
-  return { ok: true };
-}
-
-export type MoveCardResult = { ok: true } | { error: string };
-
-export async function moveCard(formData: FormData): Promise<MoveCardResult> {
-  const parsed = moveCardInput.safeParse({
-    cardId: formData.get("cardId"),
-    boardId: formData.get("boardId"),
-    columnId: formData.get("columnId"),
-    position: formData.get("position"),
-  });
-  if (!parsed.success) return { error: "Dados invalidos." };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: existing } = await supabase
-    .from("cards")
-    .select("id, org_id, column_id")
-    .eq("id", parsed.data.cardId)
-    .eq("board_id", parsed.data.boardId)
-    .single();
-  if (!existing) return { error: "Card nao encontrado." };
-
-  const { data: column } = await supabase
-    .from("columns")
-    .select("id")
-    .eq("id", parsed.data.columnId)
-    .eq("board_id", parsed.data.boardId)
-    .single();
-  if (!column) return { error: "Coluna invalida." };
-
-  const fromColumnId = existing.column_id;
-  const { error } = await supabase
-    .from("cards")
-    .update({ column_id: parsed.data.columnId, position: parsed.data.position })
-    .eq("id", parsed.data.cardId)
-    .eq("board_id", parsed.data.boardId);
-  if (error) {
-    return { error: "Nao foi possivel mover o card." };
-  }
 
   revalidateBoard(parsed.data.boardId, { calendar: true });
   return { ok: true };
@@ -821,6 +539,39 @@ export type TifluxTicketActionResult =
 
 export type TifluxSearchActionResult = { ok: true; options: TifluxOption[] } | { error: string };
 
+/** Decrypt/use Tiflux token only after can_write_board (viewer must not). */
+async function assertBoardTifluxWriteAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boardId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const { data: board } = await supabase.from("boards").select("org_id").eq("id", boardId).single();
+  if (!board) return { ok: false, error: "Projeto nao encontrado." };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", board.org_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: boardMember } = await supabase
+    .from("board_members")
+    .select("role")
+    .eq("board_id", boardId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!canWriteBoard(isOrgAdminRole(membership?.role), boardMember?.role)) {
+    return { ok: false, error: "Sem permissao para usar a integracao Tiflux neste projeto." };
+  }
+  return { ok: true };
+}
+
 export async function searchTifluxOptions(input: {
   boardId: string;
   kind: string;
@@ -833,6 +584,9 @@ export async function searchTifluxOptions(input: {
   if (!parsed.success) return { error: "Parametros invalidos." };
 
   const supabase = await createClient();
+  const write = await assertBoardTifluxWriteAccess(supabase, parsed.data.boardId);
+  if (!write.ok) return { error: write.error };
+
   const { data: board } = await supabase
     .from("boards")
     .select("tiflux_enabled")
@@ -894,6 +648,9 @@ export async function createTifluxTicket(formData: FormData): Promise<TifluxTick
   }
 
   const supabase = await createClient();
+  const write = await assertBoardTifluxWriteAccess(supabase, parsed.data.boardId);
+  if (!write.ok) return { error: write.error };
+
   const { data: board } = await supabase
     .from("boards")
     .select("org_id, tiflux_enabled")
@@ -952,6 +709,9 @@ export async function linkTifluxTicket(formData: FormData): Promise<TifluxTicket
   }
 
   const supabase = await createClient();
+  const write = await assertBoardTifluxWriteAccess(supabase, parsed.data.boardId);
+  if (!write.ok) return { error: write.error };
+
   const { data: board } = await supabase
     .from("boards")
     .select("org_id, tiflux_enabled")

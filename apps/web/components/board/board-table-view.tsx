@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { updateCardFieldsAction } from "@/app/(app)/boards/[boardId]/field-actions";
+import { updateCardFieldsAction } from "@/app/(app)/boards/[boardId]/card-actions";
 import { acquireInFlightLock, releaseInFlightLock } from "@/lib/in-flight-submit";
 import { PriorityBadge, TagChip } from "./badges";
 import { TifluxCardButton } from "./tiflux-card-button";

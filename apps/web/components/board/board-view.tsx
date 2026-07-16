@@ -11,6 +11,7 @@ import { applySearchParamUpdates, replaceClientUrl } from "@/lib/client-url-stat
 import { BoardKanbanView } from "./board-kanban-view";
 import { BoardSkeleton } from "@/components/ui/skeleton";
 import { BoardViewSwitcher } from "./board-view-switcher";
+import { isKanbanVisibleCard } from "@/lib/card-tree/kanban-visibility";
 
 const BoardCalendarView = dynamic(
   () => import("./board-calendar-view").then((m) => ({ default: m.BoardCalendarView })),
@@ -23,6 +24,13 @@ const BoardTableView = dynamic(
 const BoardTimelineView = dynamic(
   () => import("./board-timeline-view").then((m) => ({ default: m.BoardTimelineView })),
   { loading: () => <BoardSkeleton /> },
+);
+const BoardTreeView = dynamic(
+  () =>
+    import(/* webpackChunkName: "board-tree-flow-zoom-v7" */ "./board-tree-flow-zoom-v7").then(
+      (m) => ({ default: m.BoardTreeView }),
+    ),
+  { ssr: false, loading: () => <BoardSkeleton /> },
 );
 const CardDrawer = dynamic(() => import("./card-drawer").then((m) => ({ default: m.CardDrawer })), {
   ssr: false,
@@ -59,9 +67,12 @@ import { BoardAppearanceEditor } from "./board-appearance-editor";
 import { BoardIcon } from "./board-icon";
 import { BoardPresenceLayer } from "./board-presence-layer";
 import { useBoardPresence } from "@/hooks/use-board-presence";
+import { useBoardCards } from "@/hooks/use-board-cards";
+import { useBoardCardsRealtime } from "@/hooks/use-board-cards-realtime";
 import type { BoardMember } from "./board-member";
 import {
   EMPTY_FILTERS,
+  hasActiveFilters,
   matchesFilters,
   memberLabel,
   parseBoardViewMode,
@@ -118,6 +129,9 @@ function BoardViewInner({
   const selectedCardIdRef = useRef<string | null>(null);
   const urlCardOpened = useRef(false);
 
+  const { cards: queryCards } = useBoardCards(board.id, cards);
+  useBoardCardsRealtime(board.id);
+
   useEffect(() => {
     const fromUrl = parseBoardViewMode(searchParams.get("view"));
     if (fromUrl !== viewModeRef.current) {
@@ -147,11 +161,11 @@ function BoardViewInner({
 
   const safeCards = useMemo(
     () =>
-      cards.map((c) => ({
+      queryCards.map((c) => ({
         ...c,
         tiflux_canceled_tickets: c.tiflux_canceled_tickets ?? [],
       })),
-    [cards],
+    [queryCards],
   );
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -163,6 +177,7 @@ function BoardViewInner({
   const [automationsOpen, setAutomationsOpen] = useState(false);
   const [filters, setFilters] = useState<CardFilters>(EMPTY_FILTERS);
   const [groupByAssignee, setGroupByAssignee] = useState(false);
+  const [showSubtasks, setShowSubtasks] = useState(false);
 
   useEffect(() => {
     if (searchParams.has("stageColor")) {
@@ -209,17 +224,22 @@ function BoardViewInner({
     [safeCards, filters, columns, stagesById],
   );
 
+  const kanbanCards = useMemo(() => {
+    if (showSubtasks) return filtered;
+    return filtered.filter(isKanbanVisibleCard);
+  }, [filtered, showSubtasks]);
+
   const cardsByColumn = useMemo(() => {
     const map = new Map<string, BoardCard[]>();
     for (const col of columns) map.set(col.id, []);
     if (!groupByAssignee) {
-      for (const card of filtered) map.get(card.column_id)?.push(card);
+      for (const card of kanbanCards) map.get(card.column_id)?.push(card);
       for (const list of map.values()) {
         list.sort((a, b) => a.position.localeCompare(b.position));
       }
     }
     return map;
-  }, [columns, filtered, groupByAssignee]);
+  }, [columns, kanbanCards, groupByAssignee]);
 
   const swimlanes = useMemo(() => {
     if (!groupByAssignee) return null;
@@ -227,13 +247,13 @@ function BoardViewInner({
       { key: "none", label: "Sem responsavel", cards: [] },
     ];
     for (const m of members) lanes.push({ key: m.id, label: memberLabel(m), cards: [] });
-    for (const card of filtered) {
+    for (const card of kanbanCards) {
       const key = card.assignee_id ?? "none";
       const lane = lanes.find((l) => l.key === key) ?? lanes[0];
       lane.cards.push(card);
     }
     return lanes;
-  }, [filtered, groupByAssignee, members]);
+  }, [kanbanCards, groupByAssignee, members]);
 
   const userBoardRole = boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
   const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
@@ -353,15 +373,27 @@ function BoardViewInner({
 
       {viewMode === "kanban" ? (
         <div data-tour="board-kanban">
-          <label className="mb-2 flex w-fit items-center gap-2 text-sm text-aurora-muted">
-            <input type="checkbox" checked={groupByAssignee} onChange={(e) => setGroupByAssignee(e.target.checked)} />
-            Agrupar por responsavel
-          </label>
+          <div className="mb-2 flex flex-wrap items-center gap-4">
+            <label className="flex w-fit items-center gap-2 text-sm text-aurora-muted">
+              <input type="checkbox" checked={groupByAssignee} onChange={(e) => setGroupByAssignee(e.target.checked)} />
+              Agrupar por responsavel
+            </label>
+            <label className="flex w-fit items-center gap-2 text-sm text-aurora-muted">
+              <input
+                type="checkbox"
+                checked={showSubtasks}
+                onChange={(e) => setShowSubtasks(e.target.checked)}
+                data-testid="toggle-show-subtasks"
+              />
+              Mostrar subtarefas
+            </label>
+          </div>
           <BoardKanbanView
           boardId={board.id}
           columns={columns}
           stagesById={stagesById}
           cardsByColumn={cardsByColumn}
+          allCards={safeCards}
           swimlanes={swimlanes}
           groupByAssignee={groupByAssignee}
           tags={localTags}
@@ -415,6 +447,21 @@ function BoardViewInner({
         />
       ) : null}
 
+      {viewMode === "tree" ? (
+        <BoardTreeView
+          boardId={board.id}
+          cards={safeCards}
+          allCards={safeCards}
+          columns={columns}
+          stagesById={stagesById}
+          profilesById={profilesById}
+          tags={localTags}
+          filters={filters}
+          canEdit={canEditBoard}
+          onSelectCard={selectCard}
+        />
+      ) : null}
+
       {selectedCard ? (
         <CardDrawer
           card={selectedCard}
@@ -424,6 +471,7 @@ function BoardViewInner({
           stages={localStages}
           tags={localTags}
           members={members}
+          allCards={safeCards}
           isOrgAdmin={isOrgAdmin}
           readOnly={!canEditBoard}
           tifluxEnabled={tifluxEnabled}

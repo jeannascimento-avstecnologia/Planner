@@ -11,6 +11,7 @@ import { appToast } from "@/lib/toast";
 import { ColumnHeader } from "./column-header";
 import { CreateCardForm } from "./create-card-form";
 import { SortableCardTile } from "./sortable-card-tile";
+import { countChildrenProgress } from "@/lib/card-tree";
 import type { BoardCard, ColumnRow, ProfileRow, StageRow, TagRow } from "./types";
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
   columns: ColumnRow[];
   cardIds: string[];
   cardsById: Map<string, BoardCard>;
+  allCards: BoardCard[];
   stagesById: Map<string, StageRow>;
   tags: TagRow[];
   profilesById: Record<string, ProfileRow>;
@@ -38,6 +40,7 @@ export function KanbanColumn({
   columns,
   cardIds,
   cardsById,
+  allCards,
   stagesById,
   tags,
   profilesById,
@@ -73,6 +76,7 @@ export function KanbanColumn({
           {cardIds.map((id) => {
             const card = cardsById.get(id);
             if (!card) return null;
+            const progress = countChildrenProgress(allCards, card.id);
             return (
               <SortableCardTile
                 key={id}
@@ -84,6 +88,7 @@ export function KanbanColumn({
                 tifluxEnabled={tifluxEnabled}
                 readOnlyTiflux={readOnlyTiflux}
                 dragDisabled={!canEditBoard}
+                subtasksProgress={progress.total > 0 ? progress : null}
                 onSelect={onSelectCard}
                 onOpenTifluxCreate={onOpenTifluxCreate}
                 onOpenTifluxLink={onOpenTifluxLink}

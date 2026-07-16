@@ -12,6 +12,9 @@ export const CARD_FIELD_LABELS: Record<CardPermissionField, string> = {
   assignee_id: "Responsavel",
   column_id: "Coluna",
   estimated_hours: "Horas estimadas",
+  parent_id: "Card pai",
+  tree_x: "Posicao X (arvore)",
+  tree_y: "Posicao Y (arvore)",
 };
 
 export function cardFieldLabel(field: string): string {

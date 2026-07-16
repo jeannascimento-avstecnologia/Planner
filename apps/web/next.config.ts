@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
   // PM2 usa `next start` — nao usar output standalone (static 404 no LAN).
   // Fixa a raiz do monorepo (evita inferencia errada por lockfiles vizinhos).
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
-  transpilePackages: ["@nextgen/contracts"],
+  transpilePackages: ["@nextgen/contracts", "@tanstack/react-query"],
   reactStrictMode: true,
   devIndicators: false,
   experimental: {

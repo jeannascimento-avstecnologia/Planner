@@ -50,7 +50,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const ip = getClientIp(request);
-  const ipRl = checkRateLimit(`http:ip:${ip}`, HTTP_LIMIT_IP, HTTP_WINDOW_MS);
+  const ipRl = await checkRateLimit(["ip", ip, "http"], HTTP_LIMIT_IP, HTTP_WINDOW_MS);
   if (!ipRl.ok) return rateLimitResponse(ipRl.retryAfterSec);
 
   const sessionOnly = isSessionOnlyAuth(request.cookies);
@@ -93,7 +93,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (sessionUser) {
-    const userRl = checkRateLimit(`http:user:${sessionUser.id}`, HTTP_LIMIT_USER, HTTP_WINDOW_MS);
+    const userRl = await checkRateLimit(
+      ["user", sessionUser.id, "http"],
+      HTTP_LIMIT_USER,
+      HTTP_WINDOW_MS,
+    );
     if (!userRl.ok) return rateLimitResponse(userRl.retryAfterSec);
   }
 

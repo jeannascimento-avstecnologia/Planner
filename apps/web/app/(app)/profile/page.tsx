@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrgId } from "@/lib/active-org";
 import { ProfileForm } from "./profile-form";
 
 export default async function ProfilePage() {
@@ -16,6 +17,7 @@ export default async function ProfilePage() {
     .single();
 
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
+  const orgId = await getActiveOrgId();
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -34,6 +36,7 @@ export default async function ProfilePage() {
           locale: profile?.locale ?? "pt-BR",
         }}
         cloudName={cloudName}
+        orgId={orgId}
       />
     </div>
   );

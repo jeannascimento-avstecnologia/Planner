@@ -24,31 +24,36 @@ docs/            # specs (SDD) + GUIA_MESTRE
 
 ## Quickstart (dev local)
 
-Pre-requisitos: **Node >= 20**, [Supabase CLI](https://supabase.com/docs/guides/cli), projeto no [Supabase Cloud](https://supabase.com/dashboard).
+Pre-requisitos: **Node >= 20**, [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Supabase CLI](https://supabase.com/docs/guides/cli).
 
-**Nao e necessario Docker** para desenvolver o frontend. O banco/auth roda no Cloud.
+`npm run dev:local` funciona em **macOS, Linux e Windows** (scripts `.sh` / `.ps1` via `scripts/run-script.mjs`).
 
 ```bash
 # 1. Dependencias
 npm install
 
-# 2. Supabase Cloud (runbook completo: docs/70-ops/supabase-cloud-dev.md)
-supabase login
-supabase link --project-ref <SEU_PROJECT_REF>
-supabase db push
-# Seed: executar supabase/seed.sql no SQL Editor do Dashboard
-
-# 3. Env do app (gera apps/web/.env.local)
-cp .env.supabase.example .env.supabase   # preencher chaves do Dashboard
-npm run supabase:env
-
-# 4. App (porta 3001 fixa — ver docs/70-ops/local-dev-start.md)
+# 2. App + Supabase local (Docker) na porta 3001
+#    Runbook: docs/70-ops/local-dev-start.md
 npm run dev:local
 ```
 
-Login de teste (apos `npm run dev:local`): `admin@nextgen.dev` / `password123` → http://localhost:3001/login
+Login de teste: `admin@nextgen.dev` / `password123` → http://localhost:3001/login
 
-### Auth no Dashboard
+Studio: http://127.0.0.1:54323
+
+### Alternativa: frontend + Supabase Cloud (sem Docker)
+
+```bash
+supabase login
+supabase link --project-ref <SEU_PROJECT_REF>
+supabase db push
+# Seed: supabase/seed.sql no SQL Editor
+cp .env.supabase.example .env.supabase   # preencher chaves do Dashboard
+npm run supabase:env
+npm run dev:cloud
+```
+
+### Auth (Cloud / OAuth)
 
 Authentication → URL Configuration:
 
@@ -57,17 +62,19 @@ Authentication → URL Configuration:
 
 ## Scripts
 
-- `npm run dev:local` — sobe o app local (porta 3001, mitiga erros comuns).
+- `npm run dev:local` — Supabase local (Docker) + Next na porta 3001; fallback Cloud se Docker falhar.
+- `npm run dev:cloud` — Next apontando ao Supabase Cloud (OAuth Google/Microsoft).
+- `npm run supabase:env` / `supabase:env:local` — gera `apps/web/.env.local`.
 - `npm run dev` / `build` / `lint` / `typecheck` / `test` (via Turborepo).
 - `npm run format` (Prettier).
-- `npm run supabase:env` — gera `apps/web/.env.local` a partir do Supabase **Cloud** (`.env.supabase` ou projeto linkado).
 
 ## CI vs dev local
 
 | Ambiente | Supabase |
 |----------|----------|
-| Sua maquina (dev) | Cloud remoto |
-| GitHub Actions (pgTAP) | Docker efemero (`supabase start`) no runner |
+| `dev:local` | Docker local (`supabase start`) |
+| `dev:cloud` | Cloud remoto |
+| GitHub Actions (pgTAP) | Docker efêmero no runner |
 
 ## Documentacao
 

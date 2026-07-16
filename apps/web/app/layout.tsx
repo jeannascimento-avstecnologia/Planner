@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeScript } from "@/components/shell/theme-provider";
 import { ChunkLoadRecovery } from "@/components/shell/chunk-load-recovery";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { AuroraToaster } from "@/components/ui/sonner";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { assertNoClientExposedSecrets } from "@/lib/env-guard";
@@ -31,8 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ChunkLoadRecovery />
-        {children}
-        <AuroraToaster />
+        <QueryProvider>
+          {children}
+          <AuroraToaster />
+        </QueryProvider>
       </body>
     </html>
   );

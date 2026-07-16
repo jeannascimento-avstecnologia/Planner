@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "origin_not_allowed" }, { status: 403 });
   }
 
-  const rateLimit = checkRateLimit(
-    `auth-persistence:${getClientIp(request)}`,
+  const rateLimit = await checkRateLimit(
+    ["ip", getClientIp(request), "auth-persistence"],
     PERSISTENCE_RATE_LIMIT,
     PERSISTENCE_WINDOW_MS,
   );
@@ -73,10 +73,10 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient();
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-  if (sessionError || !session?.user) {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 

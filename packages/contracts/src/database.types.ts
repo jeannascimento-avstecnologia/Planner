@@ -69,6 +69,7 @@ export type Database = {
       cards: {
         Row: {
           id: string; board_id: string; column_id: string; org_id: string; parent_id: string | null;
+          tree_x: number | null; tree_y: number | null;
           title: string; description: string | null; priority: Database["public"]["Enums"]["card_priority"];
           due_date: string | null; start_date: string | null; target_date: string | null; position: string; assignee_id: string | null; completed_at: string | null;
           stage_id: string | null;
@@ -80,6 +81,7 @@ export type Database = {
         };
         Insert: {
           id?: string; board_id: string; column_id: string; org_id: string; parent_id?: string | null;
+          tree_x?: number | null; tree_y?: number | null;
           title: string; description?: string | null; priority?: Database["public"]["Enums"]["card_priority"];
           due_date?: string | null; start_date?: string | null; target_date?: string | null; position: string; assignee_id?: string | null; completed_at?: string | null;
           stage_id?: string | null;
@@ -91,6 +93,7 @@ export type Database = {
         };
         Update: {
           id?: string; board_id?: string; column_id?: string; org_id?: string; parent_id?: string | null;
+          tree_x?: number | null; tree_y?: number | null;
           title?: string; description?: string | null; priority?: Database["public"]["Enums"]["card_priority"];
           due_date?: string | null; start_date?: string | null; position?: string; assignee_id?: string | null; completed_at?: string | null;
           stage_id?: string | null;
@@ -106,6 +109,69 @@ export type Database = {
         Row: { id: string; org_id: string; blocker_card_id: string; blocked_card_id: string; type: string; created_at: string };
         Insert: { id?: string; org_id: string; blocker_card_id: string; blocked_card_id: string; type?: string; created_at?: string };
         Update: { id?: string; org_id?: string; blocker_card_id?: string; blocked_card_id?: string; type?: string; created_at?: string };
+        Relationships: [];
+      };
+      card_checklist_items: {
+        Row: {
+          id: string;
+          org_id: string;
+          board_id: string;
+          card_id: string;
+          title: string;
+          done: boolean;
+          position: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          board_id: string;
+          card_id: string;
+          title: string;
+          done?: boolean;
+          position: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          board_id?: string;
+          card_id?: string;
+          title?: string;
+          done?: boolean;
+          position?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      card_tree_edges: {
+        Row: {
+          id: string;
+          org_id: string;
+          board_id: string;
+          parent_card_id: string;
+          child_card_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          board_id: string;
+          parent_card_id: string;
+          child_card_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          board_id?: string;
+          parent_card_id?: string;
+          child_card_id?: string;
+          created_at?: string;
+        };
         Relationships: [];
       };
       card_events: {
@@ -663,6 +729,10 @@ export type Database = {
       get_board_tiflux_token: {
         Args: { p_board: string };
         Returns: { token: string; api_url: string }[];
+      };
+      claim_automation_outbox: {
+        Args: { p_limit?: number };
+        Returns: Database["public"]["Tables"]["automation_outbox"]["Row"][];
       };
       emit_audit_event: {
         Args: {

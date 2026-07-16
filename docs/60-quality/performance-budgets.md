@@ -35,6 +35,7 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 10. **`/plan`:** export Teams em Suspense separado; `boardNames` reutilizado (sem query duplicada de boards).
 11. **Nav dedupe:** re-clique na mesma rota (pathname) na sidebar = **0 GET RSC adicional** (`NavLink` + guard in-flight).
 12. **Shell cache:** `loadShellDataCached(userId, orgId)` com `unstable_cache` + tags `shell:user:{id}`; invalidar via `revalidateShell()`.
+13. **Tree canvas (`?view=tree`):** chunk `@xyflow/react` só via `dynamic(..., { ssr: false })` quando view=tree; `tree_x/y` no `CARD_SELECT` (sem query extra); debounce ≥300ms em patch de posição; **não** chamar `revalidatePlanViews` nem `revalidatePath`/`revalidateBoard` pesado a cada drag **nem** a cada reparent (`parent_id` / `tree_x` / `tree_y` = client Query SoT); `onlyRenderVisibleElements`; soft warn se >300 nós; fila de reparent ≤1 in-flight; marquee multi-select sem storm de writes (batch debounce ≥300ms nas coords do grupo).
 
 ## Criterios de aceite
 
@@ -44,6 +45,7 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 - [ ] E2E `navigation-dedupe.spec.ts`: 10 re-cliques mesma rota sidebar ≤ 1 GET RSC
 - [ ] pgTAP verde apos otimizacoes
 - [ ] E2E `boards.spec.ts` + `board-kanban-dnd.spec.ts` verdes
+- [ ] Tree canvas: 10 reparents seguidos sem `revalidatePath` storm (0 RSC board extras por connect); marquee multi-select OK
 - [ ] Zero cache cross-tenant (chave inclui userId)
 - [ ] Edicao rapida de celulas `/plan` gera no maximo 1 RPC por celula (Enter nao dispara blur duplicado)
 

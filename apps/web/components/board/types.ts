@@ -12,10 +12,19 @@ export type StageRow = {
   system_key: string | null;
 };
 export type ProfileRow = { id: string; full_name: string | null };
+export type CardChecklistItem = {
+  id: string;
+  title: string;
+  done: boolean;
+  position: string;
+};
 export type BoardCard = {
   id: string;
   column_id: string;
   position: string;
+  parent_id: string | null;
+  tree_x: number | null;
+  tree_y: number | null;
   title: string;
   description: string | null;
   priority: CardPriority;
@@ -28,6 +37,9 @@ export type BoardCard = {
   completed_at: string | null;
   stage_id: string | null;
   tagIds: string[];
+  checklistItems: CardChecklistItem[];
+  /** ADR-0014: pais do organograma = card_tree_edges ∪ parent_id (dedupe no load). */
+  treeParentIds: string[];
   tiflux_ticket_number: string | null;
   tiflux_ticket_id: string | null;
   tiflux_canceled_tickets: TifluxCanceledTicket[];
@@ -102,9 +114,9 @@ export function effectiveStartDate(card: { start_date: string | null; due_date: 
   return null;
 }
 
-export type BoardViewMode = "kanban" | "timeline" | "calendar" | "table";
+export type BoardViewMode = "kanban" | "timeline" | "calendar" | "table" | "tree";
 
-export const BOARD_VIEW_MODES: BoardViewMode[] = ["kanban", "timeline", "calendar", "table"];
+export const BOARD_VIEW_MODES: BoardViewMode[] = ["kanban", "timeline", "calendar", "table", "tree"];
 
 export function parseBoardViewMode(raw: string | null): BoardViewMode {
   if (raw && BOARD_VIEW_MODES.includes(raw as BoardViewMode)) return raw as BoardViewMode;
@@ -157,7 +169,7 @@ function dueWithinNextDays(due: string, days: number): boolean {
 export function matchesFilters(
   card: BoardCard,
   f: CardFilters,
-  ctx?: { columns: ColumnRow[]; stagesById: Map<string, StageRow> },
+  ctx?: { columns: ColumnRow[]; stagesById: Map<string, StageRow> } | "id-missing",
 ): boolean {
   if (f.text.trim() && !card.title.toLowerCase().includes(f.text.trim().toLowerCase())) {
     return false;
@@ -165,7 +177,7 @@ export function matchesFilters(
   if (f.tagIds.length > 0 && !f.tagIds.some((t) => card.tagIds.includes(t))) {
     return false;
   }
-  if (f.stageIds.length > 0 && ctx) {
+  if (f.stageIds.length > 0 && ctx && ctx !== "id-missing") {
     const effective = resolveCardStage(card, ctx.columns, ctx.stagesById);
     const matchNone = f.stageIds.includes("none") && effective === null;
     const matchStage = effective !== null && f.stageIds.includes(effective.id);

@@ -1,9 +1,13 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
+import { assertWorkerAuth } from "./worker-auth.ts";
+import { assertSafeWebhookUrl } from "./webhook-ssrf.ts";
+import { outboxBackoffMinutes } from "./outbox-backoff.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 type OutboxRow = {
@@ -18,15 +22,22 @@ type OutboxRow = {
   attempts: number;
 };
 
-async function deliverSlack(supabase: ReturnType<typeof createClient>, orgId: string, payload: Record<string, unknown>) {
+async function deliverSlack(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  payload: Record<string, unknown>,
+) {
   const { data, error } = await supabase.rpc("get_org_slack_webhook", { p_org: orgId });
   if (error || !data?.length) throw new Error(error?.message ?? "slack_not_configured");
   const webhookUrl = data[0].webhook_url as string;
+  const safe = assertSafeWebhookUrl(webhookUrl);
+  if (!safe.ok) throw new Error(safe.reason);
   const text = String(payload.message ?? payload.text ?? "Automacao Planner");
-  const res = await fetch(webhookUrl, {
+  const res = await fetch(safe.url.toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
+    redirect: "error",
   });
   if (!res.ok) throw new Error(`slack_http_${res.status}`);
 }
@@ -53,6 +64,9 @@ async function deliverEmail(payload: Record<string, unknown>) {
 async function deliverWebhook(payload: Record<string, unknown>) {
   const url = String(payload.url ?? "");
   if (!url) throw new Error("webhook_url_required");
+  const safe = assertSafeWebhookUrl(url);
+  if (!safe.ok) throw new Error(safe.reason);
+
   const secret = String(payload.secret ?? Deno.env.get("AUTOMATION_WEBHOOK_HMAC_SECRET") ?? "");
   const body = JSON.stringify(payload.body ?? payload);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -68,12 +82,25 @@ async function deliverWebhook(payload: Record<string, unknown>) {
     const hex = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
     headers["X-Planner-Signature"] = hex;
   }
-  const res = await fetch(url, { method: "POST", headers, body });
+  const res = await fetch(safe.url.toString(), {
+    method: "POST",
+    headers,
+    body,
+    redirect: "error",
+  });
   if (!res.ok) throw new Error(`webhook_http_${res.status}`);
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const auth = assertWorkerAuth(req);
+  if (!auth.ok) {
+    return new Response(JSON.stringify({ error: auth.error }), {
+      status: auth.status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -81,22 +108,19 @@ serve(async (req) => {
   );
 
   const limit = 25;
-  const { data: rows, error } = await supabase
-    .from("automation_outbox")
-    .select("*")
-    .in("status", ["pending", "failed"])
-    .lte("next_attempt_at", new Date().toISOString())
-    .order("created_at", { ascending: true })
-    .limit(limit);
+  const { data: rows, error } = await supabase.rpc("claim_automation_outbox", {
+    p_limit: limit,
+  });
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   let processed = 0;
   for (const row of (rows ?? []) as OutboxRow[]) {
-    await supabase.from("automation_outbox").update({ status: "processing", updated_at: new Date().toISOString() }).eq("id", row.id);
-
     try {
       if (row.action_type === "send_slack") {
         await deliverSlack(supabase, row.org_id, row.action_payload);
@@ -125,7 +149,7 @@ serve(async (req) => {
       processed++;
     } catch (e) {
       const attempts = row.attempts + 1;
-      const backoffMin = Math.min(60, 2 ** attempts);
+      const backoffMin = outboxBackoffMinutes(attempts);
       const next = new Date(Date.now() + backoffMin * 60_000).toISOString();
       await supabase
         .from("automation_outbox")
@@ -150,5 +174,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ processed }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return new Response(JSON.stringify({ processed }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });

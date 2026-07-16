@@ -18,10 +18,12 @@ export function ProfileForm({
   email,
   initial,
   cloudName,
+  orgId,
 }: {
   email: string;
   initial: Initial;
   cloudName: string;
+  orgId: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -48,7 +50,13 @@ export function ProfileForm({
       }}
       className="space-y-5 rounded-xl border border-aurora-border bg-aurora-surface p-6"
     >
-      <AvatarUploader value={avatarUrl} onChange={setAvatarUrl} cloudName={cloudName} fullName={initial.fullName} />
+      <AvatarUploader
+        value={avatarUrl}
+        onChange={setAvatarUrl}
+        cloudName={cloudName}
+        orgId={orgId}
+        fullName={initial.fullName}
+      />
 
       <div className="space-y-1">
         <label className="text-sm font-medium text-aurora-fg">Nome completo</label>

@@ -66,8 +66,11 @@ automation_outbox (
 
 1. Trigger em `card_events` executa acoes internas sincronamente (depth max 3).
 2. Acoes externas: INSERT em `automation_outbox` com `dedup_key` idempotente.
-3. Edge `automation-runner` drena outbox (~pg_cron 1min): Slack / Resend / webhook generico com HMAC.
-4. Retry com backoff; registra `automation_runs` em sucesso/falha.
+3. Edge `automation-runner` drena outbox (~pg_cron 1min) com **auth worker** (`CRON_SECRET` ou service role) + **claim atomico** (`claim_automation_outbox` / `FOR UPDATE SKIP LOCKED`).
+4. Webhook: HTTPS only + bloqueio SSRF (IPs privados / metadata). Slack URL tambem validada.
+5. Retry com backoff; registra `automation_runs` em sucesso/falha.
+
+Detalhe P0: [edge-fn-automation-runner.md](../40-api/edge-fn-automation-runner.md).
 
 ### UI
 
@@ -81,6 +84,7 @@ automation_outbox (
 - [ ] Rule disabled não executa.
 - [ ] Falha action registra `automation_runs.status=failed` sem rollback evento original.
 - [ ] pgTAP: depth header respeitado.
+- [ ] P0: runner sem auth → 401; claim concorrente → 1 delivery; URL privada → `webhook_ssrf_blocked`.
 
 ## Questões abertas
 
@@ -99,6 +103,8 @@ automation_outbox (
 |-----------|--------|-------|
 | Tables + RLS | `*_automation_rules.sql` | pgTAP |
 | Edge runner | `supabase/functions/automation-runner` | Deno test |
+| Claim atomico | `claim_automation_outbox` migration | pgTAP `38_*` |
+| Worker auth + SSRF | `worker-auth.ts`, `webhook-ssrf.ts` | Deno |
 | Webhook config | Supabase dashboard + docs | manual |
 | UI rules | `board-automations.tsx` | Playwright |
 | Depth guard | runner + emit meta | Deno + pgTAP |

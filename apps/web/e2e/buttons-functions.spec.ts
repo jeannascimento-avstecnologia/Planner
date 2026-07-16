@@ -66,7 +66,7 @@ test.describe("Botoes e funcoes criticas", () => {
   test("board: modos kanban/tabela/calendario/timeline", async ({ page }) => {
     await openSeedBoard(page);
     await dismissBlockingTour(page);
-    for (const mode of ["Tabela", "Calendario", "Linha do tempo", "Kanban"] as const) {
+    for (const mode of ["Tabela", "Calendario", "Linha do tempo", "Arvore", "Kanban"] as const) {
       await page.getByRole("button", { name: mode }).click();
       await expect(page.locator("main")).toBeVisible();
     }

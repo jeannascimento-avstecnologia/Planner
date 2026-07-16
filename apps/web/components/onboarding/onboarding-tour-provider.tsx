@@ -18,7 +18,10 @@ import {
 import { resolvePageTourId } from "@/lib/page-tour-registry";
 import { buildPageDriveSteps, type PageTourId } from "@/lib/page-tour-steps";
 import { isPageTourCompleted, markPageTourCompleted } from "@/lib/page-tour-storage";
-import { areRequiredTourTargetsPresent } from "@/lib/tour-targets-ready";
+import {
+  canAutoStartTour,
+  waitForRequiredTourTargets,
+} from "@/lib/tour-targets-ready";
 import { startDriverTour } from "@/lib/tour-driver";
 import type { Driver } from "driver.js";
 
@@ -64,12 +67,23 @@ export function OnboardingTourProvider({ children, setMobileOpen, hasActiveOrg }
   });
   const globalAutoStartedRef = useRef(false);
   const hasActiveOrgRef = useRef(hasActiveOrg);
+  const isTourActiveRef = useRef(false);
+  const autoStartAbortRef = useRef<AbortController | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
   const [isTourActive, setIsTourActive] = useState(false);
 
   useEffect(() => {
     hasActiveOrgRef.current = hasActiveOrg;
   }, [hasActiveOrg]);
+
+  useEffect(() => {
+    isTourActiveRef.current = isTourActive;
+  }, [isTourActive]);
+
+  const abortPendingAutoStart = useCallback(() => {
+    autoStartAbortRef.current?.abort();
+    autoStartAbortRef.current = null;
+  }, []);
 
   const registerSidebarPrep = useCallback((fn: () => void) => {
     sidebarPrepRef.current = fn;
@@ -114,6 +128,7 @@ export function OnboardingTourProvider({ children, setMobileOpen, hasActiveOrg }
         },
         onDestroyed: () => {
           // Sempre persiste (X, Esc, Concluir, destroy) — anti-loop.
+          // So chama apos tour realmente iniciado (nao apos abort de wait).
           onComplete();
           driverRef.current = null;
           setIsTourActive(false);
@@ -125,55 +140,126 @@ export function OnboardingTourProvider({ children, setMobileOpen, hasActiveOrg }
     [destroyDriver],
   );
 
-  const startGlobalTour = useCallback(async (opts?: { requireTargets?: boolean }) => {
-    sidebarPrepRef.current?.();
-    prepareMobileSidebar();
-    pageTourCtxRef.current.showWorkload = showWorkloadRef.current;
+  const isAutoStartEligible = useCallback(() => {
+    return (
+      canAutoStartTour(hasActiveOrgRef.current) &&
+      !isOnboardingTourCompleted() &&
+      !isTourActiveRef.current
+    );
+  }, []);
 
-    const steps = buildOnboardingDriveSteps(showWorkloadRef.current);
-    if (opts?.requireTargets !== false && !areRequiredTourTargetsPresent(steps)) {
-      globalAutoStartedRef.current = false;
-      return;
-    }
+  const startGlobalTour = useCallback(
+    async (opts?: { requireTargets?: boolean; signal?: AbortSignal }) => {
+      if (opts?.requireTargets !== false && !canAutoStartTour(hasActiveOrgRef.current)) {
+        return false;
+      }
 
-    await runTour(steps, () => {
-      markOnboardingTourCompleted();
-    }, { doneBtnText: "Comecar" });
-  }, [prepareMobileSidebar, runTour]);
+      sidebarPrepRef.current?.();
+      prepareMobileSidebar();
+      pageTourCtxRef.current.showWorkload = showWorkloadRef.current;
 
-  // Apos criar org: hasActiveOrg vira true sem re-chamar notifyShowWorkload.
+      const buildSteps = () => buildOnboardingDriveSteps(showWorkloadRef.current);
+      let steps = buildSteps();
+
+      if (opts?.requireTargets !== false) {
+        const ready = await waitForRequiredTourTargets(steps, {
+          signal: opts?.signal,
+          isStillEligible: () =>
+            canAutoStartTour(hasActiveOrgRef.current) && !isOnboardingTourCompleted(),
+        });
+        if (!ready) {
+          // Abort / targets ausentes: NAO marcar completed.
+          return false;
+        }
+        // Reavalia steps (showWorkload pode ter chegado durante o wait).
+        steps = buildSteps();
+        const stillReady = await waitForRequiredTourTargets(steps, {
+          maxAttempts: 4,
+          signal: opts?.signal,
+          isStillEligible: () =>
+            canAutoStartTour(hasActiveOrgRef.current) && !isOnboardingTourCompleted(),
+        });
+        if (!stillReady) return false;
+      }
+
+      if (opts?.signal?.aborted) return false;
+      if (opts?.requireTargets !== false && !isAutoStartEligible()) return false;
+
+      await runTour(steps, () => {
+        markOnboardingTourCompleted();
+      }, { doneBtnText: "Comecar" });
+      return true;
+    },
+    [isAutoStartEligible, prepareMobileSidebar, runTour],
+  );
+
+  // Sem org: abort wait + libera flag para reavaliar apos create-org.
   useEffect(() => {
-    if (!hasActiveOrg) return;
+    if (hasActiveOrg) return;
+    abortPendingAutoStart();
+    globalAutoStartedRef.current = false;
+  }, [hasActiveOrg, abortPendingAutoStart]);
+
+  // Apos create-org (hasActiveOrg false→true) ou 1a carga com org: retry targets.
+  useEffect(() => {
+    if (!canAutoStartTour(hasActiveOrg)) return;
     if (isOnboardingTourCompleted()) return;
     if (globalAutoStartedRef.current) return;
     if (isTourActive) return;
 
+    abortPendingAutoStart();
+    const controller = new AbortController();
+    autoStartAbortRef.current = controller;
+
     const timer = window.setTimeout(() => {
-      if (!hasActiveOrgRef.current) return;
-      if (isOnboardingTourCompleted()) return;
+      if (!isAutoStartEligible()) return;
       if (globalAutoStartedRef.current) return;
       globalAutoStartedRef.current = true;
-      void startGlobalTour({ requireTargets: true });
+
+      void startGlobalTour({ requireTargets: true, signal: controller.signal }).then((started) => {
+        if (!started && !controller.signal.aborted) {
+          // Targets esgotaram: libera para nova tentativa se hasActiveOrg/DOM mudar.
+          globalAutoStartedRef.current = false;
+        }
+      });
     }, AUTO_START_DELAY_MS);
 
-    return () => window.clearTimeout(timer);
-  }, [hasActiveOrg, isTourActive, startGlobalTour]);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+      if (autoStartAbortRef.current === controller) {
+        autoStartAbortRef.current = null;
+      }
+    };
+  }, [hasActiveOrg, isTourActive, startGlobalTour, abortPendingAutoStart, isAutoStartEligible]);
 
   const startPageTour = useCallback(
-    async (tourId: PageTourId, opts?: { requireTargets?: boolean }) => {
+    async (tourId: PageTourId, opts?: { requireTargets?: boolean; signal?: AbortSignal }) => {
+      if (opts?.requireTargets !== false && !canAutoStartTour(hasActiveOrgRef.current)) {
+        return false;
+      }
+
       tourPrepRef.current[tourId]?.();
       await new Promise((resolve) => setTimeout(resolve, 400));
       prepareMobileSidebar();
 
       const ctx = pageTourCtxRef.current;
       const steps = buildPageDriveSteps(tourId, ctx);
-      if (opts?.requireTargets !== false && !areRequiredTourTargetsPresent(steps)) {
-        return;
+
+      if (opts?.requireTargets !== false) {
+        const ready = await waitForRequiredTourTargets(steps, {
+          signal: opts?.signal,
+          isStillEligible: () => canAutoStartTour(hasActiveOrgRef.current),
+        });
+        if (!ready) return false;
       }
+
+      if (opts?.signal?.aborted) return false;
 
       await runTour(steps, () => {
         markPageTourCompleted(tourId);
       });
+      return true;
     },
     [prepareMobileSidebar, runTour],
   );
@@ -193,7 +279,7 @@ export function OnboardingTourProvider({ children, setMobileOpen, hasActiveOrg }
 
   const tryAutoStartPageTour = useCallback(
     (path: string) => {
-      if (!hasActiveOrgRef.current) return;
+      if (!canAutoStartTour(hasActiveOrgRef.current)) return;
       if (isTourActive) return;
       if (!isOnboardingTourCompleted()) return;
 
@@ -206,27 +292,16 @@ export function OnboardingTourProvider({ children, setMobileOpen, hasActiveOrg }
     [isTourActive, startPageTour],
   );
 
-  const notifyShowWorkload = useCallback(
-    (show: boolean) => {
-      showWorkloadRef.current = show;
-      pageTourCtxRef.current.showWorkload = show;
+  const notifyShowWorkload = useCallback((show: boolean) => {
+    showWorkloadRef.current = show;
+    pageTourCtxRef.current.showWorkload = show;
+    // Auto-start so via effect hasActiveOrg (retry/backoff). Evita double-start.
+  }, []);
 
-      if (!hasActiveOrgRef.current) return;
-      if (globalAutoStartedRef.current) return;
-      if (isOnboardingTourCompleted()) return;
-
-      window.setTimeout(() => {
-        if (!hasActiveOrgRef.current) return;
-        if (globalAutoStartedRef.current) return;
-        if (isOnboardingTourCompleted()) return;
-        globalAutoStartedRef.current = true;
-        void startGlobalTour({ requireTargets: true });
-      }, AUTO_START_DELAY_MS);
-    },
-    [startGlobalTour],
-  );
-
-  useEffect(() => () => destroyDriver(), [destroyDriver]);
+  useEffect(() => () => {
+    abortPendingAutoStart();
+    destroyDriver();
+  }, [abortPendingAutoStart, destroyDriver]);
 
   const value: OnboardingTourContextValue = {
     openGlobalTour,

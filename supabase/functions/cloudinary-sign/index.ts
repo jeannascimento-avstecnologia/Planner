@@ -1,13 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { assertBearerPresent, resolveOrgUploadFolder, type SignBody } from "./folder.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-type SignBody = {
-  folder?: string;
-  orgId?: string;
 };
 
 async function sha1Hex(input: string): Promise<string> {
@@ -41,14 +37,15 @@ Deno.serve(async (req) => {
     });
   }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401,
+  const authGate = assertBearerPresent(req.headers.get("Authorization"));
+  if (!authGate.ok) {
+    return new Response(JSON.stringify({ error: authGate.error }), {
+      status: authGate.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
+  const authHeader = req.headers.get("Authorization")!;
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -73,24 +70,38 @@ Deno.serve(async (req) => {
     body = {};
   }
 
-  let folder = body.folder?.trim() || "uploads";
-  if (body.orgId) {
-    const { data: membership } = await supabase
-      .from("memberships")
-      .select("role")
-      .eq("org_id", body.orgId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    const role = membership?.role;
-    if (!role || (role !== "admin" && role !== "owner")) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    folder = `org-logos/${body.orgId}`;
+  const folderResult = resolveOrgUploadFolder(body);
+  if (!folderResult.ok) {
+    return new Response(JSON.stringify({ error: folderResult.error }), {
+      status: folderResult.status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
+  const orgId = body.orgId!.trim();
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const role = membership?.role;
+  if (!role) {
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (folderResult.requiresAdmin && role !== "admin" && role !== "owner") {
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const folder = folderResult.folder;
   const timestamp = Math.round(Date.now() / 1000);
   const params = { folder, timestamp };
   const sorted = Object.keys(params)
