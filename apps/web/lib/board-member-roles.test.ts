@@ -1,32 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { canEditBoardUI, isBoardViewer } from "./board-member-roles";
 
-describe("isBoardViewer", () => {
-  it("org admin nunca e visualizador", () => {
-    expect(isBoardViewer(true, null)).toBe(false);
-    expect(isBoardViewer(true, "viewer")).toBe(false);
+describe("canEditBoardUI", () => {
+  it("org admin edita", () => {
+    expect(canEditBoardUI(true, null)).toBe(true);
   });
 
-  it("board viewer e visualizador", () => {
-    expect(isBoardViewer(false, "viewer")).toBe(true);
+  it("viewer nao edita", () => {
+    expect(canEditBoardUI(false, "viewer")).toBe(false);
   });
 
-  it("board admin e manager usam UI de edicao", () => {
-    expect(isBoardViewer(false, "admin")).toBe(false);
-    expect(isBoardViewer(false, "manager")).toBe(false);
+  it("board admin edita", () => {
+    expect(canEditBoardUI(false, "admin")).toBe(true);
   });
 
-  it("org member sem board_members usa modo leitura", () => {
-    expect(isBoardViewer(false, null)).toBe(true);
+  it("board manager nao edita write (RLS)", () => {
+    expect(canEditBoardUI(false, "manager")).toBe(false);
+  });
+
+  it("sem papel no board nao edita", () => {
+    expect(canEditBoardUI(false, null)).toBe(false);
   });
 });
 
-describe("canEditBoardUI", () => {
-  it("espelha negacao de isBoardViewer", () => {
-    expect(canEditBoardUI(true, null)).toBe(true);
-    expect(canEditBoardUI(false, "viewer")).toBe(false);
-    expect(canEditBoardUI(false, "admin")).toBe(true);
-    expect(canEditBoardUI(false, "manager")).toBe(true);
-    expect(canEditBoardUI(false, null)).toBe(false);
+describe("isBoardViewer", () => {
+  it("inverso de canEditBoardUI", () => {
+    expect(isBoardViewer(true, null)).toBe(false);
+    expect(isBoardViewer(false, "viewer")).toBe(true);
   });
 });

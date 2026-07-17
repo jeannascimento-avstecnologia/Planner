@@ -21,6 +21,16 @@ Estado: TanStack Query (`board:{id}:cards`) + Realtime invalidate — ver [board
 - Apos drop: `moveCard` server action + `router.refresh()`.
 - Grava `card_events` tipo `moved` com `from_column_id` / `to_column_id`.
 
+## Authz Kanban / Adicionar card
+
+- Form `create-card-form` so aparece se `writeAuthz.canWriteBoard` (espelha `app.can_write_board`).
+- `writeAuthz` e calculado **fora** do `unstable_cache` do snapshot (evita `isOrgAdmin` stale apos deploy).
+- Criterio: org **owner**; ou board_members **admin**; ou org **admin** em board sem departamento; ou papel **admin|manager** no departamento do board.
+- Sem escrita: banner `board-readonly-banner` + zero forms.
+
+Contrato: `lib/board-authz.ts` + `lib/board-authz.test.ts`.
+Loader: `lib/loaders/board-cache.ts` (`fetchFreshWriteAuthz`).
+
 ## Layout / viewport (scroll das colunas)
 
 Cadeia flex obrigatoria para colunas altas rolarem **cards**, nao a pagina inteira:

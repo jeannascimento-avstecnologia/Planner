@@ -32,6 +32,7 @@ async function BoardPageContent({ boardId }: { boardId: string }) {
           profilesById={snapshot.profilesById}
           isOrgAdmin={snapshot.isOrgAdmin}
           currentUserId={user?.id ?? null}
+          writeAuthz={snapshot.writeAuthz}
         />
       </BoardThemeScope>
     </>

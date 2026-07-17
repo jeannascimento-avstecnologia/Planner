@@ -103,16 +103,27 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
     return { ok: false, error: "Sem permissao para criar projetos neste escopo." };
   }
 
-  const { error } = await supabase.from("boards").insert({
-    org_id: targetOrgId,
-    name: sanitizeName(parsed.data.name, 120),
-    description: parsed.data.description ? sanitizeName(parsed.data.description, 2000) : null,
-    icon: parsed.data.icon ?? null,
-    color: parsed.data.color ?? null,
-    department_id: deptId,
-    created_by: user.id,
+  const { data: created, error } = await supabase
+    .from("boards")
+    .insert({
+      org_id: targetOrgId,
+      name: sanitizeName(parsed.data.name, 120),
+      description: parsed.data.description ? sanitizeName(parsed.data.description, 2000) : null,
+      icon: parsed.data.icon ?? null,
+      color: parsed.data.color ?? null,
+      department_id: deptId,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (error || !created) return { ok: false, error: "Nao foi possivel criar o projeto." };
+
+  // Best-effort: org admin/owner ja escreve via RLS; creator vira board admin quando a policy permitir.
+  await supabase.from("board_members").insert({
+    board_id: created.id,
+    user_id: user.id,
+    role: "admin",
   });
-  if (error) return { ok: false, error: "Nao foi possivel criar o projeto." };
 
   revalidateHomeProjects(user.id);
   revalidateOrgSettings(targetOrgId, user.id);

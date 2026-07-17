@@ -14,6 +14,7 @@ import {
   sortAssigneeProfiles,
 } from "@/lib/board-assignees";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
+import { computeCanWriteBoard, type BoardWriteAuthzInput } from "@/lib/board-authz";
 import { dedupeCardsById } from "@/lib/dedupe-cards";
 import type { BoardCard, ProfileRow } from "@/components/board/types";
 import { groupChecklistItemsByCard } from "@/lib/card-kernel/checklist-group";
@@ -27,6 +28,11 @@ import { groupTreeParentsByChild, resolveTreeParentIds } from "@/lib/card-tree/t
 const BOARD_SELECT =
   "id, org_id, name, description, icon, color, tiflux_enabled, department_id, archived, created_by";
 
+export type BoardWriteAuthz = BoardWriteAuthzInput & {
+  isOrgAdmin: boolean;
+  canWriteBoard: boolean;
+};
+
 export type BoardSnapshot = {
   board: {
     id: string;
@@ -36,6 +42,7 @@ export type BoardSnapshot = {
     icon: string | null;
     color: string | null;
     tiflux_enabled: boolean;
+    department_id?: string | null;
   };
   orgName: string;
   orgLogoUrl: string | null;
@@ -54,6 +61,8 @@ export type BoardSnapshot = {
   boardMembers: { user_id: string; role: string; profile?: ProfileRow }[];
   profilesById: Record<string, ProfileRow>;
   isOrgAdmin: boolean;
+  /** Authz fresco (nunca confiar so no cache cross-request). */
+  writeAuthz: BoardWriteAuthz;
 };
 
 async function fetchBoardSnapshot(
@@ -107,6 +116,11 @@ async function fetchBoardSnapshot(
   }
 
   const isOrgAdmin = isOrgAdminRole(myMembership?.role);
+  const writeAuthz = await buildWriteAuthz(supabase, boardId, userId, {
+    orgId: board.org_id,
+    departmentId: board.department_id ?? null,
+    orgRole: myMembership?.role ?? null,
+  });
   type CardRow = {
     id: string;
     column_id: string;
@@ -237,6 +251,7 @@ async function fetchBoardSnapshot(
       icon: board.icon,
       color: board.color,
       tiflux_enabled: board.tiflux_enabled ?? false,
+      department_id: board.department_id ?? null,
     },
     orgName: org?.name ?? "Organizacao",
     orgLogoUrl: org?.logo_url ?? null,
@@ -247,20 +262,106 @@ async function fetchBoardSnapshot(
     members,
     boardMembers: bmList,
     profilesById,
-    isOrgAdmin,
+    isOrgAdmin: writeAuthz.isOrgAdmin,
+    writeAuthz,
   };
 }
 
-/** Cross-request cache do board snapshot — chave userId+boardId; invalidar via revalidateBoard(). */
+async function buildWriteAuthz(
+  supabase: CachedSupabaseClient,
+  boardId: string,
+  userId: string,
+  seed: { orgId: string; departmentId: string | null; orgRole: string | null },
+): Promise<BoardWriteAuthz> {
+  const hasDepartment = Boolean(seed.departmentId);
+  const [{ data: boardMember }, deptRes] = await Promise.all([
+    supabase
+      .from("board_members")
+      .select("role")
+      .eq("board_id", boardId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    hasDepartment && seed.departmentId
+      ? supabase
+          .from("department_members")
+          .select("role")
+          .eq("department_id", seed.departmentId)
+          .eq("user_id", userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null as { role: string } | null }),
+  ]);
+
+  const input: BoardWriteAuthzInput = {
+    orgRole: seed.orgRole,
+    boardRole: boardMember?.role ?? null,
+    deptRole: deptRes.data?.role ?? null,
+    hasDepartment,
+  };
+  return {
+    ...input,
+    isOrgAdmin: isOrgAdminRole(seed.orgRole),
+    canWriteBoard: computeCanWriteBoard(input),
+  };
+}
+
+/** Authz sempre fresco (cookies) — evita isOrgAdmin/canWrite stale no unstable_cache. */
+async function fetchFreshWriteAuthz(boardId: string, userId: string): Promise<BoardWriteAuthz> {
+  const supabase = await createClient();
+  const { data: board } = await supabase
+    .from("boards")
+    .select("org_id, department_id")
+    .eq("id", boardId)
+    .maybeSingle();
+  if (!board) {
+    return {
+      orgRole: null,
+      boardRole: null,
+      deptRole: null,
+      hasDepartment: false,
+      isOrgAdmin: false,
+      canWriteBoard: false,
+    };
+  }
+  const { data: myMembership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", board.org_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return buildWriteAuthz(supabase, boardId, userId, {
+    orgId: board.org_id,
+    departmentId: board.department_id ?? null,
+    orgRole: myMembership?.role ?? null,
+  });
+}
+
+/** Cross-request cache do board snapshot — authz de write SEMPRE revalidado fora do cache. */
 export async function loadBoardSnapshotCached(boardId: string, userId: string): Promise<BoardSnapshot> {
   const accessToken = await getAccessTokenForCache();
+  let snapshot: BoardSnapshot;
   if (!accessToken) {
     const supabase = await createClient();
-    return fetchBoardSnapshot(supabase, boardId, userId);
+    snapshot = await fetchBoardSnapshot(supabase, boardId, userId);
+  } else {
+    snapshot = await unstable_cache(
+      () => fetchBoardSnapshot(createCachedSupabaseClient(accessToken), boardId, userId),
+      [`board-snapshot-${userId}-${boardId}`],
+      { tags: [CACHE_TAGS.board(boardId)] },
+    )();
   }
-  return unstable_cache(
-    () => fetchBoardSnapshot(createCachedSupabaseClient(accessToken), boardId, userId),
-    [`board-snapshot-${userId}-${boardId}`],
-    { tags: [CACHE_TAGS.board(boardId)] },
-  )();
+
+  const writeAuthz = await fetchFreshWriteAuthz(boardId, userId);
+  const boardMembers = [...snapshot.boardMembers];
+  if (writeAuthz.boardRole) {
+    const idx = boardMembers.findIndex((m) => m.user_id === userId);
+    if (idx >= 0) boardMembers[idx] = { ...boardMembers[idx], role: writeAuthz.boardRole };
+    else boardMembers.push({ user_id: userId, role: writeAuthz.boardRole });
+  }
+
+  return {
+    ...snapshot,
+    boardMembers,
+    isOrgAdmin: writeAuthz.isOrgAdmin,
+    writeAuthz,
+  };
 }

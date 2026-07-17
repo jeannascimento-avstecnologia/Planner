@@ -63,7 +63,7 @@ const BoardAutomationsModal = dynamic(
 import { CardFilterBar } from "./card-filter-bar";
 import { BoardKanbanTourPrep } from "@/components/onboarding/page-tour-preps";
 import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
-import { canEditBoardUI, canManageBoardMembers, canWriteBoard } from "@/lib/board-member-roles";
+import { canManageBoardMembers, canWriteBoard } from "@/lib/board-member-roles";
 import { BoardAppearanceEditor } from "./board-appearance-editor";
 import { BoardIcon } from "./board-icon";
 import { BoardPresenceLayer } from "./board-presence-layer";
@@ -71,6 +71,7 @@ import { useBoardPresence } from "@/hooks/use-board-presence";
 import { useBoardCards } from "@/hooks/use-board-cards";
 import { useBoardCardsRealtime } from "@/hooks/use-board-cards-realtime";
 import type { BoardMember } from "./board-member";
+import type { BoardWriteAuthz } from "@/lib/loaders/board-cache";
 import {
   EMPTY_FILTERS,
   matchesFilters,
@@ -105,6 +106,8 @@ type Props = {
   profilesById: Record<string, ProfileRow>;
   isOrgAdmin: boolean;
   currentUserId: string | null;
+  /** Authz fresco do loader (espelha RLS). */
+  writeAuthz: BoardWriteAuthz;
 };
 
 function BoardViewInner({
@@ -118,8 +121,8 @@ function BoardViewInner({
   members,
   boardMembers,
   profilesById,
-  isOrgAdmin,
   currentUserId,
+  writeAuthz,
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -256,9 +259,9 @@ function BoardViewInner({
     return lanes;
   }, [kanbanCards, groupByAssignee, members]);
 
-  const userBoardRole = boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
-  const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
-  const canEditBoard = canEditBoardUI(isOrgAdmin, userBoardRole);
+  const userBoardRole = writeAuthz.boardRole ?? boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
+  const canManageMembers = canManageBoardMembers(writeAuthz.isOrgAdmin, userBoardRole);
+  const canEditBoard = writeAuthz.canWriteBoard;
 
   // #region agent log
   useEffect(() => {
@@ -267,15 +270,19 @@ function BoardViewInner({
       headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "24faed" },
       body: JSON.stringify({
         sessionId: "24faed",
-        runId: "post-deploy-missing-add",
+        runId: "post-fix-authz",
         hypothesisId: "H1",
         location: "board-view.tsx:canEditBoard",
-        message: "edit gates on board load",
+        message: "edit gates on board load (fresh authz)",
         data: {
           viewMode,
           canEditBoard,
-          isOrgAdmin,
+          isOrgAdmin: writeAuthz.isOrgAdmin,
           userBoardRole,
+          orgRole: writeAuthz.orgRole,
+          deptRole: writeAuthz.deptRole,
+          hasDepartment: writeAuthz.hasDepartment,
+          canWriteBoard: writeAuthz.canWriteBoard,
           currentUserIdPresent: Boolean(currentUserId),
           boardMembersCount: boardMembers.length,
           groupByAssignee,
@@ -287,7 +294,7 @@ function BoardViewInner({
   }, [
     viewMode,
     canEditBoard,
-    isOrgAdmin,
+    writeAuthz,
     userBoardRole,
     currentUserId,
     boardMembers.length,
@@ -295,13 +302,12 @@ function BoardViewInner({
   ]);
   // #endregion
 
-  const canManageAutomations = canWriteBoard(isOrgAdmin, userBoardRole);
+  const canManageAutomations = canWriteBoard(writeAuthz.isOrgAdmin, userBoardRole);
 
   const canRenameColumns = useMemo(() => {
     if (!canEditBoard) return false;
-    const boardRole = boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
-    return canWriteBoard(isOrgAdmin, boardRole);
-  }, [boardMembers, currentUserId, isOrgAdmin, canEditBoard]);
+    return canWriteBoard(writeAuthz.isOrgAdmin, userBoardRole);
+  }, [writeAuthz.isOrgAdmin, userBoardRole, canEditBoard]);
 
   const selectedCard = safeCards.find((c) => c.id === selectedCardId) ?? null;
   const tifluxLinkCard = safeCards.find((c) => c.id === tifluxLinkCardId) ?? null;
@@ -412,7 +418,7 @@ function BoardViewInner({
         stages={localStages}
         members={members}
         value={filters}
-        isOrgAdmin={isOrgAdmin}
+        isOrgAdmin={writeAuthz.isOrgAdmin}
         onManageStages={canEditBoard ? () => setStagesOpen(true) : undefined}
         onChange={setFilters}
         onClear={() => setFilters(EMPTY_FILTERS)}
@@ -424,6 +430,16 @@ function BoardViewInner({
       <div className="shrink-0" data-tour="board-view-switcher">
         <BoardViewSwitcher value={viewMode} onChange={changeViewMode} />
       </div>
+
+      {!canEditBoard ? (
+        <p
+          className="shrink-0 rounded-lg border border-aurora-border bg-aurora-muted/10 px-3 py-2 text-sm text-aurora-muted"
+          data-testid="board-readonly-banner"
+        >
+          Modo leitura: seu usuario nao tem permissao de escrita neste projeto (org admin/owner, editor do
+          board ou papel no departamento).
+        </p>
+      ) : null}
 
       {viewMode === "kanban" ? (
         <div data-tour="board-kanban" className={KANBAN_BOARD_REGION_CLASS}>
@@ -528,7 +544,7 @@ function BoardViewInner({
           tags={localTags}
           members={members}
           allCards={safeCards}
-          isOrgAdmin={isOrgAdmin}
+          isOrgAdmin={writeAuthz.isOrgAdmin}
           readOnly={!canEditBoard}
           tifluxEnabled={tifluxEnabled}
           onOpenTifluxCreate={openTifluxCreate}

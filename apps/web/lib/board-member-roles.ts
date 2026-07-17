@@ -1,4 +1,12 @@
 import { isOrgAdminRole } from "@/lib/org-member-roles";
+import {
+  canEditBoardUI as canEditBoardUIAuthz,
+  canManageBoardMembers as canManageBoardMembersAuthz,
+  canWriteBoard as canWriteBoardAuthz,
+  computeCanWriteBoard,
+  isBoardViewer as isBoardViewerAuthz,
+  type BoardWriteAuthzInput,
+} from "@/lib/board-authz";
 
 export const BOARD_ROLE_LABELS: Record<string, string> = {
   viewer: "Visualizar",
@@ -11,22 +19,29 @@ export function boardRoleLabel(role: string): string {
 }
 
 export function canManageBoardMembers(isOrgAdmin: boolean, userBoardRole?: string | null): boolean {
-  return isOrgAdmin || userBoardRole === "manager";
+  return canManageBoardMembersAuthz(isOrgAdmin, userBoardRole);
 }
 
-/** Espelha RLS `app.can_write_board`: org admin ou board_member com role admin. */
+/** Espelha RLS `app.can_write_board` (legado sem dept). */
 export function canWriteBoard(isOrgAdmin: boolean, userBoardRole?: string | null): boolean {
-  return isOrgAdmin || userBoardRole === "admin";
+  return canWriteBoardAuthz(isOrgAdmin, userBoardRole);
 }
 
-/** Modo leitura na UI: viewer ou membro da org sem papel editor/gerente no board. */
-export function isBoardViewer(isOrgAdmin: boolean, userBoardRole?: string | null): boolean {
-  if (isOrgAdmin) return false;
-  if (userBoardRole === "admin" || userBoardRole === "manager") return false;
-  if (userBoardRole === "viewer") return true;
-  return true;
+export function isBoardViewer(
+  isOrgAdmin: boolean,
+  userBoardRole?: string | null,
+  opts?: Omit<BoardWriteAuthzInput, "boardRole"> & { boardRole?: string | null },
+): boolean {
+  return isBoardViewerAuthz(isOrgAdmin, userBoardRole, opts);
 }
 
-export function canEditBoardUI(isOrgAdmin: boolean, userBoardRole?: string | null): boolean {
-  return !isBoardViewer(isOrgAdmin, userBoardRole);
+export function canEditBoardUI(
+  isOrgAdmin: boolean,
+  userBoardRole?: string | null,
+  opts?: Omit<BoardWriteAuthzInput, "boardRole"> & { boardRole?: string | null },
+): boolean {
+  return canEditBoardUIAuthz(isOrgAdmin, userBoardRole, opts);
 }
+
+export { computeCanWriteBoard, isOrgAdminRole };
+export type { BoardWriteAuthzInput };
