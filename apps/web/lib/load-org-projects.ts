@@ -47,6 +47,7 @@ export type OrgProjectsData = {
   orgId: string;
   orgName: string | null;
   isOrgAdmin: boolean;
+  isOrgOwner: boolean;
   currentUserId: string | null;
   boards: ProjectBoardRow[];
   boardMembersByBoardId: Record<string, BoardMember[]>;
@@ -203,11 +204,20 @@ export async function fetchOrgProjectsData(
           .is("completed_at", null)
       : Promise.resolve({ data: [] as { board_id: string; due_date: string | null; completed_at: string | null }[] }),
     boardIds.length
-      ? supabase.from("board_members").select("board_id, user_id, role").in("board_id", boardIds)
-      : Promise.resolve({ data: [] as { board_id: string; user_id: string; role: string }[] }),
+      ? supabase.from("board_members").select("board_id, user_id, role, preset_id").in("board_id", boardIds)
+      : Promise.resolve({
+          data: [] as { board_id: string; user_id: string; role: string; preset_id: string | null }[],
+        }),
   ]);
 
   const memberUserIds = [...new Set((boardMembersRaw ?? []).map((m) => m.user_id))];
+  const presetIds = [
+    ...new Set(
+      (boardMembersRaw ?? [])
+        .map((m) => m.preset_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ];
   const now = new Date();
   const weekAhead = new Date(now);
   weekAhead.setDate(weekAhead.getDate() + 7);
@@ -230,13 +240,17 @@ export async function fetchOrgProjectsData(
     .order("due_date", { ascending: true })
     .limit(20);
 
-  const [{ data: memberProfiles }, { data: allUpcomingTasks }, { data: upcoming }] = await Promise.all([
-    memberUserIds.length
-      ? supabase.from("profiles").select("id, full_name").in("id", memberUserIds)
-      : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
-    boardIds.length ? upcomingQuery.in("board_id", boardIds) : upcomingQuery,
-    boardIds.length ? deadlineQuery.in("board_id", boardIds) : deadlineQuery,
-  ]);
+  const [{ data: memberProfiles }, { data: presetNameRows }, { data: allUpcomingTasks }, { data: upcoming }] =
+    await Promise.all([
+      memberUserIds.length
+        ? supabase.from("profiles").select("id, full_name").in("id", memberUserIds)
+        : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
+      presetIds.length
+        ? supabase.from("access_presets").select("id, name").in("id", presetIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+      boardIds.length ? upcomingQuery.in("board_id", boardIds) : upcomingQuery,
+      boardIds.length ? deadlineQuery.in("board_id", boardIds) : deadlineQuery,
+    ]);
   const memberProfileById = new Map((memberProfiles ?? []).map((p) => [p.id, p]));
 
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
@@ -350,12 +364,15 @@ export async function fetchOrgProjectsData(
     });
 
   const boardMembersByBoardId: Record<string, BoardMember[]> = {};
+  const presetNameById = new Map((presetNameRows ?? []).map((p) => [p.id, p.name]));
   for (const bm of boardMembersRaw ?? []) {
     const list = boardMembersByBoardId[bm.board_id] ?? [];
     const profile = memberProfileById.get(bm.user_id);
     list.push({
       user_id: bm.user_id,
       role: bm.role,
+      preset_id: bm.preset_id ?? null,
+      presetName: bm.preset_id ? presetNameById.get(bm.preset_id) : undefined,
       profile: profile ? { id: profile.id, full_name: profile.full_name } : undefined,
     });
     boardMembersByBoardId[bm.board_id] = list;
@@ -414,6 +431,7 @@ export async function fetchOrgProjectsData(
       orgId: effectiveOrgId ?? "",
       orgName: activeOrgRow?.name ?? (activeOrgId ? null : "Projetos compartilhados"),
       isOrgAdmin,
+      isOrgOwner: isOrgOwnerRole(membershipRow?.role),
       currentUserId: userId,
       boards,
       boardMembersByBoardId,

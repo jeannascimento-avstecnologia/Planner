@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsStandard, projectLink } from "./helpers";
+import { loginAsStandard, loginAsOrgAdmin, projectLink, openSeedBoard } from "./helpers";
 
 async function openRoadmapBoard(page: import("@playwright/test").Page) {
   await projectLink(page, /Roadmap/).click();
@@ -12,7 +12,7 @@ test.describe("Board invites", () => {
     await loginAsStandard(page);
   });
 
-  test("modal de convite exibe secao de email para org admin", async ({ page }) => {
+  test("modal de convite exibe secao de email para owner", async ({ page }) => {
     await openRoadmapBoard(page);
     await page.getByRole("button", { name: /Convidar um integrante/i }).click();
     await expect(page.getByTestId("invite-members-modal")).toBeVisible();
@@ -130,5 +130,13 @@ test.describe("Board invites — link de convite", () => {
     await expect(page.getByTestId("invite-link-url")).toBeVisible({ timeout: 15_000 });
     const href = await page.getByTestId("invite-link-url").getAttribute("href");
     expect(href).toMatch(/\/invite\?token=[a-f0-9]+/);
+  });
+});
+
+test.describe("Board invites — org admin sem ACL", () => {
+  test("org admin sem papel manager no board nao ve Convidar", async ({ page }) => {
+    await loginAsOrgAdmin(page);
+    await openSeedBoard(page);
+    await expect(page.getByRole("button", { name: /Convidar um integrante/i })).toHaveCount(0);
   });
 });

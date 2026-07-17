@@ -45,11 +45,28 @@ Tabela existente `public.card_events`:
 
 **Board** (scope `board`):
 
-- `board_created`, `board_deleted`, `board_renamed`, `board_member_added`, `board_member_removed`, `column_created`, `column_renamed`, `column_deleted`, `tiflux_configured`, `tiflux_cleared`
+- `board_created`, `board_deleted`, `board_renamed`, `board_member_added`, `board_member_removed`, `column_created`, `column_renamed`, `column_deleted`, `tiflux_configured`, `tiflux_cleared`, `preset_assigned`
 
 **Org** (scope `org`):
 
-- `member_invited`, `member_removed`, `role_changed`, `department_moved`, `org_renamed`, `org_logo_updated`
+- `member_invited`, `member_removed`, `role_changed`, `department_moved`, `org_renamed`, `org_logo_updated`, `preset_created`, `preset_updated`, `preset_deleted`
+
+### Resumo legivel (UI + export)
+
+- Labels pt-BR em `apps/web/lib/audit/audit-labels.ts` (`auditEventLabel` + `auditPayloadSummary`).
+- Payloads devem carregar **nomes** (card, preset, pessoa, coluna, projeto), nao so UUIDs.
+  - Emit: triggers (`20260717170000_audit_payload_display_names.sql`) e server actions de presets gravam `*_name` / `title` no payload.
+  - Load: `enrichAuditPayloads` em `load-audit-log.ts` resolve IDs remanescentes via join (profiles, access_presets, columns, boards, cards) antes da UI/export.
+- Export CSV/PDF usa a mesma coluna `detail` = `auditPayloadSummary` (payload redigido).
+
+Exemplos de detalhe:
+
+| event_type | detalhe |
+|------------|---------|
+| `preset_created` | `Criou preset "Leitura + comentar"` |
+| `preset_assigned` | `Concedeu acesso "Editor" a Bruno Costa no projeto "Roadmap"` |
+| `board_member_added` | `Adicionou Carla com acesso "Visualizador" no projeto "Marketing"` |
+| `card_moved` | `Card "Bug login" de "Todo" para "Doing"` |
 
 ### Emissão
 
@@ -117,4 +134,6 @@ Tabela existente `public.card_events`:
 | Zod payloads | `packages/contracts/src/audit-events.ts` | Vitest |
 | UI list + filtros | `settings/audit/page.tsx`, `audit-log-table.tsx` | Playwright `audit-log.spec.ts` |
 | pg_cron retention | migration `*_audit_retention_cron.sql` | pgTAP purge |
-| Labels i18n | `lib/audit-labels.ts` | Vitest snapshot |
+| Labels i18n | `lib/audit/audit-labels.ts` | Vitest `audit-labels.test.ts` |
+| Nomes no payload | triggers + `enrich-audit-payloads.ts` | Vitest merge/collect + summary |
+| Export CSV/PDF | `lib/audit/export-audit.ts` + `/api/audit/export` | Vitest + Playwright |

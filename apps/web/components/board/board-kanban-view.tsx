@@ -37,7 +37,11 @@ type Props = {
   profilesById: Record<string, ProfileRow>;
   tifluxEnabled: boolean;
   canEditBoard: boolean;
+  canCreateCards?: boolean;
+  canMoveCards?: boolean;
   canRenameColumns: boolean;
+  canDeleteColumns?: boolean;
+  canCreateColumns?: boolean;
   readOnlyTiflux?: boolean;
   onSelectCard: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
@@ -129,7 +133,11 @@ export function BoardKanbanView({
   profilesById,
   tifluxEnabled,
   canEditBoard,
+  canCreateCards = canEditBoard,
+  canMoveCards = canEditBoard,
   canRenameColumns,
+  canDeleteColumns = canRenameColumns,
+  canCreateColumns = canEditBoard,
   readOnlyTiflux = false,
   onSelectCard,
   onOpenTifluxCreate,
@@ -224,30 +232,6 @@ export function BoardKanbanView({
 
   const activeCard = activeCardId ? (cardById.get(activeCardId) ?? null) : null;
 
-  // #region agent log
-  useEffect(() => {
-    fetch("http://127.0.0.1:7804/ingest/29457b36-0b80-4b84-b158-efeeb1de7ce1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "24faed" },
-      body: JSON.stringify({
-        sessionId: "24faed",
-        runId: "post-deploy-missing-add",
-        hypothesisId: groupByAssignee ? "H4" : "H5",
-        location: "board-kanban-view.tsx:branch",
-        message: "kanban branch + create path",
-        data: {
-          groupByAssignee,
-          swimlaneMode: Boolean(groupByAssignee && swimlanes),
-          canEditBoard,
-          columnsCount: columns.length,
-          hasCreateCardPath: !(groupByAssignee && swimlanes) && canEditBoard,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, [groupByAssignee, swimlanes, canEditBoard, columns.length]);
-  // #endregion
-
   const handleDragStart = useCallback((event: DragStartEvent) => {
     isDraggingRef.current = true;
     setActiveCardId(String(event.active.id));
@@ -273,7 +257,7 @@ export function BoardKanbanView({
     (event: DragEndEvent) => {
       isDraggingRef.current = false;
       setActiveCardId(null);
-      if (!canEditBoard || moveMutation.isPending) return;
+      if (!canMoveCards || moveMutation.isPending) return;
 
       const { active, over } = event;
       if (!over) return;
@@ -313,7 +297,7 @@ export function BoardKanbanView({
 
       moveMutation.mutate(fd);
     },
-    [boardId, canEditBoard, cardById, columns, moveMutation],
+    [boardId, canMoveCards, cardById, columns, moveMutation],
   );
 
   if (groupByAssignee && swimlanes) {
@@ -388,7 +372,10 @@ export function BoardKanbanView({
             profilesById={profilesById}
             tifluxEnabled={tifluxEnabled}
             canEditBoard={canEditBoard}
+            canCreateCards={canCreateCards}
+            canMoveCards={canMoveCards}
             canRenameColumns={canRenameColumns}
+            canDeleteColumns={canDeleteColumns}
             readOnlyTiflux={readOnlyTiflux}
             onSelectCard={onSelectCard}
             onOpenTifluxCreate={onOpenTifluxCreate}
@@ -396,7 +383,7 @@ export function BoardKanbanView({
             onCardCreated={handleCardCreated}
           />
         ))}
-        {canEditBoard ? <NewColumnSection boardId={boardId} /> : null}
+        {canCreateColumns ? <NewColumnSection boardId={boardId} /> : null}
       </div>
       <DragOverlay dropAnimation={null}>
         {activeCard ? (

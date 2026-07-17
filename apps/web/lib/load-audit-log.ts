@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { auditLogFilterInput, type AuditLogRow } from "@nextgen/contracts";
+import { enrichAuditPayloads } from "@/lib/audit/enrich-audit-payloads";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 
 export async function loadAuditLog(raw: unknown): Promise<{ rows: AuditLogRow[]; nextCursor: { occurredAt: string; id: number } | null } | { error: string }> {
@@ -51,7 +52,7 @@ export async function loadAuditLog(raw: unknown): Promise<{ rows: AuditLogRow[];
     profiles = Object.fromEntries((profs ?? []).map((p) => [p.id, { full_name: p.full_name, avatar_url: p.avatar_url }]));
   }
 
-  const rows: AuditLogRow[] = slice.map((r) => ({
+  const baseRows: AuditLogRow[] = slice.map((r) => ({
     id: r.id,
     org_id: r.org_id,
     board_id: r.board_id,
@@ -64,6 +65,8 @@ export async function loadAuditLog(raw: unknown): Promise<{ rows: AuditLogRow[];
     actor_name: r.actor_id ? profiles[r.actor_id]?.full_name ?? null : null,
     actor_avatar: r.actor_id ? profiles[r.actor_id]?.avatar_url ?? null : null,
   }));
+
+  const rows = await enrichAuditPayloads(supabase, baseRows);
 
   const hasMore = (data ?? []).length > parsed.data.limit;
   const last = rows.at(-1);

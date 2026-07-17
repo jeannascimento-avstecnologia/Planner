@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getSessionUser } from "@/lib/loaders/session";
 import { loadBoardSnapshotCached } from "@/lib/loaders/board-cache";
+import { attachPresetNames, listAccessPresets } from "@/lib/load-access-presets";
 import { BoardView } from "@/components/board/board-view";
 import { BoardThemeScope } from "@/components/board/board-theme-scope";
 import { TrackRecentBoard } from "@/components/shell/track-recent-board";
@@ -9,6 +10,9 @@ import { BoardSkeleton } from "@/components/ui/skeleton";
 async function BoardPageContent({ boardId }: { boardId: string }) {
   const user = await getSessionUser();
   const snapshot = await loadBoardSnapshotCached(boardId, user?.id ?? "anon");
+  /** 1× catálogo — nomes dos membros via map id→name (sem N+1). */
+  const accessPresets = await listAccessPresets(snapshot.board.org_id);
+  const boardMembers = attachPresetNames(snapshot.boardMembers, accessPresets);
 
   return (
     <>
@@ -28,11 +32,12 @@ async function BoardPageContent({ boardId }: { boardId: string }) {
           stages={snapshot.stages}
           tags={snapshot.tags}
           members={snapshot.members}
-          boardMembers={snapshot.boardMembers}
+          boardMembers={boardMembers}
           profilesById={snapshot.profilesById}
           isOrgAdmin={snapshot.isOrgAdmin}
           currentUserId={user?.id ?? null}
           writeAuthz={snapshot.writeAuthz}
+          accessPresets={accessPresets}
         />
       </BoardThemeScope>
     </>

@@ -86,8 +86,11 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const isOrgAdmin = membership?.role === "admin" || membership?.role === "owner";
-    const canWrite = isOrgAdmin || boardMember?.role === "admin";
+    const isOrgElevated = membership?.role === "admin" || membership?.role === "owner";
+    const canWrite =
+      isOrgElevated ||
+      boardMember?.role === "admin" ||
+      boardMember?.role === "manager";
     if (!canWrite) throw new Error("Sem permissao para usar a integracao Tiflux neste projeto.");
 
     const { data: ownedCard } = await supabase

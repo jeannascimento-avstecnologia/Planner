@@ -1,4 +1,4 @@
--- pgTAP: RBAC org — owner identidade; gerente membros; admin/viewer bloqueados
+-- pgTAP: RBAC org — owner identidade; admin membros; gerente/viewer bloqueados (ADR-0015)
 begin;
 create extension if not exists pgtap;
 select plan(8);
@@ -18,21 +18,21 @@ insert into public.memberships (org_id, user_id, role) values
   ('e6666666-6666-6666-6666-666666666666','c3333333-3333-3333-3333-333333333333','admin'),
   ('e6666666-6666-6666-6666-666666666666','d4444444-4444-4444-4444-444444444444','viewer');
 
--- gerente altera viewer -> admin
+-- admin altera viewer -> manager
 set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub','b2222222-2222-2222-2222-222222222222','role','authenticated')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub','c3333333-3333-3333-3333-333333333333','role','authenticated')::text, true);
 select lives_ok(
-  $$select public.update_membership_role('e6666666-6666-6666-6666-666666666666', 'd4444444-4444-4444-4444-444444444444', 'admin')$$,
-  'gerente pode alterar papel'
+  $$select public.update_membership_role('e6666666-6666-6666-6666-666666666666', 'd4444444-4444-4444-4444-444444444444', 'manager')$$,
+  'admin pode alterar papel'
 );
 
--- org admin nao altera roles
-select set_config('request.jwt.claims', json_build_object('sub','c3333333-3333-3333-3333-333333333333','role','authenticated')::text, true);
+-- gerente org nao altera roles
+select set_config('request.jwt.claims', json_build_object('sub','b2222222-2222-2222-2222-222222222222','role','authenticated')::text, true);
 select throws_ok(
   $$select public.update_membership_role('e6666666-6666-6666-6666-666666666666', 'd4444444-4444-4444-4444-444444444444', 'viewer')$$,
   'P0001',
   'forbidden',
-  'admin org bloqueado em update role'
+  'gerente org bloqueado em update role'
 );
 
 -- viewer nao altera roles

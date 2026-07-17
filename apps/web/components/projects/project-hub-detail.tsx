@@ -20,6 +20,7 @@ type Props = {
   members: BoardMember[];
   upcomingTasks: UpcomingTask[];
   isOrgAdmin: boolean;
+  isOrgOwner?: boolean;
   userBoardRole: string | null;
   onClearSelection: () => void;
   onOpenSettings: () => void;
@@ -30,11 +31,12 @@ export function ProjectHubDetail({
   members,
   upcomingTasks,
   isOrgAdmin,
+  isOrgOwner = false,
   userBoardRole,
   onClearSelection,
   onOpenSettings,
 }: Props) {
-  const canManage = canManageBoardMembers(isOrgAdmin, userBoardRole);
+  const canManage = canManageBoardMembers(isOrgOwner, userBoardRole);
   const canEdit = canEditBoardUI(isOrgAdmin, userBoardRole);
   const tint = board.color || DEFAULT_BOARD_COLOR;
 

@@ -1,5 +1,7 @@
 # Hub de Projetos (`/projects`)
 
+> ADR: [ADR-0015](../20-architecture/ADR-0015-hierarquia-acl-papeis-fixos.md)
+
 ## Objetivos
 
 - Aba **Projetos** (`/projects`) como hub de gerenciamento (nao abre kanban ao clicar no tile).
@@ -18,7 +20,7 @@
 2. `/projects`: sem `DeadlineTiles`.
 3. `/boards` (Home): tile navega para `/boards/[id]`; engrenagem abre `ProjectSettingsModal`.
 4. `/boards` (Home): `DeadlineTiles` com prazos dos proximos 7 dias.
-5. Aba Participantes com edicao de papeis (Gerente/org admin apenas).
+5. Aba Participantes com edicao de papeis (Administrador do projeto / org admin|owner).
 6. Lista 10 tarefas abertas com `due_date` mais proximo do projeto.
 7. CTA **Abrir Projeto** → `/boards/[id]`.
 8. **Trocar projeto** limpa selecao.
@@ -27,9 +29,9 @@
 
 | DB | UI | Permissoes |
 |----|-----|------------|
-| `viewer` | Visualizar | Leitura |
-| `admin` | Editor | Editar cards |
-| `manager` | Gerente | Convidar + alterar papeis |
+| `viewer` | Visualizador | Leitura |
+| `admin` | Editor | Editar cards (sem convidar / alterar papeis) |
+| `manager` | Administrador | Editar cards + convidar + alterar papeis + settings |
 
 ## Criterios de aceite
 
@@ -37,7 +39,7 @@
 - [ ] `/projects`: sem secao "Proximos 7 dias".
 - [ ] `/boards`: clique no tile navega para kanban.
 - [ ] `/boards`: engrenagem abre modal de configuracoes/convite.
-- [ ] Gerente/org admin ve formulario de convite; Editor/Visualizar nao.
+- [ ] Administrador do projeto / org admin|owner ve formulario de convite; Editor e Visualizador nao.
 - [ ] Abrir Projeto navega para kanban.
 - [ ] Tiles grid com altura uniforme.
 

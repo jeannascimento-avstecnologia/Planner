@@ -1,8 +1,10 @@
 # Compartilhamento de board
 
+> ADR: [ADR-0015](../20-architecture/ADR-0015-hierarquia-acl-papeis-fixos.md)
+
 ## Fluxo de convite
 
-1. Gerente do projeto ou admin da org abre **Convidar um integrante** no board.
+1. Administrador do projeto (`manager`) ou admin/owner da org abre **Convidar um integrante** no board.
 2. Adiciona um ou mais emails na lista; cada um com role (`viewer` | `admin` | `manager`).
 3. **Enviar convite** grava `invitations` (token SHA-256, validade 7 dias) e dispara email via Resend.
 4. Convidado abre `/invite?token=` → se nao autenticado, redireciona para `/login?next=...` → apos login com o **mesmo email** → RPC `accept_board_invitation` → `board_members`. Reabrir o mesmo link apos aceite redireciona ao projeto (`resolve_board_invitation` + `board_members`).
@@ -57,18 +59,20 @@ Template em `lib/email-templates/board-invite.ts` + tokens `agify-email-brand.ts
 
 ## Roles
 
-| Role | Label UI | Permissao | UI no board |
-|------|----------|-----------|-------------|
-| `viewer` | Visualizar | Leitura | Modo leitura (drawer simples, sem criar card/coluna) |
-| `admin` | Editor | Escrita no board | UI de edicao completa |
-| `manager` | Gerente | Gerencia membros + convites + remove acesso | UI de edicao completa (mesma do editor) |
+| Role DB | Label UI | Permissao | UI no board |
+|---------|----------|-----------|-------------|
+| `viewer` | Visualizador | Leitura | Modo leitura (drawer simples, sem criar card/coluna) |
+| `admin` | Editor | Escrita no board **sem** ACL | UI de edicao completa; sem engrenagem acesso/convites |
+| `manager` | Administrador | Escrita + ACL + settings | UI de edicao completa + engrenagem acesso + convites |
+
+Sem papel comment-only.
 
 ## RLS
 
-- Convites: org admin ou board `manager` (`can_manage_board_members`)
-- Escrita no board: org admin ou board `admin`
+- Convites / ACL: org admin/owner **OU** board `manager` (`app.can_manage_board_members`) — **nao** board `admin` (Editor)
+- Escrita no board: org admin/owner ou board `admin`/`manager` (e dept admin/manager quando aplicavel)
 - Perfis: `app.shares_board` permite SELECT de perfis entre colegas no mesmo board (convidados board-only)
-- Testes: `supabase/tests/08_invitations_test.sql`, `09_profiles_co_board_test.sql`
+- Testes: `supabase/tests/08_invitations_test.sql`, `09_profiles_co_board_test.sql`, `04_board_manager_rls_test.sql`, `45_board_acl_editor_denied_test.sql`
 
 ## Env (servidor)
 
@@ -90,9 +94,19 @@ UPSTASH_REDIS_REST_TOKEN=
 
 ## Fast-follow
 
+- Grupos (atalho preset → N usuarios).
 - Signup sem criar org quando `next` contem `/invite?token=`.
 - Webhook Resend (bounce/complaint).
+- Emit audit `preset_*` via trigger/`app.emit_event` (catalogo ja em contracts).
 
 ## Migracoes
 
-`supabase/migrations/0004_invitations_and_ical.sql`, `0011_board_manager_rls.sql`
+`supabase/migrations/0004_invitations_and_ical.sql`, `0011_board_manager_rls.sql`, `20260717140000_acl_mvp_fixed_roles.sql` (reverte Editor na ACL; org membros = owner|admin)
+
+## Matriz Spec -> Codigo -> Teste
+
+| Spec | Codigo | Teste |
+|------|--------|-------|
+| Labels board | `board-member-roles.ts` | Vitest board-authz |
+| ACL so manager | `app.can_manage_board_members`, `board-authz.ts` | pgTAP 04 + 45, Vitest |
+| Convite UI | `invite-emails-panel.tsx`, `board-members-list.tsx` | E2E board-permissions |

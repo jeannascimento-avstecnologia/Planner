@@ -13,6 +13,11 @@ export const AUDIT_FILTER_GROUPS: AuditFilterGroup[] = [
     types: ["org_renamed", "org_logo_updated", "role_changed", "member_invited", "member_removed", "department_moved"],
   },
   {
+    id: "access",
+    label: "Acesso e presets",
+    types: ["preset_created", "preset_updated", "preset_deleted", "preset_assigned"],
+  },
+  {
     id: "project",
     label: "Projetos e colunas",
     types: [

@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
-import { removeBoardMember, updateBoardMemberRole } from "@/app/(app)/boards/[boardId]/actions";
+import { removeBoardMember } from "@/app/(app)/boards/[boardId]/actions";
+import { assignBoardMemberPresetAction, listAccessPresetsForBoardAction } from "@/app/(app)/settings/access-presets/actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SYSTEM_PRESET_BY_ROLE, type AccessPresetRow } from "@/lib/access-presets";
 import { boardRoleLabel } from "@/lib/board-member-roles";
 import { appToast } from "@/lib/toast";
 import type { BoardMember } from "./board-member";
+import type { BoardMemberRole } from "@nextgen/contracts";
 
 type Props = {
   boardId: string;
   members: BoardMember[];
   canManageMembers?: boolean;
   currentUserId?: string | null;
+  /** Catálogo org+sistema (mesmo do invite). Se omitido, carrega via action. */
+  presets?: AccessPresetRow[];
   onError?: (message: string) => void;
 };
 
@@ -21,24 +26,61 @@ function memberLabel(member: BoardMember): string {
   return member.profile?.full_name ?? member.user_id.slice(0, 8);
 }
 
+function memberLevelLabel(member: BoardMember): string {
+  return member.presetName ?? boardRoleLabel(member.role);
+}
+
+function memberPresetId(member: BoardMember): string {
+  if (member.preset_id) return member.preset_id;
+  const role = member.role as BoardMemberRole;
+  if (role === "manager" || role === "admin" || role === "viewer") {
+    return SYSTEM_PRESET_BY_ROLE[role];
+  }
+  return SYSTEM_PRESET_BY_ROLE.viewer;
+}
+
 export function BoardMembersList({
   boardId,
   members,
   canManageMembers = false,
   currentUserId = null,
+  presets: presetsProp,
   onError,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [removeTarget, setRemoveTarget] = useState<BoardMember | null>(null);
+  const [presets, setPresets] = useState<AccessPresetRow[] | null>(presetsProp ?? null);
 
-  function changeRole(userId: string, role: string) {
-    const fd = new FormData();
-    fd.set("boardId", boardId);
-    fd.set("userId", userId);
-    fd.set("role", role);
+  useEffect(() => {
+    if (presetsProp && presetsProp.length > 0) {
+      setPresets(presetsProp);
+      return;
+    }
+    let cancelled = false;
+    void listAccessPresetsForBoardAction(boardId).then((res) => {
+      if (cancelled) return;
+      if (res.presets.length > 0) setPresets(res.presets);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId, presetsProp]);
+
+  const options = useMemo(() => {
+    if (presets && presets.length > 0) {
+      return presets.map((p) => ({ id: p.id, label: p.name }));
+    }
+    return [
+      { id: SYSTEM_PRESET_BY_ROLE.viewer, label: "Visualizador" },
+      { id: SYSTEM_PRESET_BY_ROLE.admin, label: "Editor" },
+      { id: SYSTEM_PRESET_BY_ROLE.manager, label: "Administrador" },
+    ];
+  }, [presets]);
+
+  function changePreset(userId: string, presetId: string) {
     startTransition(async () => {
-      const res = await updateBoardMemberRole(fd);
+      const res = await assignBoardMemberPresetAction({ boardId, userId, presetId });
       if (!res.ok) onError?.(res.error);
       else router.refresh();
     });
@@ -77,14 +119,17 @@ export function BoardMembersList({
                 {canManageMembers && !isSelf ? (
                   <div className="flex shrink-0 items-center gap-1">
                     <select
-                      value={m.role}
-                      onChange={(e) => changeRole(m.user_id, e.target.value)}
+                      value={memberPresetId(m)}
+                      onChange={(e) => changePreset(m.user_id, e.target.value)}
                       className="rounded border border-board-border bg-board-surface px-1.5 py-0.5 text-xs"
-                      aria-label={`Papel de ${memberLabel(m)}`}
+                      aria-label={`Nivel de ${memberLabel(m)}`}
+                      data-testid={`member-preset-select-${m.user_id}`}
                     >
-                      <option value="viewer">Visualizar</option>
-                      <option value="admin">Editor</option>
-                      <option value="manager">Gerente</option>
+                      {options.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                     <button
                       type="button"
@@ -97,7 +142,12 @@ export function BoardMembersList({
                     </button>
                   </div>
                 ) : (
-                  <span className="shrink-0 text-aurora-muted">{boardRoleLabel(m.role)}</span>
+                  <span
+                    className="shrink-0 text-aurora-muted"
+                    data-testid={`member-preset-label-${m.user_id}`}
+                  >
+                    {memberLevelLabel(m)}
+                  </span>
                 )}
               </li>
             );

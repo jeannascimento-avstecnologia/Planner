@@ -228,7 +228,7 @@ export const PAGE_TOUR_STEP_DEFS: Record<PageTourId, PageTourStepDef[]> = {
       id: "board-kanban",
       tourTarget: "board-kanban",
       title: "Colunas e cards",
-      description: "Arraste entre colunas (papel Editor ou acima). Clique abre o painel do card.",
+      description: "Arraste entre colunas (papel Editor ou Administrador). Clique abre o painel do card.",
     },
     {
       id: "board-actions",

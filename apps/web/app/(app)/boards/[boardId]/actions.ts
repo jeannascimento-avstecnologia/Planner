@@ -47,7 +47,8 @@ import { TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { getAppUrl } from "@/lib/app-url";
 import type { EmailSendErrorCode } from "@/lib/email";
 import { inviteEmailFailureMessage } from "@/lib/invite-email-messages";
-import { isOrgAdminRole } from "@/lib/org-member-roles";
+import { isOrgAdminRole, isOrgOwnerRole } from "@/lib/org-member-roles";
+import { SYSTEM_PRESET_BY_ROLE } from "@/lib/access-presets";
 import { canWriteBoard } from "@/lib/board-member-roles";
 import { getActiveOrgId } from "@/lib/active-org";
 import { checkInviteBatchRateLimit } from "@/lib/invite-rate-limit";
@@ -269,15 +270,32 @@ async function assertCanManageBoardMembers(
     .eq("org_id", board.org_id)
     .eq("user_id", userId)
     .maybeSingle();
-  if (isOrgAdminRole(orgMembership?.role)) return { ok: true, orgId: board.org_id };
+  if (isOrgOwnerRole(orgMembership?.role)) return { ok: true, orgId: board.org_id };
 
   const { data: boardMember } = await supabase
     .from("board_members")
-    .select("role")
+    .select("role, preset_id")
     .eq("board_id", boardId)
     .eq("user_id", userId)
     .maybeSingle();
   if (boardMember?.role === "manager") return { ok: true, orgId: board.org_id };
+
+  // Preset com members.* (Administrador custom)
+  if (boardMember?.preset_id) {
+    const { data: perms } = await supabase
+      .from("access_preset_permissions")
+      .select("permission_code")
+      .eq("preset_id", boardMember.preset_id);
+    const codes = new Set((perms ?? []).map((p) => p.permission_code));
+    if (
+      codes.has("board.manage_members") ||
+      codes.has("board.members.invite") ||
+      codes.has("board.members.update") ||
+      codes.has("board.members.remove")
+    ) {
+      return { ok: true, orgId: board.org_id };
+    }
+  }
 
   return { ok: false, error: "Sem permissao para gerenciar participantes." };
 }
@@ -385,6 +403,7 @@ export async function inviteToBoardBatch(input: InviteBoardBatchInput): Promise<
       board_id: parsed.data.boardId,
       email,
       role: invite.role,
+      preset_id: invite.presetId ?? null,
       token_hash: hash,
       expires_at: expires.toISOString(),
       created_by: user.id,
@@ -447,7 +466,10 @@ export async function updateBoardMemberRole(formData: FormData): Promise<UpdateM
 
   const { error } = await supabase
     .from("board_members")
-    .update({ role: parsed.data.role })
+    .update({
+      role: parsed.data.role,
+      preset_id: parsed.data.presetId ?? SYSTEM_PRESET_BY_ROLE[parsed.data.role],
+    })
     .eq("board_id", parsed.data.boardId)
     .eq("user_id", parsed.data.userId);
 
@@ -515,10 +537,22 @@ export async function createIcalFeedToken(boardId?: string): Promise<{ url?: str
   let orgId: string | null = null;
   if (boardId) {
     const { data: board } = await supabase.from("boards").select("org_id").eq("id", boardId).maybeSingle();
-    orgId = board?.org_id ?? null;
+    if (!board?.org_id) return { error: "Projeto nao encontrado." };
+    // RLS/can_access: se nao ve o board, select falha ou org_id ausente
+    const { data: accessible } = await supabase.from("boards").select("id").eq("id", boardId).maybeSingle();
+    if (!accessible) return { error: "Sem acesso a este projeto." };
+    orgId = board.org_id;
   }
   if (!orgId) orgId = await getActiveOrgId();
   if (!orgId) return { error: "Sem organizacao." };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership) return { error: "Sem acesso a organizacao." };
 
   const { token, hash } = makeSecureToken();
   const { error } = await supabase.from("ical_feed_tokens").insert({
@@ -792,16 +826,27 @@ async function assertBoardAutomationAdmin(
 
   const { data: boardMember } = await supabase
     .from("board_members")
-    .select("role")
+    .select("role, preset_id")
     .eq("board_id", boardId)
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const isOrgAdmin = isOrgAdminRole(membership?.role);
-  const canManage = isOrgAdmin || boardMember?.role === "admin";
-  if (!canManage) return { ok: false, error: "Sem permissao para gerenciar automacoes." };
+  if (isOrgOwnerRole(membership?.role) || boardMember?.role === "manager") {
+    return { ok: true, orgId: board.org_id, userId: user.id };
+  }
 
-  return { ok: true, orgId: board.org_id, userId: user.id };
+  if (boardMember?.preset_id) {
+    const { data: perms } = await supabase
+      .from("access_preset_permissions")
+      .select("permission_code")
+      .eq("preset_id", boardMember.preset_id);
+    const codes = new Set((perms ?? []).map((p) => p.permission_code));
+    if (codes.has("board.automations.manage") || codes.has("board.manage_settings")) {
+      return { ok: true, orgId: board.org_id, userId: user.id };
+    }
+  }
+
+  return { ok: false, error: "Sem permissao para gerenciar automacoes." };
 }
 
 export async function createAutomationRule(formData: FormData): Promise<AutomationActionResult> {

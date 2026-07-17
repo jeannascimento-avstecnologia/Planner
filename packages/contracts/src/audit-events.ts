@@ -28,6 +28,7 @@ export const boardAuditEventTypes = [
   "column_deleted",
   "tiflux_configured",
   "tiflux_cleared",
+  "preset_assigned",
 ] as const;
 
 export const orgAuditEventTypes = [
@@ -37,6 +38,9 @@ export const orgAuditEventTypes = [
   "department_moved",
   "org_renamed",
   "org_logo_updated",
+  "preset_created",
+  "preset_updated",
+  "preset_deleted",
 ] as const;
 
 export const auditEventType = z.enum([

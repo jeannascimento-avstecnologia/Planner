@@ -13,11 +13,12 @@ O MVP criava org via `create_organization` com o criador como `admin`. Nao havia
 1. Adicionar `owner` ao enum `membership_role`.
 2. Constraint: **exatamente 1 owner por org** (partial unique index em `memberships(org_id) WHERE role = 'owner'`).
 3. Backfill: primeiro `admin` (por `created_at`) vira `owner`; demais admins permanecem `admin`.
-4. `owner` e `manager` gerenciam membros/convites; `admin`/`viewer` somente leitura de membros. Apenas `owner` altera identidade da org (logo, nome, excluir, transferir).
+4. `owner` e `admin` gerenciam membros/convites; `manager`/`viewer` nao gerenciam membros org. Apenas `owner` altera identidade da org (logo, nome, excluir, transferir). Ver ADR-0015.
 5. `owner` nao pode sair da org sem transferir antes (`leave_organization` bloqueia).
 6. JWT claim `org_owners` (uuid[]) via `custom_access_token_hook` para UI/middleware.
 
-> Atualizado 2026-07-02: migration `20260702160000_org_rbac_tighten.sql` restringe write de memberships/invitations a owner|manager.
+> Atualizado 2026-07-02: migration `20260702160000_org_rbac_tighten.sql` restringia write a owner|manager.  
+> Atualizado 2026-07-17 (ADR-0015): `can_manage_org_members` = owner|admin.
 
 ## Consequencias
 

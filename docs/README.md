@@ -24,6 +24,9 @@ Specs sao a fonte de verdade. Nenhuma linha de codigo sem spec aprovada. Leia ta
 | Spec | Caminho | Status |
 |---|---|---|
 | Guia Mestre (guardrails) | `GUIA_MESTRE.md` | OK |
+| ADR-0015 Hierarquia ACL | `20-architecture/ADR-0015-hierarquia-acl-papeis-fixos.md` | OK |
+| ADR-0016 Access presets | `20-architecture/ADR-0016-access-presets.md` | OK |
+| Access presets (componente) | `50-components/access-presets.md` | OK |
 | PRD / Visao | `00-product/PRD.md` | OK |
 | Competitive / Voice of Customer | `00-product/competitive-voc.md` | OK |
 | ADR-0001 Stack | `20-architecture/ADR-0001-stack.md` | OK |

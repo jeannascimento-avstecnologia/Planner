@@ -12,6 +12,7 @@ type Props = {
   boards: ProjectBoardRow[];
   boardMembersByBoardId: Record<string, BoardMember[]>;
   isOrgAdmin: boolean;
+  isOrgOwner?: boolean;
   currentUserId: string | null;
   upcomingTasksByBoard: Record<string, UpcomingTask[]>;
   children: React.ReactNode;
@@ -32,6 +33,7 @@ function ProjectsHubLayoutInner({
   boards,
   boardMembersByBoardId,
   isOrgAdmin,
+  isOrgOwner = false,
   currentUserId,
   upcomingTasksByBoard,
   children,
@@ -85,6 +87,7 @@ function ProjectsHubLayoutInner({
             members={boardMembersByBoardId[selectedBoard.id] ?? []}
             upcomingTasks={upcomingTasksByBoard[selectedBoard.id] ?? []}
             isOrgAdmin={isOrgAdmin}
+            isOrgOwner={isOrgOwner}
             userBoardRole={userBoardRole}
             onClearSelection={clearSelection}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -97,6 +100,7 @@ function ProjectsHubLayoutInner({
           board={selectedBoard}
           members={boardMembersByBoardId[selectedBoard.id] ?? []}
           isOrgAdmin={isOrgAdmin}
+          isOrgOwner={isOrgOwner}
           currentUserId={currentUserId}
           onClose={() => setSettingsOpen(false)}
         />

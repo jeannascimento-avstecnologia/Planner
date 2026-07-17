@@ -7,11 +7,14 @@ import { MODAL_BODY_CLASS } from "@/components/ui/aurora-surface";
 import { InviteEmailsPanel } from "./invite-emails-panel";
 import { btnBoardSecondary } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
+import type { AccessPresetRow } from "@/lib/access-presets";
 
 type Props = {
   boardId: string;
   boardName: string;
   canManageMembers?: boolean;
+  canManagePresets?: boolean;
+  accessPresets?: AccessPresetRow[];
   onClose: () => void;
 };
 
@@ -19,6 +22,8 @@ export function InviteMembersModal({
   boardId,
   boardName,
   canManageMembers = false,
+  canManagePresets = false,
+  accessPresets,
   onClose,
 }: Props) {
   const [copied, setCopied] = useState(false);
@@ -41,7 +46,12 @@ export function InviteMembersModal({
       testId="invite-members-modal"
       bodyClassName={`flex flex-col gap-5 ${MODAL_BODY_CLASS}`}
     >
-      <InviteEmailsPanel boardId={boardId} canManageMembers={canManageMembers} />
+      <InviteEmailsPanel
+        boardId={boardId}
+        canManageMembers={canManageMembers}
+        canManagePresets={canManagePresets}
+        presets={accessPresets}
+      />
 
       {canManageMembers ? (
         <button

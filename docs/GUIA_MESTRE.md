@@ -48,6 +48,7 @@ Searcher (pesquisa) -> Gerente (specs/ADRs) -> Mapper (estrutura/docs) -> Progra
 - **Notificacoes**: tabela `notifications` + preferencias por evento/canal; entrega in-app inbox + Web Push (VAPID/Serwist); digest/batch + Do-Not-Disturb no servidor.
 - **Calendario + iCal**: calendario nativo de prazos + feed iCal read-only assinado por Edge Function (token por usuario/board).
 - **Analytics event-sourced**: `card_events` append-only -> Materialized Views via `pg_cron` -> cache Upstash Redis. O mesmo `card_events` alimenta audit log F.1 e automacoes A (ADR-0011).
+- **ACL hierarquia + presets** ([ADR-0015](20-architecture/ADR-0015-hierarquia-acl-papeis-fixos.md), [ADR-0016](20-architecture/ADR-0016-access-presets.md)): papeis fixos unificados org/dept/projeto; permissions → presets → users; `app.has_board_permission`; **CRUD de presets custom = so Proprietario (owner)**; **ACL de projeto (invite/assign) = owner org OU Administrador do board** (org admin sem papel manager nao gerencia acessos). Deploy de schema: **`supabase db push`** obrigatorio apos migrations de presets (sem push → PostgREST `PGRST205` em `access_presets`).
 - **Paridade ambientes**: migracoes versionadas = fonte de verdade. Dev usa **Supabase Cloud** (projeto remoto); web (Next.js) nunca sobe Postgres/Auth localmente. CI usa `supabase start` efemero apenas para pgTAP. Promocao: Supabase Branching por PR -> staging -> prod (`supabase db push`). Ver **ADR-0002**. `supabase gen types` commitado.
 
 ---
@@ -71,6 +72,7 @@ Searcher (pesquisa) -> Gerente (specs/ADRs) -> Mapper (estrutura/docs) -> Progra
 
 - Toda tabela de dados de tenant: coluna `org_id` + indice + policy RLS de isolamento.
 - Boards compartilhados somam checagem em `board_members` (ACL por board) alem do `org_id`.
+- **Presets de acesso**: `board_members.preset_id` (+ dual-write `role` legado); enforcement via `app.has_board_permission(board, code)` e TS `computeBoardPermissions`. UI de membros sincronizada com **label do preset** (`presetName`), nao so papel legado.
 - Otimizacao de RLS: envolver `auth.uid()` em subselect para habilitar cache de plano; helper `SECURITY DEFINER` para evitar recursao em `memberships`.
 - Toda policy RLS tem teste pgTAP no CI. Sem teste = nao mergeia.
 - Cloudinary: persistir apenas `public_id` + metadata; entregar com `f_auto,q_auto`.
@@ -103,9 +105,11 @@ for select using (
 
 **MVP (S1-S8) — concluido**: Auth/Tenancy; Kanban Core; Colaboracao + subtarefas/dependencias; Anexos + Calendario/iCal; Notificacoes inteligentes; Dashboard por board; Whiteboard; Hardening/Launch.
 
+**Produto pos-MVP (ACL/presets — no produto, ADR-0015/0016)**: hierarquia de papeis fixos + presets de acesso (checklist fino, settings `/settings/access-presets`, invite/membros por label de preset). Nao e "fast-follow" — ja especificado e shipavel com migrations.
+
 **Fase 2 (pos-MVP, plano ativo em `.cursor/plans/fase2-epicos-comerciais.md`, ADR-0009)**:
 - F.1 Audit log (`card_events` append-only, ADR-0011)
-- F.2 Permissoes field-level
+- F.2 Permissoes field-level (**permanece Fase 2** — nao misturar com presets de board)
 - F.3 SAML/SSO (config + docs)
 - D Views interativas (Gantt/Calendario/Tabela bidirecionais)
 - E Workload / capacidade
@@ -113,7 +117,7 @@ for select using (
 - B Multiplayer avancado (Presence + Yjs)
 - A Motor de automacao ECA (async, ADR-0010)
 
-**Ainda fast-follow (fora Fase 2)**: rollup analitico cross-board; export audit CSV/PDF; DLP/E2EE.
+**Ainda fast-follow (fora Fase 2)**: rollup analitico cross-board; export audit CSV/PDF; DLP/E2EE; **grupos de usuarios** (atalho preset→N usuarios).
 
 Implementar item fora do plano Fase 2 = violacao de escopo. Atualizar plano + ADR antes de codar.
 

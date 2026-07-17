@@ -17,6 +17,7 @@ type Props = {
   boards: ProjectBoardRow[];
   boardMembersByBoardId: Record<string, BoardMember[]>;
   isOrgAdmin: boolean;
+  isOrgOwner?: boolean;
   hubMode?: boolean;
   hubBasePath?: string;
   currentUserId?: string | null;
@@ -26,6 +27,7 @@ function ProjectsViewsInner({
   boards,
   boardMembersByBoardId,
   isOrgAdmin,
+  isOrgOwner = false,
   hubMode = true,
   currentUserId,
 }: Props) {
@@ -40,6 +42,7 @@ function ProjectsViewsInner({
     boards,
     boardMembersByBoardId,
     isOrgAdmin,
+    isOrgOwner,
     hubMode,
     currentUserId,
     selectedBoardId,

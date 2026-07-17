@@ -23,6 +23,16 @@ import { ChecklistEditor } from "./checklist-editor";
 import { countDescendants, wouldExceedMaxDepth } from "@/lib/card-tree";
 import { resolveCardStage, isCardOverdue, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
+type CardDrawerPermissions = {
+  editFields: boolean;
+  deleteCard: boolean;
+  changeStage: boolean;
+  editChecklist: boolean;
+  assignTags: boolean;
+  planWork: boolean;
+  useTiflux: boolean;
+};
+
 type Props = {
   card: BoardCard;
   boardId: string;
@@ -34,6 +44,7 @@ type Props = {
   allCards?: BoardCard[];
   isOrgAdmin?: boolean;
   readOnly?: boolean;
+  permissions?: Partial<CardDrawerPermissions>;
   tifluxEnabled?: boolean;
   onOpenTifluxCreate?: (cardId: string) => void;
   onOpenTifluxLink?: (cardId: string) => void;
@@ -51,6 +62,7 @@ export function CardDrawer({
   allCards = [],
   isOrgAdmin = false,
   readOnly = false,
+  permissions,
   tifluxEnabled = false,
   onOpenTifluxCreate,
   onOpenTifluxLink,
@@ -62,8 +74,18 @@ export function CardDrawer({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteImpact, setDeleteImpact] = useState<{ subtasks: number; dependencies: number } | null>(null);
 
+  const perms: CardDrawerPermissions = {
+    editFields: permissions?.editFields ?? !readOnly,
+    deleteCard: permissions?.deleteCard ?? !readOnly,
+    changeStage: permissions?.changeStage ?? !readOnly,
+    editChecklist: permissions?.editChecklist ?? !readOnly,
+    assignTags: permissions?.assignTags ?? !readOnly,
+    planWork: permissions?.planWork ?? !readOnly,
+    useTiflux: permissions?.useTiflux ?? !readOnly,
+  };
+
   useEffect(() => {
-    if (readOnly || !deleteOpen) {
+    if (!perms.deleteCard || !deleteOpen) {
       setDeleteImpact(null);
       return;
     }
@@ -74,7 +96,7 @@ export function CardDrawer({
     return () => {
       cancelled = true;
     };
-  }, [readOnly, deleteOpen, card.id, boardId]);
+  }, [perms.deleteCard, deleteOpen, card.id, boardId]);
 
   const children = useMemo(
     () =>
@@ -189,19 +211,27 @@ export function CardDrawer({
         </header>
 
         <div className="border-b border-board-border px-4 py-3">
-          <StageSelector
-            boardId={boardId}
-            cardId={card.id}
-            currentStageId={card.stage_id}
-            stages={stages}
-          />
+          {perms.changeStage ? (
+            <StageSelector
+              boardId={boardId}
+              cardId={card.id}
+              currentStageId={card.stage_id}
+              stages={stages}
+            />
+          ) : stage ? (
+            <StageBadge name={stage.name} color={stage.color} />
+          ) : (
+            <p className="text-xs text-aurora-muted">Sem permissao para alterar etapa.</p>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
+        <fieldset disabled={!perms.editFields} className="contents">
         <form
           id={cardFormId}
           action={(fd) =>
             startTransition(async () => {
+              if (!perms.editFields) return;
               await updateCard(fd);
               appToast.success("Card salvo");
             })
@@ -278,10 +308,6 @@ export function CardDrawer({
             />
           </div>
 
-          {card.assignee_id && (
-            <CardPlanWorkSection cardId={card.id} estimatedHours={card.estimated_hours} />
-          )}
-
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-aurora-muted">Prioridade</label>
@@ -315,18 +341,28 @@ export function CardDrawer({
 
           <div>
             <p className="mb-1 text-xs font-medium text-aurora-muted">Marcadores</p>
-            <TagPickerPopover
-              cardId={card.id}
-              boardId={boardId}
-              orgId={orgId}
-              tagIds={card.tagIds}
-              tags={tags}
-              isOrgAdmin={isOrgAdmin}
-            />
+            {perms.assignTags ? (
+              <TagPickerPopover
+                cardId={card.id}
+                boardId={boardId}
+                orgId={orgId}
+                tagIds={card.tagIds}
+                tags={tags}
+                isOrgAdmin={isOrgAdmin}
+              />
+            ) : (
+              <p className="text-xs text-aurora-muted">
+                {card.tagIds.length} tag(s) — sem permissao para alterar.
+              </p>
+            )}
           </div>
         </form>
+        </fieldset>
 
         <div className="flex flex-col gap-3 px-4 pb-4">
+          {perms.planWork && card.assignee_id ? (
+            <CardPlanWorkSection cardId={card.id} estimatedHours={card.estimated_hours} />
+          ) : null}
           <div data-testid="drawer-subtasks">
             <p className="mb-1 text-xs font-medium text-aurora-muted">
               Subtarefas (cards filhos)
@@ -381,10 +417,15 @@ export function CardDrawer({
             <p className="mb-2 text-[11px] leading-snug text-aurora-muted">
               Itens de checklist neste card — nao criam card filho na arvore.
             </p>
-            <ChecklistEditor cardId={card.id} boardId={boardId} items={card.checklistItems} canEdit />
+            <ChecklistEditor
+              cardId={card.id}
+              boardId={boardId}
+              items={card.checklistItems}
+              canEdit={perms.editChecklist}
+            />
           </div>
 
-          {tifluxEnabled ? (
+          {tifluxEnabled && perms.useTiflux ? (
             <div>
               <p className="mb-1 text-xs font-medium text-aurora-muted">Tiflux</p>
               {card.tiflux_ticket_number ? (
@@ -426,25 +467,29 @@ export function CardDrawer({
         </div>
 
         <div className="shrink-0 flex flex-col gap-2 border-t border-board-border px-4 py-3">
-          <button
-            type="submit"
-            form={cardFormId}
-            data-testid="card-save"
-            disabled={pending}
-            className={btnBoardPrimarySm}
-          >
-            {pending ? "Salvando..." : "Salvar"}
-          </button>
-          <button
-            type="button"
-            data-testid="delete-card"
-            onClick={() => setDeleteOpen(true)}
-            disabled={pending}
-            className={`inline-flex items-center justify-center gap-1.5 ${btnDanger}`}
-          >
-            <Trash2 className="h-4 w-4" />
-            Excluir card
-          </button>
+          {perms.editFields ? (
+            <button
+              type="submit"
+              form={cardFormId}
+              data-testid="card-save"
+              disabled={pending}
+              className={btnBoardPrimarySm}
+            >
+              {pending ? "Salvando..." : "Salvar"}
+            </button>
+          ) : null}
+          {perms.deleteCard ? (
+            <button
+              type="button"
+              data-testid="delete-card"
+              onClick={() => setDeleteOpen(true)}
+              disabled={pending}
+              className={`inline-flex items-center justify-center gap-1.5 ${btnDanger}`}
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir card
+            </button>
+          ) : null}
           {deleteError ? <p className="text-xs text-aurora-danger">{deleteError}</p> : null}
         </div>
 

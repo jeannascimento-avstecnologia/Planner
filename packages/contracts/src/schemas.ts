@@ -287,6 +287,7 @@ export const inviteBoardInput = z.object({
   boardId: uuid,
   email: z.string().email(),
   role: boardMemberRole.default("viewer"),
+  presetId: uuid.optional(),
 });
 export type InviteBoardInput = z.infer<typeof inviteBoardInput>;
 
@@ -297,6 +298,7 @@ export const inviteBoardBatchInput = z.object({
       z.object({
         email: z.string().email(),
         role: boardMemberRole.default("viewer"),
+        presetId: uuid.optional(),
       }),
     )
     .min(1)
@@ -308,8 +310,118 @@ export const updateBoardMemberRoleInput = z.object({
   boardId: uuid,
   userId: uuid,
   role: boardMemberRole,
+  presetId: uuid.optional(),
 });
 export type UpdateBoardMemberRoleInput = z.infer<typeof updateBoardMemberRoleInput>;
+
+/** Codes finos do ceiling + aliases legados + org-only. */
+export const boardPermissionCode = z.enum([
+  "board.view",
+  "board.cards.create",
+  "board.cards.edit",
+  "board.cards.move",
+  "board.cards.delete",
+  "board.cards.change_stage",
+  "board.cards.plan_work",
+  "board.columns.create",
+  "board.columns.rename",
+  "board.columns.delete",
+  "board.stages.manage",
+  "board.tags.create",
+  "board.tags.assign",
+  "board.tags.delete",
+  "board.checklist.edit",
+  "board.tree.edit",
+  "board.whiteboard.edit",
+  "board.appearance.edit",
+  "board.manage_settings",
+  "board.automations.manage",
+  "board.tiflux.use",
+  "board.tiflux.configure",
+  "board.members.invite",
+  "board.members.update",
+  "board.members.remove",
+  /** @deprecated alias → codes de conteúdo */
+  "board.edit_content",
+  /** @deprecated alias → members.* */
+  "board.manage_members",
+  "org.manage_members",
+  "org.manage_identity",
+]);
+export type BoardPermissionCode = z.infer<typeof boardPermissionCode>;
+
+/** Teto custom = codes finos (sem aliases; sem org.*). */
+export const BOARD_CEILING_PERMISSION_CODES = [
+  "board.view",
+  "board.cards.create",
+  "board.cards.edit",
+  "board.cards.move",
+  "board.cards.delete",
+  "board.cards.change_stage",
+  "board.cards.plan_work",
+  "board.columns.create",
+  "board.columns.rename",
+  "board.columns.delete",
+  "board.stages.manage",
+  "board.tags.create",
+  "board.tags.assign",
+  "board.tags.delete",
+  "board.checklist.edit",
+  "board.tree.edit",
+  "board.whiteboard.edit",
+  "board.appearance.edit",
+  "board.manage_settings",
+  "board.automations.manage",
+  "board.tiflux.use",
+  "board.tiflux.configure",
+  "board.members.invite",
+  "board.members.update",
+  "board.members.remove",
+] as const;
+
+export const boardCeilingPermissionCode = z.enum(BOARD_CEILING_PERMISSION_CODES);
+export type BoardCeilingPermissionCode = z.infer<typeof boardCeilingPermissionCode>;
+
+/** Aliases ainda aceitos em storage legado / CHECK. */
+export const BOARD_LEGACY_ALIAS_CODES = ["board.edit_content", "board.manage_members"] as const;
+
+export const createAccessPresetInput = z.object({
+  orgId: uuid,
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(280).optional().nullable(),
+  permissionCodes: z.array(boardCeilingPermissionCode).min(1),
+  baseRole: boardMemberRole.default("viewer"),
+});
+export type CreateAccessPresetInput = z.infer<typeof createAccessPresetInput>;
+
+export const updateAccessPresetInput = z.object({
+  id: uuid,
+  orgId: uuid,
+  name: z.string().trim().min(1).max(80).optional(),
+  description: z.string().trim().max(280).optional().nullable(),
+  permissionCodes: z.array(boardCeilingPermissionCode).min(1).optional(),
+  baseRole: boardMemberRole.optional(),
+});
+export type UpdateAccessPresetInput = z.infer<typeof updateAccessPresetInput>;
+
+export const deleteAccessPresetInput = z.object({
+  id: uuid,
+  orgId: uuid,
+});
+export type DeleteAccessPresetInput = z.infer<typeof deleteAccessPresetInput>;
+
+export const assignBoardMemberPresetInput = z.object({
+  boardId: uuid,
+  userId: uuid,
+  presetId: uuid,
+});
+export type AssignBoardMemberPresetInput = z.infer<typeof assignBoardMemberPresetInput>;
+
+export const SYSTEM_ACCESS_PRESET_IDS = {
+  board_admin: "a0000000-0000-4000-8000-000000000001",
+  board_editor: "a0000000-0000-4000-8000-000000000002",
+  board_viewer: "a0000000-0000-4000-8000-000000000003",
+} as const;
 
 export const removeBoardMemberInput = z.object({
   boardId: uuid,

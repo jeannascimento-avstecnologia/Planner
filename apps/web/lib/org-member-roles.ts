@@ -17,13 +17,18 @@ export function isOrgManagerRole(role?: string | null): boolean {
   return role === "manager";
 }
 
-/** Owner ou gerente: convites, papeis, remover membros, mover projetos entre orgs. */
+/** Owner ou Administrador: convites, papeis, remover membros, mover projetos entre orgs. */
 export function canManageOrgMembers(role?: string | null): boolean {
-  return role === "owner" || role === "manager";
+  return role === "owner" || role === "admin";
 }
 
 /** Apenas proprietario: logo, nome/slug, excluir org, multi-owner, transferencia. */
 export function canManageOrgIdentity(role?: string | null): boolean {
+  return role === "owner";
+}
+
+/** Apenas proprietario: CRUD de presets de acesso (niveis custom). */
+export function canManageAccessPresets(role?: string | null): boolean {
   return role === "owner";
 }
 

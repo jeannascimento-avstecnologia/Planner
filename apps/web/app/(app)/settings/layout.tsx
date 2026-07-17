@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { loadSettingsShellData } from "@/lib/load-settings-shell";
 import { getSessionUser } from "@/lib/loaders/session";
-import { isOrgAdminRole } from "@/lib/org-member-roles";
+import { isOrgAdminRole, isOrgOwnerRole } from "@/lib/org-member-roles";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const data = await loadSettingsShellData();
@@ -21,6 +21,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       userRole={data.userRole}
       userOrgs={data.userOrgs}
       showAdminTabs={isOrgAdminRole(data.userRole)}
+      showOwnerTabs={isOrgOwnerRole(data.userRole)}
     >
       {children}
     </SettingsShell>

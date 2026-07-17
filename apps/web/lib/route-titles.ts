@@ -14,6 +14,7 @@ export function getRouteTitle(pathname: string): string {
   if (pathname.startsWith("/settings/organization")) return "Organizacao";
   if (pathname.startsWith("/settings/integrations")) return "Integracoes";
   if (pathname.startsWith("/settings/audit")) return "Auditoria";
+  if (pathname.startsWith("/settings/access-presets")) return "Presets de acesso";
   if (pathname.startsWith("/settings/permissions")) return "Permissoes";
   if (pathname.startsWith("/settings")) return "Configuracoes";
   return "";

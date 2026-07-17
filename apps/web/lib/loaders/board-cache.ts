@@ -17,6 +17,7 @@ import { isOrgAdminRole } from "@/lib/org-member-roles";
 import { computeCanWriteBoard, type BoardWriteAuthzInput } from "@/lib/board-authz";
 import { dedupeCardsById } from "@/lib/dedupe-cards";
 import type { BoardCard, ProfileRow } from "@/components/board/types";
+import type { BoardPermissionCode } from "@nextgen/contracts";
 import { groupChecklistItemsByCard } from "@/lib/card-kernel/checklist-group";
 import {
   CARD_SELECT_CORE,
@@ -58,7 +59,12 @@ export type BoardSnapshot = {
   }[];
   tags: { id: string; name: string; color: string }[];
   members: ProfileRow[];
-  boardMembers: { user_id: string; role: string; profile?: ProfileRow }[];
+  boardMembers: {
+    user_id: string;
+    role: string;
+    preset_id?: string | null;
+    profile?: ProfileRow;
+  }[];
   profilesById: Record<string, ProfileRow>;
   isOrgAdmin: boolean;
   /** Authz fresco (nunca confiar so no cache cross-request). */
@@ -94,7 +100,7 @@ async function fetchBoardSnapshot(
     supabase.from("columns").select("id, name, default_stage_id").eq("board_id", boardId).order("position"),
     supabase.from("cards").select(CARD_SELECT_WITH_TREE).eq("board_id", boardId).order("position"),
     supabase.from("tags").select("id, name, color").eq("board_id", board.id).order("name"),
-    supabase.from("board_members").select("user_id, role").eq("board_id", boardId),
+    supabase.from("board_members").select("user_id, role, preset_id").eq("board_id", boardId),
     supabase
       .from("stages")
       .select("id, name, color, position, is_system, system_key")
@@ -239,6 +245,7 @@ async function fetchBoardSnapshot(
   const bmList = (boardMembers ?? []).map((bm) => ({
     user_id: bm.user_id,
     role: bm.role,
+    preset_id: bm.preset_id ?? null,
     profile: profilesById[bm.user_id],
   }));
 
@@ -277,7 +284,7 @@ async function buildWriteAuthz(
   const [{ data: boardMember }, deptRes] = await Promise.all([
     supabase
       .from("board_members")
-      .select("role")
+      .select("role, preset_id")
       .eq("board_id", boardId)
       .eq("user_id", userId)
       .maybeSingle(),
@@ -291,11 +298,23 @@ async function buildWriteAuthz(
       : Promise.resolve({ data: null as { role: string } | null }),
   ]);
 
+  let permissionCodes: BoardPermissionCode[] | null = null;
+  if (boardMember?.preset_id) {
+    const { data: perms } = await supabase
+      .from("access_preset_permissions")
+      .select("permission_code")
+      .eq("preset_id", boardMember.preset_id);
+    if (perms && perms.length > 0) {
+      permissionCodes = perms.map((p) => p.permission_code as BoardPermissionCode);
+    }
+  }
+
   const input: BoardWriteAuthzInput = {
     orgRole: seed.orgRole,
     boardRole: boardMember?.role ?? null,
     deptRole: deptRes.data?.role ?? null,
     hasDepartment,
+    permissionCodes,
   };
   return {
     ...input,

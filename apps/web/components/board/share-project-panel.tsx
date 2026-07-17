@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { btnBoardSecondary } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
+import type { AccessPresetRow } from "@/lib/access-presets";
 import type { BoardMember } from "./board-member";
 import { BoardMembersList } from "./board-members-list";
 import { InviteEmailsPanel } from "./invite-emails-panel";
@@ -14,16 +15,20 @@ type Props = {
   boardId: string;
   members: BoardMember[];
   canManageMembers?: boolean;
+  canManagePresets?: boolean;
   currentUserId?: string | null;
   showInvite?: boolean;
+  accessPresets?: AccessPresetRow[];
 };
 
 export function ShareProjectPanel({
   boardId,
   members,
   canManageMembers = false,
+  canManagePresets = false,
   currentUserId = null,
   showInvite = true,
+  accessPresets,
 }: Props) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +56,18 @@ export function ShareProjectPanel({
         members={members}
         canManageMembers={canManageMembers}
         currentUserId={currentUserId}
+        presets={accessPresets}
         onError={setError}
       />
 
-      {showInvite ? <InviteEmailsPanel boardId={boardId} canManageMembers={canManageMembers} /> : null}
+      {showInvite ? (
+        <InviteEmailsPanel
+          boardId={boardId}
+          canManageMembers={canManageMembers}
+          canManagePresets={canManagePresets}
+          presets={accessPresets}
+        />
+      ) : null}
 
       {error ? <p className="text-xs text-aurora-danger">{error}</p> : null}
     </div>

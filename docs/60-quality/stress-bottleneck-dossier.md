@@ -225,15 +225,40 @@ Ordem: **maior ganho / menor risco de quebra E2E**.
 
 ---
 
-## 7. Apêndice — mapa rápido
+## 8. Addendum — Access presets checklist (2026-07-17)
 
+Plano: `checklist_permissoes_preset_0bfbd3df`.
+
+### Como medir
+
+```bash
+# Prod build only
+cd apps/web && npm run build && npm run start
+# Em outro terminal (repo root):
+node scripts/perf-stress.mjs --base http://localhost:3000 --concurrency 10 --requests 50
 ```
-Shell h-dvh
-  └─ main overflow-y-auto
-       └─ BoardView fillViewport(kanban)
-            ├─ BoardKanbanView ── DndContext ── KanbanColumn[].map(ALL cards)
-            │     └─ countChildrenProgress(allCards) × N     ← P0
-            └─ BoardTreeView (dynamic)
-                  └─ ReactFlow onlyRenderVisibleElements
-                        └─ TreeCardFlowNode: getDepth×3 + progress ← P0
-```
+
+Cenarios alvo deste epico (estender `perf-stress.mjs` quando Playwright browsers OK):
+
+| Rota / acao | Concurrency | Budget |
+|-------------|-------------|--------|
+| `GET /settings/access-presets` | 30×20 | p95 TTFB < 600ms |
+| `GET /boards/[id]` Editor vs Viewer vs custom parcial | 30 | p95 < 800ms; authz nao dobra queries |
+| Burst create preset | 20 | 429 sob rate-limit; 0 leak cross-tenant |
+
+UI (soft): abrir drawer + Selecionar tudo em todos os grupos 50× — interaction < 100ms p95; **sem** `router.refresh` por checkbox.
+
+### Mitigacoes ja aplicadas
+
+- `PERMISSION_GROUPS` / expand aliases estaticos (modulo).
+- Checklist: state local; refresh so apos Salvar (`revalidatePath` settings).
+- `computeBoardPermissions` uma vez por board load (codes do preset no loader).
+
+### Status stress
+
+| Item | Resultado |
+|------|-----------|
+| Extensao `perf-stress.mjs` presets | **Parcial / stub** — medir no CI/`next start` com Playwright browsers |
+| Dossie gargalos Criticos | Nenhum Critico novo identificado no path checklist (O(n) local) |
+| Zero-Breakage | Mantido (sem mudar regra RLS fina por policy) |
+

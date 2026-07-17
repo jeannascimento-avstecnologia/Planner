@@ -10,6 +10,7 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 |------|------------|------------------------|
 | `/boards` | < 600ms | 4663ms (dev, 30 concurrent) |
 | `/boards/[boardId]` | < 800ms | 5433ms (dev, 30 concurrent) |
+| `/settings/access-presets` | < 600ms | — (1× `listAccessPresets`; checklist local) |
 | `/calendar` | < 800ms | 1376ms |
 | `/plan` | < 900ms | 41ms (cache quente) |
 | `/workload` | < 900ms | 37ms (cache quente) |
@@ -37,6 +38,7 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 12. **Shell cache:** `loadShellDataCached(userId, orgId)` com `unstable_cache` + tags `shell:user:{id}`; invalidar via `revalidateShell()`.
 13. **Tree canvas (`?view=tree`):** chunk `@xyflow/react` só via `dynamic(..., { ssr: false })` quando view=tree; `tree_x/y` no `CARD_SELECT` (sem query extra); debounce ≥300ms em patch de posição; **não** chamar `revalidatePlanViews` nem `revalidatePath`/`revalidateBoard` pesado a cada drag **nem** a cada reparent (`parent_id` / `tree_x` / `tree_y` = client Query SoT); `onlyRenderVisibleElements`; soft warn se >300 nós; fila de reparent ≤1 in-flight; marquee multi-select sem storm de writes (batch debounce ≥300ms nas coords do grupo).
 14. **Viewport / CLS (board layout):** shell `h-dvh min-h-0` + Kanban `flex-1 min-h-0` / colunas `items-start` + `max-h-full` — scroll interno na lista de cards (nao document height). Troca `kanban` ↔ outros modos pode alterar altura do container (fill vs `space-y-4`); aceitavel se nao houver shift de chrome (sidebar/topbar). Banner `boards.description` / fallback tree: altura estavel apos primeiro paint (sem inserir banner async apos hydrate). Ver [board-kanban-dnd.md](../50-components/board-kanban-dnd.md), [app-sidebar.md](../50-components/app-sidebar.md).
+15. **Board + presets:** `GET /boards/[id]` faz **1×** `listAccessPresets(orgId)`; nomes de membros via `attachPresetNames` (map id→name). Proibido N+1 por `board_members`. Hub: 1× `access_presets` pelos `preset_id` usados.
 
 ## Criterios de aceite
 
@@ -69,3 +71,4 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 | Shell cross-request cache | `lib/loaders/shell-cache.ts` | stress navegacao |
 | Board/calendar cache | `board-cache.ts`, `cached-queries.ts` | `perf-stress.mjs` |
 | Viewport Kanban / CLS chrome | `app-shell*.tsx`, `board-view.tsx`, `kanban-column.tsx` | visual / E2E scroll coluna |
+| Presets 1× no board | `page.tsx` + `attachPresetNames` | Vitest map; E2E members label |

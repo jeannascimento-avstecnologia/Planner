@@ -170,6 +170,7 @@ function HomeProjectsGroupedInner({ sections, boardMembersByBoardId, currentUser
                               boards={group.boards}
                               boardMembersByBoardId={boardMembersByBoardId}
                               isOrgAdmin={section.isOrgAdmin}
+                              isOrgOwner={section.isOrgOwner}
                               hubMode={false}
                               currentUserId={currentUserId}
                             />
@@ -178,6 +179,7 @@ function HomeProjectsGroupedInner({ sections, boardMembersByBoardId, currentUser
                               boards={group.boards}
                               boardMembersByBoardId={boardMembersByBoardId}
                               isOrgAdmin={section.isOrgAdmin}
+                              isOrgOwner={section.isOrgOwner}
                               hubMode={false}
                               currentUserId={currentUserId}
                             />

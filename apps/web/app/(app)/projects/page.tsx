@@ -39,6 +39,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
 
   const {
     isOrgAdmin,
+    isOrgOwner,
     currentUserId,
     sections,
     activeOrgId,
@@ -119,6 +120,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
         boards={boards}
         boardMembersByBoardId={boardMembersByBoardId}
         isOrgAdmin={isOrgAdmin}
+        isOrgOwner={isOrgOwner}
         currentUserId={currentUserId}
         upcomingTasksByBoard={upcomingTasksByBoard}
         basePath="/projects"
@@ -130,6 +132,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
           boards={boards}
           boardMembersByBoardId={boardMembersByBoardId}
           isOrgAdmin={isOrgAdmin}
+          isOrgOwner={isOrgOwner}
           currentUserId={currentUserId}
           hubMode
           hubBasePath="/projects"

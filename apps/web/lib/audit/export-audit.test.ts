@@ -33,6 +33,24 @@ describe("auditRowsToCsv", () => {
     const csv = auditRowsToCsv([sampleRow]);
     expect(csv).not.toContain("secret");
     expect(csv).toContain("Papel alterado");
-    expect(csv).toContain("viewer");
+    expect(csv).toContain("Visualizador");
+    expect(csv).toContain("Administrador");
+  });
+
+  it("preset_assigned detail is human-readable", () => {
+    const csv = auditRowsToCsv([
+      {
+        ...sampleRow,
+        event_scope: "board",
+        event_type: "preset_assigned",
+        payload: {
+          preset_name: "Editor",
+          user_name: "Maria",
+          board_name: "Roadmap",
+        },
+      },
+    ]);
+    expect(csv).toContain("Preset atribuido");
+    expect(csv).toContain('Concedeu acesso ""Editor"" a Maria no projeto ""Roadmap""');
   });
 });

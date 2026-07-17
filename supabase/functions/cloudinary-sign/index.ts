@@ -101,6 +101,21 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Card upload: exige acesso ao card (RLS) e org_id consistente
+  if (folderResult.purpose === "card" && body.cardId) {
+    const { data: card } = await supabase
+      .from("cards")
+      .select("id, org_id, board_id")
+      .eq("id", body.cardId.trim())
+      .maybeSingle();
+    if (!card || card.org_id !== orgId) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   const folder = folderResult.folder;
   const timestamp = Math.round(Date.now() / 1000);
   const params = { folder, timestamp };

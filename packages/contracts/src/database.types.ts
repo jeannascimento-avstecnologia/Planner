@@ -49,9 +49,54 @@ export type Database = {
         Relationships: [];
       };
       board_members: {
-        Row: { id: string; board_id: string; user_id: string; role: Database["public"]["Enums"]["membership_role"]; created_at: string };
-        Insert: { id?: string; board_id: string; user_id: string; role?: Database["public"]["Enums"]["membership_role"]; created_at?: string };
-        Update: { id?: string; board_id?: string; user_id?: string; role?: Database["public"]["Enums"]["membership_role"]; created_at?: string };
+        Row: { id: string; board_id: string; user_id: string; role: Database["public"]["Enums"]["membership_role"]; preset_id: string | null; created_at: string };
+        Insert: { id?: string; board_id: string; user_id: string; role?: Database["public"]["Enums"]["membership_role"]; preset_id?: string | null; created_at?: string };
+        Update: { id?: string; board_id?: string; user_id?: string; role?: Database["public"]["Enums"]["membership_role"]; preset_id?: string | null; created_at?: string };
+        Relationships: [];
+      };
+      access_presets: {
+        Row: {
+          id: string;
+          org_id: string | null;
+          name: string;
+          description: string | null;
+          is_system: boolean;
+          system_key: string | null;
+          base_role: Database["public"]["Enums"]["membership_role"];
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string | null;
+          name: string;
+          description?: string | null;
+          is_system?: boolean;
+          system_key?: string | null;
+          base_role?: Database["public"]["Enums"]["membership_role"];
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string | null;
+          name?: string;
+          description?: string | null;
+          is_system?: boolean;
+          system_key?: string | null;
+          base_role?: Database["public"]["Enums"]["membership_role"];
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      access_preset_permissions: {
+        Row: { preset_id: string; permission_code: string };
+        Insert: { preset_id: string; permission_code: string };
+        Update: { preset_id?: string; permission_code?: string };
         Relationships: [];
       };
       columns: {
@@ -407,18 +452,21 @@ export type Database = {
         Row: {
           id: string; org_id: string; board_id: string; email: string;
           role: Database["public"]["Enums"]["membership_role"];
+          preset_id: string | null;
           token_hash: string; expires_at: string; accepted_at: string | null;
           created_by: string | null; created_at: string;
         };
         Insert: {
           id?: string; org_id: string; board_id: string; email: string;
           role?: Database["public"]["Enums"]["membership_role"];
+          preset_id?: string | null;
           token_hash: string; expires_at: string; accepted_at?: string | null;
           created_by?: string | null; created_at?: string;
         };
         Update: {
           id?: string; org_id?: string; board_id?: string; email?: string;
           role?: Database["public"]["Enums"]["membership_role"];
+          preset_id?: string | null;
           token_hash?: string; expires_at?: string; accepted_at?: string | null;
           created_by?: string | null; created_at?: string;
         };
@@ -528,6 +576,14 @@ export type Database = {
       };
     };
     Functions: {
+      has_board_permission: {
+        Args: { p_board: string; p_code: string };
+        Returns: boolean;
+      };
+      can_manage_access_presets: {
+        Args: { p_org: string };
+        Returns: boolean;
+      };
       create_organization: {
         Args: { p_name: string; p_slug: string; p_legal_name?: string | null; p_cnpj?: string | null };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];

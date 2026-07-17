@@ -6,6 +6,7 @@ type Props = {
   boards: ProjectBoardRow[];
   boardMembersByBoardId: Record<string, BoardMember[]>;
   isOrgAdmin: boolean;
+  isOrgOwner?: boolean;
   currentUserId?: string | null;
   hubMode?: boolean;
   selectedBoardId?: string | null;
@@ -16,6 +17,7 @@ export function ProjectsGridView({
   boards,
   boardMembersByBoardId,
   isOrgAdmin,
+  isOrgOwner = false,
   currentUserId,
   hubMode = false,
   selectedBoardId,
@@ -29,6 +31,7 @@ export function ProjectsGridView({
             board={board}
             members={boardMembersByBoardId[board.id] ?? []}
             isOrgAdmin={isOrgAdmin}
+            isOrgOwner={isOrgOwner}
             currentUserId={currentUserId}
             variant="grid"
             hubMode={hubMode}

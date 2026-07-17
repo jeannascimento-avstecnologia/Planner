@@ -40,6 +40,6 @@ export const PAGE_COPY = {
   help: {
     title: "Ajuda",
     description:
-      "Guia passo a passo de cada pagina: botoes, filtros, arrastar-e-soltar, papeis (Visualizador/Editor/Gerente) e integracoes.",
+      "Guia passo a passo de cada pagina: botoes, filtros, arrastar-e-soltar, papeis (Visualizador/Editor/Administrador) e integracoes.",
   },
 } as const;

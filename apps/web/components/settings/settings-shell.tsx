@@ -19,6 +19,7 @@ type Props = {
   userRole: string;
   userOrgs: UserOrgRow[];
   showAdminTabs: boolean;
+  showOwnerTabs?: boolean;
   children: React.ReactNode;
 };
 
@@ -31,6 +32,7 @@ export function SettingsShell({
   userRole,
   userOrgs,
   showAdminTabs,
+  showOwnerTabs = false,
   children,
 }: Props) {
   return (
@@ -59,6 +61,7 @@ export function SettingsShell({
             </div>
             <SettingsNav
               showAdminTabs={showAdminTabs}
+              showOwnerTabs={showOwnerTabs}
               userFullName={userFullName}
               userEmail={userEmail}
               userRole={userRole}
@@ -66,6 +69,7 @@ export function SettingsShell({
             />
             <SettingsNav
               showAdminTabs={showAdminTabs}
+              showOwnerTabs={showOwnerTabs}
               userFullName={userFullName}
               userEmail={userEmail}
               userRole={userRole}

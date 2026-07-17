@@ -15,6 +15,7 @@ type Props = {
   board: ProjectBoardRow;
   members: BoardMember[];
   isOrgAdmin: boolean;
+  isOrgOwner?: boolean;
   currentUserId?: string | null;
   variant?: "grid" | "list";
   hubMode?: boolean;
@@ -26,6 +27,7 @@ export function ProjectBoardTile({
   board,
   members,
   isOrgAdmin,
+  isOrgOwner = false,
   currentUserId,
   variant = "grid",
   hubMode = false,
@@ -112,6 +114,7 @@ export function ProjectBoardTile({
             board={board}
             members={members}
             isOrgAdmin={isOrgAdmin}
+            isOrgOwner={isOrgOwner}
             currentUserId={currentUserId}
             onClose={() => setSettingsOpen(false)}
           />
@@ -188,6 +191,7 @@ export function ProjectBoardTile({
           board={board}
           members={members}
           isOrgAdmin={isOrgAdmin}
+            isOrgOwner={isOrgOwner}
           currentUserId={currentUserId}
           onClose={() => setSettingsOpen(false)}
         />

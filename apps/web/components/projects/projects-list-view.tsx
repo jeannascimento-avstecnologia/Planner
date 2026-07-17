@@ -14,6 +14,7 @@ type Props = {
   boards: ProjectBoardRow[];
   boardMembersByBoardId: Record<string, BoardMember[]>;
   isOrgAdmin: boolean;
+  isOrgOwner?: boolean;
   currentUserId?: string | null;
   hubMode?: boolean;
   selectedBoardId?: string | null;
@@ -47,6 +48,7 @@ export function ProjectsListView({
   boards,
   boardMembersByBoardId,
   isOrgAdmin,
+  isOrgOwner = false,
   currentUserId,
   hubMode = false,
   selectedBoardId,
@@ -138,6 +140,7 @@ export function ProjectsListView({
                               board={b}
                               members={boardMembersByBoardId[b.id] ?? []}
                               isOrgAdmin={isOrgAdmin}
+                              isOrgOwner={isOrgOwner}
                               currentUserId={currentUserId}
                               variant="list"
                               hubMode={hubMode}

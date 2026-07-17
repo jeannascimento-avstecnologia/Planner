@@ -58,7 +58,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           "Use a engrenagem no painel para abrir Configuracoes do projeto (mesmo modal da Home).",
         ],
         tips: [
-          "Convites e papeis do projeto ficam em Participantes — apenas Gerente do projeto ou admin da org podem convidar.",
+          "Convites e papeis do projeto ficam em Participantes — Administrador do projeto ou admin/owner da org podem convidar.",
           "O subtitulo do header mostra org e departamento ativos (ex.: Minha Org · Marketing).",
         ],
       },
@@ -78,10 +78,10 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           "Clique no card para abrir o painel: Titulo, Descricao, Inicio, Entrega estimada, Prazo final, Horas estimadas, Prioridade, Responsavel, Marcadores.",
           "Se voce e responsavel, o bloco Plano de trabalho mostra link Abrir em Meu plano.",
           "Use a barra de filtros: Buscar por titulo, Estagios, prazos (3d/5d/10d/30d ou Dia exato), Responsavel, Marcador e Estagio.",
-          "Automacoes (topo): org admin ou Editor. Gerenciar acesso e Convidar integrante: Gerente ou admin da org.",
+          "Automacoes (topo): org admin ou Editor/Administrador do projeto. Gerenciar acesso e Convidar integrante: Administrador do projeto ou admin/owner da org.",
         ],
         tips: [
-          "Papeis do projeto: Visualizar (so leitura), Editor (arrasta e edita cards), Gerente (membros e convites).",
+          "Papeis do projeto: Visualizador (so leitura), Editor (edita cards sem ACL), Administrador (edita + membros/convites/settings).",
           "Prazo final vencido aparece destacado no painel do card; Entrega estimada e campo de planejamento opcional.",
         ],
       },
@@ -199,12 +199,12 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         title: "Membros da organizacao",
         href: "/settings/organization",
         summary:
-          "Tabela de membros com papeis editaveis: Visualizador, Gerente, Administrador e Proprietario. Owner e manager podem alterar papeis e remover membros.",
+          "Tabela de membros com papeis editaveis: Visualizador, Gerente, Administrador e Proprietario. Owner e Administrador podem alterar papeis e remover membros.",
         steps: [
           "Localize o membro na tabela e altere o papel no select.",
           "Proprietario: controle total; so pode haver regras especiais com multi-owner habilitado.",
-          "Administrador: acesso a integracoes, auditoria e permissoes de campo.",
-          "Gerente: convites, membros e visao de carga.",
+          "Administrador: convites, membros, integracoes, auditoria e permissoes de campo.",
+          "Gerente: operacao; write via ACL de projeto/departamento (sem convites org).",
           "Visualizador: leitura geral, sem gestao.",
         ],
         badge: "Admin",
@@ -220,7 +220,21 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           "Envie o convite — aparece na tabela Convites pendentes.",
           "Acompanhe expiracao e reenvie se necessario.",
         ],
-        tips: ["Apenas proprietario ou gerente pode enviar convites."],
+        tips: ["Apenas proprietario ou administrador pode enviar convites."],
+        badge: "Admin",
+      },
+      {
+        id: "access-presets",
+        title: "Presets de acesso",
+        href: "/settings/access-presets",
+        summary:
+          "Pacotes de permissao do projeto: sistema (Administrador, Editor, Visualizador) e custom criados por Owner/Admin.",
+        steps: [
+          "Abra Presets de acesso nas configuracoes.",
+          "Clique Novo preset, nomeie e marque permissoes do projeto (teto = Administrador).",
+          "No convite do projeto, escolha o preset pelo nome — sem expor papeis tecnicos.",
+        ],
+        tips: ["Editar um preset custom propaga para todos os membros que o usam."],
         badge: "Admin",
       },
       {

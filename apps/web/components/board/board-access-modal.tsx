@@ -3,6 +3,7 @@
 import type { BoardMember } from "./board-member";
 import { AuroraModal } from "@/components/ui/aurora-modal";
 import { ShareProjectPanel } from "./share-project-panel";
+import type { AccessPresetRow } from "@/lib/access-presets";
 
 type Props = {
   boardId: string;
@@ -10,6 +11,7 @@ type Props = {
   members: BoardMember[];
   canManageMembers?: boolean;
   currentUserId?: string | null;
+  accessPresets?: AccessPresetRow[];
   onClose: () => void;
 };
 
@@ -19,6 +21,7 @@ export function BoardAccessModal({
   members,
   canManageMembers = false,
   currentUserId = null,
+  accessPresets,
   onClose,
 }: Props) {
   return (
@@ -34,6 +37,7 @@ export function BoardAccessModal({
         members={members}
         canManageMembers={canManageMembers}
         currentUserId={currentUserId}
+        accessPresets={accessPresets}
         showInvite={false}
       />
     </AuroraModal>

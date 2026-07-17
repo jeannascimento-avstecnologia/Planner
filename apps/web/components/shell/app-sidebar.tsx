@@ -195,7 +195,7 @@ export function AppSidebar({
         <SignOutButton
           iconOnly={tight}
           confirmBeforeSignOut
-          className={`flex items-center justify-center rounded-lg bg-aurora-brand text-white hover:brightness-110 ${
+          className={`flex items-center justify-center rounded-lg border border-aurora-danger/50 bg-aurora-danger/15 text-aurora-danger hover:bg-aurora-danger/25 ${
             tight ? "h-9 w-full p-0" : "w-full px-2 py-1.5 text-sm font-semibold"
           }`}
         />

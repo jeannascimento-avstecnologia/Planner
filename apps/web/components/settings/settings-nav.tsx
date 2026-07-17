@@ -11,6 +11,7 @@ import {
   Plug,
   Settings2,
   Shield,
+  ShieldCheck,
   User,
   UserPlus,
   Users,
@@ -24,6 +25,8 @@ type NavItem = {
   icon: typeof Home;
   exact?: boolean;
   adminOnly?: boolean;
+  /** CRUD presets: so Proprietario. */
+  ownerOnly?: boolean;
   testId: string;
 };
 
@@ -46,6 +49,13 @@ const NAV_SECTIONS: Array<{ title: string; items: NavItem[] }> = [
       { href: "/settings/integrations", label: "Integracoes", icon: Plug, adminOnly: true, testId: "org-settings-tab-integracoes" },
       { href: "/settings/audit", label: "Auditoria", icon: FileSearch, adminOnly: true, testId: "org-settings-tab-auditoria" },
       { href: "/settings/permissions", label: "Permissoes", icon: Shield, adminOnly: true, testId: "org-settings-tab-permissoes" },
+      {
+        href: "/settings/access-presets",
+        label: "Presets de acesso",
+        icon: ShieldCheck,
+        ownerOnly: true,
+        testId: "org-settings-tab-presets",
+      },
     ],
   },
   {
@@ -60,6 +70,7 @@ const NAV_SECTIONS: Array<{ title: string; items: NavItem[] }> = [
 
 type Props = {
   showAdminTabs: boolean;
+  showOwnerTabs?: boolean;
   userFullName: string | null;
   userEmail: string;
   userRole: string;
@@ -93,13 +104,24 @@ function NavLinkItem({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-export function SettingsNav({ showAdminTabs, userFullName, userEmail, userRole, mobile = false }: Props) {
+export function SettingsNav({
+  showAdminTabs,
+  showOwnerTabs = false,
+  userFullName,
+  userEmail,
+  userRole,
+  mobile = false,
+}: Props) {
   const pathname = usePathname();
   const displayName = userFullName?.trim() || userEmail.split("@")[0] || "Usuario";
 
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => !item.adminOnly || showAdminTabs),
+    items: section.items.filter((item) => {
+      if (item.ownerOnly && !showOwnerTabs) return false;
+      if (item.adminOnly && !showAdminTabs) return false;
+      return true;
+    }),
   })).filter((section) => section.items.length > 0);
 
   if (mobile) {

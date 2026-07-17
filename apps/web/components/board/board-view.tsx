@@ -63,7 +63,7 @@ const BoardAutomationsModal = dynamic(
 import { CardFilterBar } from "./card-filter-bar";
 import { BoardKanbanTourPrep } from "@/components/onboarding/page-tour-preps";
 import { PageTourTrigger } from "@/components/onboarding/page-tour-trigger";
-import { canManageBoardMembers, canWriteBoard } from "@/lib/board-member-roles";
+import { computeBoardPermissions, computeCanManageBoardMembers } from "@/lib/board-authz";
 import { BoardAppearanceEditor } from "./board-appearance-editor";
 import { BoardIcon } from "./board-icon";
 import { BoardPresenceLayer } from "./board-presence-layer";
@@ -72,6 +72,9 @@ import { useBoardCards } from "@/hooks/use-board-cards";
 import { useBoardCardsRealtime } from "@/hooks/use-board-cards-realtime";
 import type { BoardMember } from "./board-member";
 import type { BoardWriteAuthz } from "@/lib/loaders/board-cache";
+import type { AccessPresetRow } from "@/lib/access-presets";
+import { hasAnyContentPermission } from "@/lib/access-presets";
+import { isOrgOwnerRole } from "@/lib/org-member-roles";
 import {
   EMPTY_FILTERS,
   matchesFilters,
@@ -108,6 +111,7 @@ type Props = {
   currentUserId: string | null;
   /** Authz fresco do loader (espelha RLS). */
   writeAuthz: BoardWriteAuthz;
+  accessPresets?: AccessPresetRow[];
 };
 
 function BoardViewInner({
@@ -123,6 +127,7 @@ function BoardViewInner({
   profilesById,
   currentUserId,
   writeAuthz,
+  accessPresets,
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -259,61 +264,35 @@ function BoardViewInner({
     return lanes;
   }, [kanbanCards, groupByAssignee, members]);
 
-  const userBoardRole = writeAuthz.boardRole ?? boardMembers.find((m) => m.user_id === currentUserId)?.role ?? null;
-  const canManageMembers = canManageBoardMembers(writeAuthz.isOrgAdmin, userBoardRole);
-  const canEditBoard = writeAuthz.canWriteBoard;
+  const boardPerms = useMemo(() => computeBoardPermissions(writeAuthz), [writeAuthz]);
+  const canManageMembers = computeCanManageBoardMembers(writeAuthz);
+  const canManagePresets = isOrgOwnerRole(writeAuthz.orgRole);
+  const canEditBoard = writeAuthz.canWriteBoard || hasAnyContentPermission(boardPerms);
 
-  // #region agent log
-  useEffect(() => {
-    fetch("http://127.0.0.1:7804/ingest/29457b36-0b80-4b84-b158-efeeb1de7ce1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "24faed" },
-      body: JSON.stringify({
-        sessionId: "24faed",
-        runId: "post-fix-authz",
-        hypothesisId: "H1",
-        location: "board-view.tsx:canEditBoard",
-        message: "edit gates on board load (fresh authz)",
-        data: {
-          viewMode,
-          canEditBoard,
-          isOrgAdmin: writeAuthz.isOrgAdmin,
-          userBoardRole,
-          orgRole: writeAuthz.orgRole,
-          deptRole: writeAuthz.deptRole,
-          hasDepartment: writeAuthz.hasDepartment,
-          canWriteBoard: writeAuthz.canWriteBoard,
-          currentUserIdPresent: Boolean(currentUserId),
-          boardMembersCount: boardMembers.length,
-          groupByAssignee,
-          hostname: typeof window !== "undefined" ? window.location.hostname : null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, [
-    viewMode,
-    canEditBoard,
-    writeAuthz,
-    userBoardRole,
-    currentUserId,
-    boardMembers.length,
-    groupByAssignee,
-  ]);
-  // #endregion
+  const canCreateCards = boardPerms.has("board.cards.create");
+  const canMoveCards = boardPerms.has("board.cards.move");
+  const canRenameColumns = boardPerms.has("board.columns.rename");
+  const canDeleteColumns = boardPerms.has("board.columns.delete");
+  const canCreateColumns = boardPerms.has("board.columns.create");
+  const canManageAutomations = boardPerms.has("board.automations.manage");
+  const canEditAppearance = boardPerms.has("board.appearance.edit");
+  const canManageStages = boardPerms.has("board.stages.manage");
+  const canEditTree = boardPerms.has("board.tree.edit");
+  const canUseTiflux = boardPerms.has("board.tiflux.use");
+  const canInviteMembers = boardPerms.has("board.members.invite") || canManageMembers;
+  const canEditCardFields = boardPerms.has("board.cards.edit");
+  const canDeleteCards = boardPerms.has("board.cards.delete");
+  const canChangeStage = boardPerms.has("board.cards.change_stage");
+  const canEditChecklist = boardPerms.has("board.checklist.edit");
+  const canAssignTags = boardPerms.has("board.tags.assign");
+  const canPlanWork = boardPerms.has("board.cards.plan_work");
+  const drawerReadOnly = !canEditCardFields && !canDeleteCards && !canChangeStage && !canEditChecklist && !canAssignTags && !canPlanWork && !canUseTiflux;
 
-  const canManageAutomations = canWriteBoard(writeAuthz.isOrgAdmin, userBoardRole);
-
-  const canRenameColumns = useMemo(() => {
-    if (!canEditBoard) return false;
-    return canWriteBoard(writeAuthz.isOrgAdmin, userBoardRole);
-  }, [writeAuthz.isOrgAdmin, userBoardRole, canEditBoard]);
-
+  const openTifluxCreate = canUseTiflux ? setTifluxCreateCardId : undefined;
+  const openTifluxLink = canUseTiflux ? setTifluxLinkCardId : undefined;
   const selectedCard = safeCards.find((c) => c.id === selectedCardId) ?? null;
   const tifluxLinkCard = safeCards.find((c) => c.id === tifluxLinkCardId) ?? null;
   const tifluxEnabled = board.tiflux_enabled;
-  const openTifluxCreate = canEditBoard ? setTifluxCreateCardId : undefined;
-  const openTifluxLink = canEditBoard ? setTifluxLinkCardId : undefined;
   const tifluxCreateCard = safeCards.find((c) => c.id === tifluxCreateCardId) ?? null;
   const displayName = currentUserId ? profilesById[currentUserId]?.full_name ?? "Usuario" : "Usuario";
   const presenceCursors = useBoardPresence({
@@ -357,7 +336,7 @@ function BoardViewInner({
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2" data-tour="board-actions">
           <PageTourTrigger />
-          {canEditBoard ? (
+          {canEditAppearance ? (
             <BoardAppearanceEditor boardId={board.id} icon={board.icon} color={board.color} />
           ) : null}
           <Link href={`/boards/${board.id}/whiteboard`} className={btnBoardSecondary}>
@@ -387,7 +366,7 @@ function BoardViewInner({
               <Settings className="h-4 w-4" />
             </button>
           ) : null}
-          {canManageMembers ? (
+          {canInviteMembers ? (
             <button
               type="button"
               onClick={() => setShareOpen(true)}
@@ -419,7 +398,7 @@ function BoardViewInner({
         members={members}
         value={filters}
         isOrgAdmin={writeAuthz.isOrgAdmin}
-        onManageStages={canEditBoard ? () => setStagesOpen(true) : undefined}
+        onManageStages={canManageStages ? () => setStagesOpen(true) : undefined}
         onChange={setFilters}
         onClear={() => setFilters(EMPTY_FILTERS)}
         onTagsChange={setLocalTags}
@@ -481,11 +460,15 @@ function BoardViewInner({
             profilesById={profilesById}
             tifluxEnabled={tifluxEnabled}
             canEditBoard={canEditBoard}
+            canCreateCards={canCreateCards}
+            canMoveCards={canMoveCards}
             canRenameColumns={canRenameColumns}
+            canDeleteColumns={canDeleteColumns}
+            canCreateColumns={canCreateColumns}
             onSelectCard={selectCard}
             onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
             onOpenTifluxLink={openTifluxLink ?? (() => {})}
-            readOnlyTiflux={!canEditBoard}
+            readOnlyTiflux={!canUseTiflux}
           />
           </div>
         </div>
@@ -498,7 +481,7 @@ function BoardViewInner({
           onSelectCard={selectCard}
           onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
           onOpenTifluxLink={openTifluxLink ?? (() => {})}
-          readOnlyTiflux={!canEditBoard}
+          readOnlyTiflux={!canUseTiflux}
         />
       ) : null}
 
@@ -509,7 +492,7 @@ function BoardViewInner({
           onSelectCard={selectCard}
           onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
           onOpenTifluxLink={openTifluxLink ?? (() => {})}
-          readOnlyTiflux={!canEditBoard}
+          readOnlyTiflux={!canUseTiflux}
         />
       ) : null}
 
@@ -524,8 +507,8 @@ function BoardViewInner({
           onSelectCard={selectCard}
           onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
           onOpenTifluxLink={openTifluxLink ?? (() => {})}
-          readOnlyTiflux={!canEditBoard}
-          canEdit={canEditBoard}
+          readOnlyTiflux={!canUseTiflux}
+          canEdit={canEditCardFields}
         />
       ) : null}
 
@@ -539,7 +522,7 @@ function BoardViewInner({
           profilesById={profilesById}
           tags={localTags}
           filters={filters}
-          canEdit={canEditBoard}
+          canEdit={canEditTree}
           onSelectCard={selectCard}
         />
       ) : null}
@@ -555,7 +538,16 @@ function BoardViewInner({
           members={members}
           allCards={safeCards}
           isOrgAdmin={writeAuthz.isOrgAdmin}
-          readOnly={!canEditBoard}
+          readOnly={drawerReadOnly}
+          permissions={{
+            editFields: canEditCardFields,
+            deleteCard: canDeleteCards,
+            changeStage: canChangeStage,
+            editChecklist: canEditChecklist,
+            assignTags: canAssignTags,
+            planWork: canPlanWork,
+            useTiflux: canUseTiflux,
+          }}
           tifluxEnabled={tifluxEnabled}
           onOpenTifluxCreate={openTifluxCreate}
           onOpenTifluxLink={openTifluxLink}
@@ -563,7 +555,7 @@ function BoardViewInner({
         />
       ) : null}
 
-      {canEditBoard && tifluxCreateCard ? (
+      {canUseTiflux && tifluxCreateCard ? (
         <TifluxTicketModal
           boardId={board.id}
           card={tifluxCreateCard}
@@ -571,7 +563,7 @@ function BoardViewInner({
         />
       ) : null}
 
-      {canEditBoard && tifluxLinkCard ? (
+      {canUseTiflux && tifluxLinkCard ? (
         <TifluxLinkTicketModal
           boardId={board.id}
           card={tifluxLinkCard}
@@ -579,7 +571,7 @@ function BoardViewInner({
         />
       ) : null}
 
-      {canEditBoard && stagesOpen ? (
+      {canManageStages && stagesOpen ? (
         <StageManagerModal boardId={board.id} stages={localStages} onClose={() => setStagesOpen(false)} />
       ) : null}
 
@@ -599,6 +591,8 @@ function BoardViewInner({
           boardId={board.id}
           boardName={board.name}
           canManageMembers={canManageMembers}
+          canManagePresets={canManagePresets}
+          accessPresets={accessPresets}
           onClose={() => setShareOpen(false)}
         />
       ) : null}
@@ -610,6 +604,7 @@ function BoardViewInner({
           members={boardMembers}
           canManageMembers={canManageMembers}
           currentUserId={currentUserId}
+          accessPresets={accessPresets}
           onClose={() => setAccessOpen(false)}
         />
       ) : null}

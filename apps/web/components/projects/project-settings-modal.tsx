@@ -26,11 +26,19 @@ type Props = {
   board: ProjectBoardRow;
   members: BoardMember[];
   isOrgAdmin: boolean;
+  isOrgOwner?: boolean;
   currentUserId?: string | null;
   onClose: () => void;
 };
 
-export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId, onClose }: Props) {
+export function ProjectSettingsModal({
+  board,
+  members,
+  isOrgAdmin,
+  isOrgOwner = false,
+  currentUserId,
+  onClose,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +48,7 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
   const [tifluxEnabled, setTifluxEnabled] = useState(board.tiflux_enabled);
   const [tifluxConfigured, setTifluxConfigured] = useState(isTifluxConfigured(board.integrations));
   const userBoardRole = members.find((m) => m.user_id === currentUserId)?.role ?? null;
-  const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
+  const canManageMembers = canManageBoardMembers(isOrgOwner, userBoardRole);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,7 +160,13 @@ export function ProjectSettingsModal({ board, members, isOrgAdmin, currentUserId
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-aurora-muted">Descricao</label>
-            <textarea name="description" defaultValue={board.description ?? ""} rows={3} className={inputClass} />
+            <textarea
+              name="description"
+              defaultValue={board.description ?? ""}
+              rows={2}
+              className={`${inputClass} max-h-24 resize-y`}
+              data-testid="project-settings-description"
+            />
           </div>
           <div className="flex flex-wrap gap-3">
             <IconPicker name="icon" defaultValue={board.icon ?? undefined} />
