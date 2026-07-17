@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { createColumn } from "@/app/(app)/boards/[boardId]/actions";
@@ -12,6 +12,11 @@ import { ColumnHeader } from "./column-header";
 import { CreateCardForm } from "./create-card-form";
 import { SortableCardTile } from "./sortable-card-tile";
 import { countChildrenProgress } from "@/lib/card-tree";
+import {
+  KANBAN_COLUMN_CARDS_CLASS,
+  KANBAN_COLUMN_FORM_WRAP_CLASS,
+  KANBAN_COLUMN_SECTION_CLASS,
+} from "@/lib/kanban-layout";
 import type { BoardCard, ColumnRow, ProfileRow, StageRow, TagRow } from "./types";
 
 type Props = {
@@ -55,11 +60,74 @@ export function KanbanColumn({
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
+  // #region agent log
+  useEffect(() => {
+    const colEl = document.querySelector(`[data-testid="kanban-column-${column.id}"]`);
+    const formEl = colEl?.querySelector('[data-testid="create-card-form"]');
+    const formWrap = formEl?.parentElement ?? null;
+    const cardsEl = colEl?.querySelector(`[data-testid="kanban-column-cards-${column.id}"]`);
+    const rowEl = document.querySelector('[data-testid="kanban-columns-row"]');
+    const newCol = document.querySelector('[data-testid="new-column-section"]');
+    const colRect = colEl?.getBoundingClientRect();
+    const formRect = formEl?.getBoundingClientRect();
+    const wrapRect = formWrap?.getBoundingClientRect();
+    const cardsRect = cardsEl?.getBoundingClientRect();
+    const rowRect = rowEl?.getBoundingClientRect();
+    const cs = colEl ? window.getComputedStyle(colEl) : null;
+    const cardsCs = cardsEl ? window.getComputedStyle(cardsEl as Element) : null;
+    const rowCs = rowEl ? window.getComputedStyle(rowEl) : null;
+    const boardKanban = document.querySelector('[data-tour="board-kanban"]');
+    const boardKanbanCs = boardKanban ? window.getComputedStyle(boardKanban) : null;
+    fetch("http://127.0.0.1:7804/ingest/29457b36-0b80-4b84-b158-efeeb1de7ce1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "24faed" },
+      body: JSON.stringify({
+        sessionId: "24faed",
+        runId: "post-fix",
+        hypothesisId: canEditBoard ? (formEl ? "H3" : "H2") : "H1",
+        location: "kanban-column.tsx:probe",
+        message: "add-card gate + geometry after layout fix",
+        data: {
+          columnId: column.id,
+          columnName: column.name,
+          cardCount: cardIds.length,
+          canEditBoard,
+          formInDom: Boolean(formEl),
+          formWrapInDom: Boolean(formWrap),
+          newColumnInDom: Boolean(newCol),
+          hostname: window.location.hostname,
+          colH: colRect ? Math.round(colRect.height) : null,
+          colOverflow: cs?.overflow ?? null,
+          colOverflowY: cs?.overflowY ?? null,
+          cardsH: cardsRect ? Math.round(cardsRect.height) : null,
+          cardsFlex: cardsCs?.flex ?? null,
+          formH: formRect ? Math.round(formRect.height) : null,
+          formW: formRect ? Math.round(formRect.width) : null,
+          formTop: formRect ? Math.round(formRect.top) : null,
+          formVisible:
+            formRect != null &&
+            formRect.width > 0 &&
+            formRect.height > 0 &&
+            formRect.bottom > 0 &&
+            formRect.top < window.innerHeight,
+          wrapH: wrapRect ? Math.round(wrapRect.height) : null,
+          rowH: rowRect ? Math.round(rowRect.height) : null,
+          rowMinH: rowCs?.minHeight ?? null,
+          rowOverflowY: rowCs?.overflowY ?? null,
+          boardKanbanMinH: boardKanbanCs?.minHeight ?? null,
+          viewportH: window.innerHeight,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [canEditBoard, column.id, column.name, cardIds.length]);
+  // #endregion
+
   return (
     <section
       ref={setNodeRef}
       data-testid={`kanban-column-${column.id}`}
-      className={`flex h-auto max-h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden rounded-xl border bg-board-surface/60 p-3 transition-colors ${
+      className={`${KANBAN_COLUMN_SECTION_CLASS} ${
         isOver ? "border-board-accent ring-1 ring-board-accent/40" : "border-board-border"
       }`}
     >
@@ -73,7 +141,7 @@ export function KanbanColumn({
       />
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         <div
-          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
+          className={KANBAN_COLUMN_CARDS_CLASS}
           data-testid={`kanban-column-cards-${column.id}`}
         >
           {cardIds.map((id) => {
@@ -101,7 +169,7 @@ export function KanbanColumn({
         </div>
       </SortableContext>
       {canEditBoard ? (
-        <div className="mt-2 shrink-0 border-t border-board-border/50 pt-2">
+        <div className={KANBAN_COLUMN_FORM_WRAP_CLASS}>
           <CreateCardForm
             boardId={boardId}
             columnId={column.id}
@@ -161,7 +229,10 @@ export function NewColumnSection({ boardId }: { boardId: string }) {
   const disabled = pending || isSubmitting;
 
   return (
-    <section className="flex w-72 shrink-0 flex-col rounded-xl border border-dashed border-aurora-muted/50 p-3">
+    <section
+      data-testid="new-column-section"
+      className="flex w-72 shrink-0 flex-col rounded-xl border border-dashed border-aurora-muted/50 p-3"
+    >
       <h3 className="mb-2 text-sm font-semibold text-aurora-muted">Nova coluna</h3>
       <form onSubmit={handleSubmit} className={`space-y-2 ${disabled ? "pointer-events-none opacity-60" : ""}`}>
         <input

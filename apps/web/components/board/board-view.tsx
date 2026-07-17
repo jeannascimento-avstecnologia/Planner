@@ -12,6 +12,7 @@ import { BoardKanbanView } from "./board-kanban-view";
 import { BoardSkeleton } from "@/components/ui/skeleton";
 import { BoardViewSwitcher } from "./board-view-switcher";
 import { isKanbanVisibleCard } from "@/lib/card-tree/kanban-visibility";
+import { KANBAN_BOARD_REGION_CLASS } from "@/lib/kanban-layout";
 
 const BoardCalendarView = dynamic(
   () => import("./board-calendar-view").then((m) => ({ default: m.BoardCalendarView })),
@@ -259,6 +260,41 @@ function BoardViewInner({
   const canManageMembers = canManageBoardMembers(isOrgAdmin, userBoardRole);
   const canEditBoard = canEditBoardUI(isOrgAdmin, userBoardRole);
 
+  // #region agent log
+  useEffect(() => {
+    fetch("http://127.0.0.1:7804/ingest/29457b36-0b80-4b84-b158-efeeb1de7ce1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "24faed" },
+      body: JSON.stringify({
+        sessionId: "24faed",
+        runId: "post-deploy-missing-add",
+        hypothesisId: "H1",
+        location: "board-view.tsx:canEditBoard",
+        message: "edit gates on board load",
+        data: {
+          viewMode,
+          canEditBoard,
+          isOrgAdmin,
+          userBoardRole,
+          currentUserIdPresent: Boolean(currentUserId),
+          boardMembersCount: boardMembers.length,
+          groupByAssignee,
+          hostname: typeof window !== "undefined" ? window.location.hostname : null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [
+    viewMode,
+    canEditBoard,
+    isOrgAdmin,
+    userBoardRole,
+    currentUserId,
+    boardMembers.length,
+    groupByAssignee,
+  ]);
+  // #endregion
+
   const canManageAutomations = canWriteBoard(isOrgAdmin, userBoardRole);
 
   const canRenameColumns = useMemo(() => {
@@ -390,7 +426,7 @@ function BoardViewInner({
       </div>
 
       {viewMode === "kanban" ? (
-        <div data-tour="board-kanban" className="flex min-h-0 flex-1 flex-col">
+        <div data-tour="board-kanban" className={KANBAN_BOARD_REGION_CLASS}>
           <div className="mb-2 flex shrink-0 flex-wrap items-center gap-4">
             <label className="flex w-fit items-center gap-2 text-sm text-aurora-muted">
               <input type="checkbox" checked={groupByAssignee} onChange={(e) => setGroupByAssignee(e.target.checked)} />

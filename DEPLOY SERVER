@@ -1,0 +1,32 @@
+PARA FAZER O DEPLOY NO SERVIDOR APP07:
+
+Só teste / smoke (TRMM)
+curl -sf http://127.0.0.1:3001/api/version && /bin/bash /opt/agify/scripts/diagnose-server.sh
+Mostra buildId / commit atuais
+Roda diagnóstico sem rebuild
+
+Só ver versão
+curl -s http://127.0.0.1:3001/api/version
+
+Só puxar código (sem build) — teste de git
+cd /opt/agify && git fetch origin && git rev-parse --short HEAD && git rev-parse --short origin/main && git log -1 --oneline origin/main
+A
+tenção: git pull/reset sem npm run build não atualiza o que o PM2 serve. Next usa .next antigo até rebuild.
+
+Remover versão antiga (código) e puxar a nova — sem mexer no .env
+Só sincroniza git (ainda não atualiza o app no ar):
+
+cd /opt/agify && git fetch origin && git reset --hard origin/main && git clean -fd -e apps/web/.env.local -e '**/.env' -e '**/.env.*' && git log -1 --oneline && test -f apps/web/.env.local && echo "OK: .env.local preservado"
+reset --hard = código igual ao main remoto
+clean -fd com -e = limpa lixo untracked sem apagar env
+Não roda build/PM2
+
+
+
+
+Deploy completo (TRMM, root) — atualiza código + build + PM2
+.env.local é só lido (obrigatório existir); o script não deleta env:
+
+cd /opt/agify && git fetch origin && git reset --hard origin/main && /bin/bash /opt/agify/scripts/deploy-server.sh
+
+Equivale a: pull → npm install → apaga só .next → npm run build → PM2 (user agify) → /api/version + diagnose.

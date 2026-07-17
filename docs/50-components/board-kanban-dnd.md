@@ -26,9 +26,11 @@ Estado: TanStack Query (`board:{id}:cards`) + Realtime invalidate — ver [board
 Cadeia flex obrigatoria para colunas altas rolarem **cards**, nao a pagina inteira:
 
 1. **Shell** (`app-shell.tsx` / `app-shell-streaming.tsx`): root `h-dvh min-h-0`; `main` = `flex min-h-0 flex-1 flex-col overflow-y-auto`.
-2. **Board** (`board-view.tsx`): em `view=kanban`, container `flex min-h-0 flex-1 flex-col overflow-hidden` (header/filtros/switcher `shrink-0`; faixa Kanban `flex-1 min-h-0`).
-3. **Row de colunas** (`board-kanban-view.tsx`): `items-start` + `h-full min-h-0` + `overflow-x-auto overflow-y-hidden` — colunas alinhadas ao topo, altura pelo conteudo ate `max-h-full`.
-4. **Coluna** (`kanban-column.tsx`): `h-auto max-h-full min-h-0`; lista de cards `flex-1 min-h-0 overflow-y-auto`; **`CreateCardForm` fixo sob os cards** (`shrink-0`, fora do scroll da lista).
+2. **Board** (`board-view.tsx`): em `view=kanban`, container `flex min-h-0 flex-1 flex-col overflow-hidden` (header/filtros/switcher `shrink-0`; faixa Kanban `KANBAN_BOARD_REGION_CLASS` = `min-h-56 flex-1` — reserva altura minima para o form nao sumir sob filtros densos).
+3. **Row de colunas** (`board-kanban-view.tsx`): `KANBAN_COLUMNS_ROW_CLASS` — `items-start` + `min-h-56` + `overflow-x-auto overflow-y-auto` (**nao** `overflow-y-hidden`, que clipava o form).
+4. **Coluna** (`kanban-column.tsx`): `KANBAN_COLUMN_SECTION_CLASS` sem `overflow-hidden` na section; lista de cards `flex-1 min-h-0 overflow-y-auto`; **`CreateCardForm` fixo sob os cards** (`shrink-0`).
+
+Contrato testavel: `lib/kanban-layout.ts` + `lib/kanban-layout.test.ts`.
 
 ## Criterios de aceite
 
@@ -38,6 +40,8 @@ Cadeia flex obrigatoria para colunas altas rolarem **cards**, nao a pagina intei
 - Modo "Agrupar por responsavel" nao oferece DnD (fast-follow).
 - Coluna alta: scroll vertical so na lista de cards; form "adicionar card" permanece visivel sob a lista.
 - Viewport Kanban: pagina nao cresce indefinidamente; shell `h-dvh` preenche a janela.
+- **Editor:** form `create-card-form` visivel em **toda** coluna (incl. vazia), mesmo com filtros densos; geometria height > 20px.
+- **Viewer:** zero `create-card-form`.
 
 ## Matriz Spec → Codigo → Teste
 
@@ -46,7 +50,8 @@ Cadeia flex obrigatoria para colunas altas rolarem **cards**, nao a pagina intei
 | Drag inter-coluna | `board-kanban-view.tsx`, `kanban-column.tsx` | `e2e/board-kanban-dnd.spec.ts` |
 | moveCard action | `card-actions.ts` → `lib/card-kernel`, `schemas.ts` | typecheck |
 | Evento moved | trigger DB / RLS cards_write | pgTAP (existente) |
-| Layout content-sized + form sob cards | `kanban-column.tsx`, `board-kanban-view.tsx`, shell `h-dvh` | E2E / visual (scroll coluna) |
+| Layout content-sized + form sob cards | `kanban-layout.ts`, column/row/board | `lib/kanban-layout.test.ts`, `e2e/board-kanban-add-card.spec.ts` |
+| Editor ve Adicionar / viewer nao | `canEditBoard` + column gate | `e2e/board-kanban-add-card.spec.ts`, `e2e/board-viewer.spec.ts` |
 
 ## Codigo
 

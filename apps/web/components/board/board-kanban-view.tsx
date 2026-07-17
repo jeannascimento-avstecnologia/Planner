@@ -22,6 +22,7 @@ import { appToast } from "@/lib/toast";
 import { BoardCardTile } from "./board-card-tile";
 import { KanbanColumn, NewColumnSection } from "./kanban-column";
 import { countChildrenProgress } from "@/lib/card-tree";
+import { KANBAN_COLUMNS_ROW_CLASS } from "@/lib/kanban-layout";
 import type { BoardCard, ColumnRow, ProfileRow, StageRow, TagRow } from "./types";
 
 type Props = {
@@ -223,6 +224,30 @@ export function BoardKanbanView({
 
   const activeCard = activeCardId ? (cardById.get(activeCardId) ?? null) : null;
 
+  // #region agent log
+  useEffect(() => {
+    fetch("http://127.0.0.1:7804/ingest/29457b36-0b80-4b84-b158-efeeb1de7ce1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "24faed" },
+      body: JSON.stringify({
+        sessionId: "24faed",
+        runId: "post-deploy-missing-add",
+        hypothesisId: groupByAssignee ? "H4" : "H5",
+        location: "board-kanban-view.tsx:branch",
+        message: "kanban branch + create path",
+        data: {
+          groupByAssignee,
+          swimlaneMode: Boolean(groupByAssignee && swimlanes),
+          canEditBoard,
+          columnsCount: columns.length,
+          hasCreateCardPath: !(groupByAssignee && swimlanes) && canEditBoard,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [groupByAssignee, swimlanes, canEditBoard, columns.length]);
+  // #endregion
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     isDraggingRef.current = true;
     setActiveCardId(String(event.active.id));
@@ -348,10 +373,7 @@ export function BoardKanbanView({
         setItems(next);
       }}
     >
-      <div
-        data-testid="kanban-columns-row"
-        className="flex h-full min-h-0 items-start gap-4 overflow-x-auto overflow-y-hidden pb-2"
-      >
+      <div data-testid="kanban-columns-row" className={KANBAN_COLUMNS_ROW_CLASS}>
         {columns.map((col) => (
           <KanbanColumn
             key={col.id}
