@@ -48,3 +48,6 @@ docs/local/
 
 # pacotes de export para mentor
 exports/
+
+DEPLOY_SERVER.md
+
