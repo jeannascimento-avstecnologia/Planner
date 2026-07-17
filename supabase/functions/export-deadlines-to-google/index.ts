@@ -36,6 +36,16 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: corsHeaders });
   }
 
+  const { data: membership } = await supabaseUser
+    .from("memberships")
+    .select("role")
+    .eq("org_id", body.orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership || (membership.role !== "admin" && membership.role !== "owner")) {
+    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: corsHeaders });
+  }
+
   const { data: orgConfig } = await supabaseUser
     .from("org_google_integrations")
     .select("calendar_id")

@@ -217,8 +217,11 @@ export async function updateBoardSettings(formData: FormData): Promise<BoardSett
   }
 
   const patch: Database["public"]["Tables"]["boards"]["Update"] = {};
-  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
-  if (parsed.data.description !== undefined) patch.description = parsed.data.description;
+  if (parsed.data.name !== undefined) patch.name = sanitizeName(parsed.data.name, 120);
+  if (parsed.data.description !== undefined) {
+    patch.description =
+      parsed.data.description === null ? null : sanitizeName(parsed.data.description, 2000);
+  }
   if (parsed.data.icon !== undefined) patch.icon = parsed.data.icon;
   if (parsed.data.color !== undefined) patch.color = parsed.data.color;
   if (parsed.data.archived !== undefined) patch.archived = parsed.data.archived;

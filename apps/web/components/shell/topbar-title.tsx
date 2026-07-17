@@ -3,10 +3,11 @@
 import { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getRouteTitle } from "@/lib/route-titles";
-import { parseBoardViewMode } from "@/components/board/types";
+import { parseBoardViewMode, type BoardViewMode } from "@/components/board/types";
 
-const VIEW_LABELS: Record<string, string> = {
+const VIEW_LABELS: Record<BoardViewMode, string> = {
   kanban: "Kanban",
+  tree: "Arvore",
   timeline: "Linha do tempo",
   calendar: "Calendario",
   table: "Tabela",
@@ -17,11 +18,16 @@ function TopbarTitleInner() {
   const searchParams = useSearchParams();
 
   const isBoardDetail = /^\/boards\/[^/]+$/.test(pathname);
-  if (isBoardDetail) {
-    const mode = parseBoardViewMode(searchParams.get("view"));
+  const boardMode = isBoardDetail ? parseBoardViewMode(searchParams.get("view")) : null;
+  const boardLabel = boardMode ? VIEW_LABELS[boardMode] : null;
+
+  if (isBoardDetail && boardMode && boardLabel) {
     return (
-      <span className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm">
-        {VIEW_LABELS[mode]}
+      <span
+        data-testid="board-view-topbar-title"
+        className="inline-flex max-w-[38vw] items-center truncate rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 sm:max-w-none sm:px-3 md:text-sm"
+      >
+        {boardLabel}
       </span>
     );
   }

@@ -328,7 +328,7 @@ export function BoardKanbanView({
   }
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       {moveMutation.isPending ? (
         <p className="pointer-events-none fixed bottom-4 right-4 z-50 rounded-lg bg-board-surface px-3 py-1.5 text-xs text-aurora-muted shadow-lg" aria-live="polite">
           Salvando...
@@ -348,7 +348,10 @@ export function BoardKanbanView({
         setItems(next);
       }}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div
+        data-testid="kanban-columns-row"
+        className="flex h-full min-h-0 items-start gap-4 overflow-x-auto overflow-y-hidden pb-2"
+      >
         {columns.map((col) => (
           <KanbanColumn
             key={col.id}
@@ -396,6 +399,6 @@ export function BoardKanbanView({
         ) : null}
       </DragOverlay>
     </DndContext>
-    </>
+    </div>
   );
 }

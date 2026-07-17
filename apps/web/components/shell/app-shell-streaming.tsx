@@ -70,21 +70,23 @@ export function AppShellStreaming({
   return (
     <OnboardingTourProvider setMobileOpen={setMobileOpen} hasActiveOrg={hasActiveOrg}>
       <PageTourAutoTrigger />
-      <div className="flex min-h-screen">
+      <div className="flex h-dvh min-h-0">
         <ShellChrome
           shellData={shellData}
           userEmail={userEmail}
           mobileOpen={mobileOpen}
           setMobileOpen={setMobileOpen}
         />
-        <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
           <AppTopbar
             notificationsSlot={notificationsSlot}
             avatarUrl={shellData.avatarUrl}
             fullName={shellData.fullName}
             onOpenMobileMenu={() => setMobileOpen(true)}
           />
-          <main className="flex-1 overflow-x-hidden p-3 sm:p-4">{children}</main>
+          <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto p-3 sm:p-4">
+            {children}
+          </main>
         </div>
       </div>
     </OnboardingTourProvider>

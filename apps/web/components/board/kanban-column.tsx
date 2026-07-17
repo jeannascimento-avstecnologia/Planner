@@ -59,7 +59,7 @@ export function KanbanColumn({
     <section
       ref={setNodeRef}
       data-testid={`kanban-column-${column.id}`}
-      className={`flex w-72 shrink-0 flex-col rounded-xl border bg-board-surface/60 p-3 transition-colors ${
+      className={`flex h-auto max-h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden rounded-xl border bg-board-surface/60 p-3 transition-colors ${
         isOver ? "border-board-accent ring-1 ring-board-accent/40" : "border-board-border"
       }`}
     >
@@ -72,7 +72,10 @@ export function KanbanColumn({
         canDelete={canRenameColumns}
       />
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-        <div className="flex min-h-[4rem] flex-col gap-2" data-testid={`kanban-column-cards-${column.id}`}>
+        <div
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
+          data-testid={`kanban-column-cards-${column.id}`}
+        >
           {cardIds.map((id) => {
             const card = cardsById.get(id);
             if (!card) return null;
@@ -98,7 +101,14 @@ export function KanbanColumn({
         </div>
       </SortableContext>
       {canEditBoard ? (
-        <CreateCardForm boardId={boardId} columnId={column.id} onCardCreated={(id, title) => onCardCreated?.(id, title, column.id)} />
+        <div className="mt-2 shrink-0 border-t border-board-border/50 pt-2">
+          <CreateCardForm
+            boardId={boardId}
+            columnId={column.id}
+            compact
+            onCardCreated={(id, title) => onCardCreated?.(id, title, column.id)}
+          />
+        </div>
       ) : null}
     </section>
   );

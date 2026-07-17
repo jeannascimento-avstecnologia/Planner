@@ -27,7 +27,7 @@ const BoardTimelineView = dynamic(
 );
 const BoardTreeView = dynamic(
   () =>
-    import(/* webpackChunkName: "board-tree-flow-zoom-v8" */ "./board-tree-flow-zoom-v7").then(
+    import(/* webpackChunkName: "board-tree-flow-zoom-v9" */ "./board-tree-flow-zoom-v7").then(
       (m) => ({ default: m.BoardTreeView }),
     ),
   { ssr: false, loading: () => <BoardSkeleton /> },
@@ -72,7 +72,6 @@ import { useBoardCardsRealtime } from "@/hooks/use-board-cards-realtime";
 import type { BoardMember } from "./board-member";
 import {
   EMPTY_FILTERS,
-  hasActiveFilters,
   matchesFilters,
   memberLabel,
   parseBoardViewMode,
@@ -88,6 +87,7 @@ type Props = {
   board: {
     id: string;
     name: string;
+    description: string | null;
     org_id: string;
     icon: string | null;
     color: string | null;
@@ -280,13 +280,21 @@ function BoardViewInner({
     displayName,
   });
 
+  const fillViewport = viewMode === "kanban";
+
   return (
-    <div className="space-y-4">
+    <div
+      className={
+        fillViewport
+          ? "flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
+          : "space-y-4"
+      }
+    >
       <BoardKanbanTourPrep />
       <BoardPresenceLayer cursors={presenceCursors} />
+      <div className="shrink-0 space-y-2" data-tour="board-header">
       <div
         className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
-        data-tour="board-header"
       >
         <div className="flex min-w-0 items-center gap-2">
           <BoardIcon icon={board.icon} color={board.color} size="sm" />
@@ -349,8 +357,18 @@ function BoardViewInner({
           ) : null}
         </div>
       </div>
+      {board.description?.trim() || viewMode === "tree" ? (
+        <p
+          className="max-w-3xl text-sm leading-relaxed text-aurora-fg/90"
+          data-testid="tree-page-description"
+        >
+          {board.description?.trim() ||
+            "Organograma do projeto: conecte cards pelos pontos, adicione filhos e mova a tela com o mouse."}
+        </p>
+      ) : null}
+      </div>
 
-      <div data-tour="board-filters">
+      <div className="shrink-0" data-tour="board-filters">
         <CardFilterBar
         boardId={board.id}
         orgId={board.org_id}
@@ -367,13 +385,13 @@ function BoardViewInner({
         />
       </div>
 
-      <div data-tour="board-view-switcher">
+      <div className="shrink-0" data-tour="board-view-switcher">
         <BoardViewSwitcher value={viewMode} onChange={changeViewMode} />
       </div>
 
       {viewMode === "kanban" ? (
-        <div data-tour="board-kanban">
-          <div className="mb-2 flex flex-wrap items-center gap-4">
+        <div data-tour="board-kanban" className="flex min-h-0 flex-1 flex-col">
+          <div className="mb-2 flex shrink-0 flex-wrap items-center gap-4">
             <label className="flex w-fit items-center gap-2 text-sm text-aurora-muted">
               <input type="checkbox" checked={groupByAssignee} onChange={(e) => setGroupByAssignee(e.target.checked)} />
               Agrupar por responsavel
@@ -388,24 +406,26 @@ function BoardViewInner({
               Mostrar subtarefas
             </label>
           </div>
-          <BoardKanbanView
-          boardId={board.id}
-          columns={columns}
-          stagesById={stagesById}
-          cardsByColumn={cardsByColumn}
-          allCards={safeCards}
-          swimlanes={swimlanes}
-          groupByAssignee={groupByAssignee}
-          tags={localTags}
-          profilesById={profilesById}
-          tifluxEnabled={tifluxEnabled}
-          canEditBoard={canEditBoard}
-          canRenameColumns={canRenameColumns}
-          onSelectCard={selectCard}
-          onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
-          onOpenTifluxLink={openTifluxLink ?? (() => {})}
-          readOnlyTiflux={!canEditBoard}
-        />
+          <div className="min-h-0 flex-1">
+            <BoardKanbanView
+            boardId={board.id}
+            columns={columns}
+            stagesById={stagesById}
+            cardsByColumn={cardsByColumn}
+            allCards={safeCards}
+            swimlanes={swimlanes}
+            groupByAssignee={groupByAssignee}
+            tags={localTags}
+            profilesById={profilesById}
+            tifluxEnabled={tifluxEnabled}
+            canEditBoard={canEditBoard}
+            canRenameColumns={canRenameColumns}
+            onSelectCard={selectCard}
+            onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
+            onOpenTifluxLink={openTifluxLink ?? (() => {})}
+            readOnlyTiflux={!canEditBoard}
+          />
+          </div>
         </div>
       ) : null}
 

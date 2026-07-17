@@ -29,7 +29,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-dvh min-h-0">
       <AppSidebar
         userEmail={userEmail}
         mobileOpen={mobileOpen}
@@ -38,14 +38,16 @@ export function AppShell({
         boardMetaById={boardMetaById}
         showWorkload={showWorkload}
       />
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
         <AppTopbar
           notificationsSlot={notificationsSlot}
           avatarUrl={avatarUrl}
           fullName={fullName}
           onOpenMobileMenu={() => setMobileOpen(true)}
         />
-        <main className="flex-1 overflow-x-hidden p-3 sm:p-4">{children}</main>
+        <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto p-3 sm:p-4">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -46,7 +46,11 @@ Antes de `fetch`:
 - Scheme **somente `https:`**.
 - Rejeitar hostnames/IPs privados: loopback, RFC1918, link-local, ULA IPv6, cloud metadata (`169.254.169.254`, `metadata.google.internal`, etc.).
 - Rejeitar credenciais no URL (`userinfo`).
-- Falha → outbox `failed`/`pending` com `result.error` contendo `webhook_ssrf_blocked` (sem follow de redirect para IP privado).
+- **DNS:** resolver A/AAAA do hostname; rejeitar se vazio, se qualquer registro for privado/reservado, ou se re-resolve imediato mudar para IP privado (anti-rebind).
+- `fetch` com `redirect: "error"` (sem follow para host unchecked).
+- Falha → outbox `failed`/`pending` com `result.error` contendo `webhook_ssrf_blocked*`.
+
+API: `assertSafeWebhookUrl` (sintático) + `assertSafeWebhookUrlResolved` (sintático + DNS) em `webhook-ssrf.ts`.
 
 ## Internal RPCs
 
@@ -67,6 +71,7 @@ Outbox RLS: deny-all; so service_role SELECT/UPDATE via grants + claim RPC.
 - [ ] Unauth / user JWT → 401
 - [ ] Dois workers concorrentes no mesmo pending → **1** delivery (SKIP LOCKED)
 - [ ] `https://127.0.0.1/`, `http://…`, `https://169.254.169.254/` → rejeitados
+- [ ] Hostname com A → `169.254.169.254` / vazio / rebind → `webhook_ssrf_blocked:dns_*`
 - [ ] Claim marca `processing` antes do HTTP
 
 ## Matriz Spec → Código → Teste

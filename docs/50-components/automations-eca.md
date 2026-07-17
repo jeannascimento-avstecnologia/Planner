@@ -67,7 +67,7 @@ automation_outbox (
 1. Trigger em `card_events` executa acoes internas sincronamente (depth max 3).
 2. Acoes externas: INSERT em `automation_outbox` com `dedup_key` idempotente.
 3. Edge `automation-runner` drena outbox (~pg_cron 1min) com **auth worker** (`CRON_SECRET` ou service role) + **claim atomico** (`claim_automation_outbox` / `FOR UPDATE SKIP LOCKED`).
-4. Webhook: HTTPS only + bloqueio SSRF (IPs privados / metadata). Slack URL tambem validada.
+4. Webhook: HTTPS only + bloqueio SSRF (IPs privados / metadata + DNS A/AAAA anti-rebind). Slack URL tambem validada.
 5. Retry com backoff; registra `automation_runs` em sucesso/falha.
 
 Detalhe P0: [edge-fn-automation-runner.md](../40-api/edge-fn-automation-runner.md).

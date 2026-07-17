@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
 import { assertWorkerAuth } from "./worker-auth.ts";
-import { assertSafeWebhookUrl } from "./webhook-ssrf.ts";
+import { assertSafeWebhookUrlResolved } from "./webhook-ssrf.ts";
 import { outboxBackoffMinutes } from "./outbox-backoff.ts";
 
 const corsHeaders = {
@@ -30,7 +30,7 @@ async function deliverSlack(
   const { data, error } = await supabase.rpc("get_org_slack_webhook", { p_org: orgId });
   if (error || !data?.length) throw new Error(error?.message ?? "slack_not_configured");
   const webhookUrl = data[0].webhook_url as string;
-  const safe = assertSafeWebhookUrl(webhookUrl);
+  const safe = await assertSafeWebhookUrlResolved(webhookUrl);
   if (!safe.ok) throw new Error(safe.reason);
   const text = String(payload.message ?? payload.text ?? "Automacao Planner");
   const res = await fetch(safe.url.toString(), {
@@ -64,7 +64,7 @@ async function deliverEmail(payload: Record<string, unknown>) {
 async function deliverWebhook(payload: Record<string, unknown>) {
   const url = String(payload.url ?? "");
   if (!url) throw new Error("webhook_url_required");
-  const safe = assertSafeWebhookUrl(url);
+  const safe = await assertSafeWebhookUrlResolved(url);
   if (!safe.ok) throw new Error(safe.reason);
 
   const secret = String(payload.secret ?? Deno.env.get("AUTOMATION_WEBHOOK_HMAC_SECRET") ?? "");

@@ -104,6 +104,12 @@ export async function saveGoogleIntegrationAction(input: {
 }
 
 export async function getGoogleOAuthUrlAction(): Promise<{ url: string } | { error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado." };
+
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
   if (!clientId || !redirectUri) return { error: "Google OAuth nao configurado." };
@@ -124,6 +130,16 @@ export async function exportDeadlinesToGoogleAction(orgId: string): Promise<
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membership || !isOrgAdminRole(membership.role)) {
+    return { ok: false, error: "Sem permissao." };
+  }
 
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;

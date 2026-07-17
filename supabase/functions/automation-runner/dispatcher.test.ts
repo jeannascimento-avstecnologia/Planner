@@ -1,7 +1,11 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { outboxBackoffMinutes } from "./outbox-backoff.ts";
 import { assertWorkerAuth } from "./worker-auth.ts";
-import { assertSafeWebhookUrl } from "./webhook-ssrf.ts";
+import {
+  assertSafeWebhookUrl,
+  assertSafeWebhookUrlResolved,
+  type ResolveDnsFn,
+} from "./webhook-ssrf.ts";
 
 Deno.test("outbox backoff caps at 60 minutes", () => {
   assertEquals(outboxBackoffMinutes(1), 2);
@@ -101,7 +105,52 @@ Deno.test("SSRF blocks private and metadata URLs", () => {
   }
 });
 
-Deno.test("SSRF allows public https", () => {
+Deno.test("SSRF allows public https (sync syntactic)", () => {
   const result = assertSafeWebhookUrl("https://hooks.slack.com/services/T/B/X");
+  assertEquals(result.ok, true);
+});
+
+function mockResolve(map: Record<string, { A?: string[]; AAAA?: string[] }>): ResolveDnsFn {
+  return async (hostname, recordType) => map[hostname]?.[recordType] ?? [];
+}
+
+Deno.test("SSRF DNS blocks hostname resolving to private IP", async () => {
+  const resolve = mockResolve({
+    "evil.example": { A: ["169.254.169.254"] },
+  });
+  const result = await assertSafeWebhookUrlResolved("https://evil.example/hook", resolve);
+  assertEquals(result.ok, false);
+  if (!result.ok) assertEquals(result.reason, "webhook_ssrf_blocked:dns_private");
+});
+
+Deno.test("SSRF DNS blocks empty resolution", async () => {
+  const resolve = mockResolve({});
+  const result = await assertSafeWebhookUrlResolved("https://missing.example/hook", resolve);
+  assertEquals(result.ok, false);
+  if (!result.ok) assertEquals(result.reason, "webhook_ssrf_blocked:dns_empty");
+});
+
+Deno.test("SSRF DNS blocks rebind on second resolve", async () => {
+  let calls = 0;
+  const resolve: ResolveDnsFn = async (_hostname, recordType) => {
+    if (recordType !== "A") return [];
+    calls += 1;
+    // First pair of resolves (A+AAAA) sees public; recheck sees private.
+    if (calls <= 1) return ["93.184.216.34"];
+    return ["127.0.0.1"];
+  };
+  const result = await assertSafeWebhookUrlResolved("https://rebind.example/hook", resolve);
+  assertEquals(result.ok, false);
+  if (!result.ok) assertEquals(result.reason, "webhook_ssrf_blocked:dns_rebind");
+});
+
+Deno.test("SSRF DNS allows public A records", async () => {
+  const resolve = mockResolve({
+    "hooks.slack.com": { A: ["3.33.252.1"] },
+  });
+  const result = await assertSafeWebhookUrlResolved(
+    "https://hooks.slack.com/services/T/B/X",
+    resolve,
+  );
   assertEquals(result.ok, true);
 });

@@ -44,17 +44,46 @@ function copyCookies(from: NextResponse, to: NextResponse) {
 }
 
 export async function updateSession(request: NextRequest) {
-  // Server Actions set auth cookies themselves; session refresh here can break the action stream.
-  if (request.headers.get("next-action")) {
-    return NextResponse.next();
-  }
-
   const ip = getClientIp(request);
   const ipRl = await checkRateLimit(["ip", ip, "http"], HTTP_LIMIT_IP, HTTP_WINDOW_MS);
   if (!ipRl.ok) return rateLimitResponse(ipRl.retryAfterSec);
 
-  const sessionOnly = isSessionOnlyAuth(request.cookies);
+  // Always strip spoofable planner headers (incl. Server Actions).
   const inboundHeaders = stripPlannerHeaders(new Headers(request.headers));
+  const isServerAction = Boolean(request.headers.get("next-action"));
+
+  // Server Actions set auth cookies themselves; session refresh here can break the action stream.
+  // Still rate-limit + strip headers; skip cookie mutation / trusted header injection.
+  if (isServerAction) {
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll() {
+            /* no-op: do not refresh session cookies on Server Action requests */
+          },
+        },
+      },
+    );
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const userRl = await checkRateLimit(
+        ["user", user.id, "http"],
+        HTTP_LIMIT_USER,
+        HTTP_WINDOW_MS,
+      );
+      if (!userRl.ok) return rateLimitResponse(userRl.retryAfterSec);
+    }
+    return NextResponse.next({ request: { headers: inboundHeaders } });
+  }
+
+  const sessionOnly = isSessionOnlyAuth(request.cookies);
 
   let response = NextResponse.next({ request: { headers: inboundHeaders } });
 

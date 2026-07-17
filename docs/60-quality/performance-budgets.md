@@ -36,6 +36,7 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 11. **Nav dedupe:** re-clique na mesma rota (pathname) na sidebar = **0 GET RSC adicional** (`NavLink` + guard in-flight).
 12. **Shell cache:** `loadShellDataCached(userId, orgId)` com `unstable_cache` + tags `shell:user:{id}`; invalidar via `revalidateShell()`.
 13. **Tree canvas (`?view=tree`):** chunk `@xyflow/react` só via `dynamic(..., { ssr: false })` quando view=tree; `tree_x/y` no `CARD_SELECT` (sem query extra); debounce ≥300ms em patch de posição; **não** chamar `revalidatePlanViews` nem `revalidatePath`/`revalidateBoard` pesado a cada drag **nem** a cada reparent (`parent_id` / `tree_x` / `tree_y` = client Query SoT); `onlyRenderVisibleElements`; soft warn se >300 nós; fila de reparent ≤1 in-flight; marquee multi-select sem storm de writes (batch debounce ≥300ms nas coords do grupo).
+14. **Viewport / CLS (board layout):** shell `h-dvh min-h-0` + Kanban `flex-1 min-h-0` / colunas `items-start` + `max-h-full` — scroll interno na lista de cards (nao document height). Troca `kanban` ↔ outros modos pode alterar altura do container (fill vs `space-y-4`); aceitavel se nao houver shift de chrome (sidebar/topbar). Banner `boards.description` / fallback tree: altura estavel apos primeiro paint (sem inserir banner async apos hydrate). Ver [board-kanban-dnd.md](../50-components/board-kanban-dnd.md), [app-sidebar.md](../50-components/app-sidebar.md).
 
 ## Criterios de aceite
 
@@ -48,6 +49,7 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 - [ ] Tree canvas: 10 reparents seguidos sem `revalidatePath` storm (0 RSC board extras por connect); marquee multi-select OK
 - [ ] Zero cache cross-tenant (chave inclui userId)
 - [ ] Edicao rapida de celulas `/plan` gera no maximo 1 RPC por celula (Enter nao dispara blur duplicado)
+- [ ] Kanban coluna alta: scroll nos cards (nao body); form add-card permanece sob a lista (sem CLS do chrome shell)
 
 ## Matriz Spec → Codigo → Teste
 
@@ -66,3 +68,4 @@ Orcamentos de latencia e carga pos-stress test ([`scripts/perf-stress.mjs`](../.
 | Nav dedupe | `nav-link.tsx`, `client-url-state.ts` | `navigation-dedupe.spec.ts` |
 | Shell cross-request cache | `lib/loaders/shell-cache.ts` | stress navegacao |
 | Board/calendar cache | `board-cache.ts`, `cached-queries.ts` | `perf-stress.mjs` |
+| Viewport Kanban / CLS chrome | `app-shell*.tsx`, `board-view.tsx`, `kanban-column.tsx` | visual / E2E scroll coluna |

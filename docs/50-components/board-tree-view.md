@@ -79,9 +79,19 @@ D.Tree entregou modo `?view=tree` com floresta via `cards.parent_id`, mas a UI e
 1. Kanban toggle + badge (D.Tree) inalterados.
 2. Drawer: seção Subtarefas (galhos) **e** seção Checklist (mesmos items do nó).
 
+## Copy / banner superior
+
+Implementado em `board-view.tsx` (`data-testid="tree-page-description"`), compartilhado com [board-view-modes.md](./board-view-modes.md):
+
+- Sob o caminho Projetos / org / nome: exibe `boards.description` quando preenchida (**todas** as visoes).
+- Em `?view=tree` **sem** descricao: fallback didatico — *"Organograma do projeto: conecte cards pelos pontos, adicione filhos e mova a tela com o mouse."*
+- Outros modos sem descricao: banner omitido.
+- Toolbar canvas `Organizar arvore` / `Ajustar vista` + ajuda operacional em `tree-banner-help` (dentro de `board-tree-flow.tsx`).
+
 ## Critérios de aceite
 
 - [ ] `?view=tree` renderiza org-chart (não lista); criar filho desenha galho.
+- [ ] Descricao do projeto (`boards.description`) visivel no top do board quando existir; fallback didatico so na Arvore.
 - [ ] + To-do no nó e no drawer; toggle/delete; viewer read-only.
 - [ ] Filtros: highlight forte/muted + path expandido no canvas.
 - [ ] Kanban default sem subtarefas; toggle + badge.
@@ -123,6 +133,7 @@ D.Tree entregou modo `?view=tree` com floresta via `cards.parent_id`, mas a UI e
 | Batch load | `board-cache.ts`, `fetch-board-cards.ts` | typecheck / unit |
 | `layoutOrgChart` | `lib/card-tree/layout-org-chart.ts` | Vitest |
 | `canReparent` | `lib/card-tree/index.ts` | Vitest |
-| Org-chart UI + DnD/edges | `board-tree-view.tsx` | Playwright |
+| Org-chart UI + DnD/edges | `board-tree-flow.tsx` | Playwright |
+| Banner description / fallback didatico | `board-view.tsx` (`tree-page-description`) | Playwright / visual |
 | Drawer checklist | `card-drawer.tsx` | Playwright |
 | Kanban roots + badge | `board-kanban-view.tsx` | Playwright (D.Tree) |

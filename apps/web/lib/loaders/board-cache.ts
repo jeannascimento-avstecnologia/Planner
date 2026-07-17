@@ -25,13 +25,14 @@ import {
 import { groupTreeParentsByChild, resolveTreeParentIds } from "@/lib/card-tree/tree-parents";
 
 const BOARD_SELECT =
-  "id, org_id, name, icon, color, tiflux_enabled, department_id, archived, created_by";
+  "id, org_id, name, description, icon, color, tiflux_enabled, department_id, archived, created_by";
 
 export type BoardSnapshot = {
   board: {
     id: string;
     org_id: string;
     name: string;
+    description: string | null;
     icon: string | null;
     color: string | null;
     tiflux_enabled: boolean;
@@ -231,6 +232,7 @@ async function fetchBoardSnapshot(
     board: {
       id: board.id,
       name: board.name,
+      description: board.description ?? null,
       org_id: board.org_id,
       icon: board.icon,
       color: board.color,

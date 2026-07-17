@@ -1093,7 +1093,8 @@ function TreeFlowInner({
       className="flex h-[min(70vh,720px)] min-h-[420px] flex-col gap-2"
     >
       {canEdit ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="space-y-2" data-testid="tree-top-banner">
+          <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             data-testid="tree-organize"
@@ -1132,14 +1133,19 @@ function TreeFlowInner({
               <Unlink className="mr-1 inline h-3.5 w-3.5" />
               Remover conexao
             </button>
-          ) : (
-            <span className="max-w-xl text-[11px] leading-snug text-aurora-muted">
-              Como usar: scroll para zoom · botao do meio ou direito para mover o canvas ·
-              arraste do ponto inferior de um card ate o superior de outro para conectar ·
-              selecione a conexao e use Remover (ou Delete) · Adicionar card Filho cria um card
+          ) : null}
+          </div>
+          {!selectedEdgeId ? (
+            <p
+              data-testid="tree-banner-help"
+              className="max-w-3xl text-sm leading-snug text-aurora-muted"
+            >
+              Como usar: role para zoom · botao do meio ou direito para mover a tela ·
+              arraste do ponto de baixo de um card ate o de cima de outro para conectar ·
+              selecione a ligacao e use Remover (ou Delete) · Adicionar card Filho cria um card
               na mesma coluna, visivel tambem no Kanban, Tabela e Calendario.
-            </span>
-          )}
+            </p>
+          ) : null}
         </div>
       ) : null}
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-board-border" data-testid="board-tree-canvas">

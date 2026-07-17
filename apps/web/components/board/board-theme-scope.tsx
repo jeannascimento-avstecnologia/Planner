@@ -26,7 +26,10 @@ export function BoardThemeScope({ color, children }: Props) {
   const style = useMemo(() => deriveBoardThemeVars(color, mode), [color, mode]);
 
   return (
-    <div className="board-theme-scope -m-4 min-h-full p-4 md:-m-4 md:p-4" style={style}>
+    <div
+      className="board-theme-scope -m-4 flex min-h-0 flex-1 flex-col p-4 md:-m-4 md:p-4"
+      style={style}
+    >
       {children}
     </div>
   );
