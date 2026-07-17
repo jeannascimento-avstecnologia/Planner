@@ -14,8 +14,8 @@ describe("canEditBoardUI", () => {
     expect(canEditBoardUI(false, "admin")).toBe(true);
   });
 
-  it("board manager nao edita write (RLS)", () => {
-    expect(canEditBoardUI(false, "manager")).toBe(false);
+  it("board manager edita write", () => {
+    expect(canEditBoardUI(false, "manager")).toBe(true);
   });
 
   it("sem papel no board nao edita", () => {

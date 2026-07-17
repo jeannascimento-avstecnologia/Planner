@@ -435,9 +435,19 @@ function BoardViewInner({
         <p
           className="shrink-0 rounded-lg border border-aurora-border bg-aurora-muted/10 px-3 py-2 text-sm text-aurora-muted"
           data-testid="board-readonly-banner"
+          data-authz-org={writeAuthz.orgRole ?? "null"}
+          data-authz-board={writeAuthz.boardRole ?? "null"}
+          data-authz-dept={writeAuthz.deptRole ?? "null"}
+          data-authz-has-dept={writeAuthz.hasDepartment ? "1" : "0"}
         >
-          Modo leitura: seu usuario nao tem permissao de escrita neste projeto (org admin/owner, editor do
-          board ou papel no departamento).
+          Modo leitura: sem permissao de escrita neste projeto.
+          {" "}
+          <span className="font-mono text-xs opacity-80">
+            (org={writeAuthz.orgRole ?? "null"} board={writeAuthz.boardRole ?? "null"} dept=
+            {writeAuthz.deptRole ?? "null"} hasDept={writeAuthz.hasDepartment ? "1" : "0"})
+          </span>
+          {" "}
+          Precisa: org owner/admin, editor do board, ou admin/manager do departamento.
         </p>
       ) : null}
 

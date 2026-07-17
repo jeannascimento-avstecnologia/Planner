@@ -1,8 +1,8 @@
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 
 /**
- * Espelha `app.can_write_board` (migration departments):
- * owner OR board_members.admin OR (sem dept + org admin) OR (com dept + dept admin|manager).
+ * Espelha `app.can_write_board`:
+ * owner | org admin | board_members.admin|manager | (dept board + dept admin|manager).
  */
 export type BoardWriteAuthzInput = {
   orgRole: string | null;
@@ -13,9 +13,8 @@ export type BoardWriteAuthzInput = {
 
 export function computeCanWriteBoard(input: BoardWriteAuthzInput): boolean {
   const { orgRole, boardRole, deptRole, hasDepartment } = input;
-  if (orgRole === "owner") return true;
-  if (boardRole === "admin") return true;
-  if (!hasDepartment && orgRole === "admin") return true;
+  if (orgRole === "owner" || orgRole === "admin") return true;
+  if (boardRole === "admin" || boardRole === "manager") return true;
   if (hasDepartment && (deptRole === "admin" || deptRole === "manager")) return true;
   return false;
 }
@@ -34,17 +33,16 @@ export function canEditBoardUI(
       hasDepartment: Boolean(opts.hasDepartment),
     });
   }
-  // Legado: so org admin/owner ou board admin (manager de board NAO escreve no RLS).
-  return isOrgAdmin || userBoardRole === "admin";
+  return isOrgAdmin || userBoardRole === "admin" || userBoardRole === "manager";
 }
 
 export function canManageBoardMembers(isOrgAdmin: boolean, userBoardRole?: string | null): boolean {
   return isOrgAdmin || userBoardRole === "manager";
 }
 
-/** @deprecated Prefer computeCanWriteBoard / canEditBoardUI com opts. */
+/** Espelha write de cards/colunas (legado sem dept). */
 export function canWriteBoard(isOrgAdmin: boolean, userBoardRole?: string | null): boolean {
-  return isOrgAdmin || userBoardRole === "admin";
+  return isOrgAdmin || userBoardRole === "admin" || userBoardRole === "manager";
 }
 
 export function isBoardViewer(

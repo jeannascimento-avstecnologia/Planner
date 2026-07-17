@@ -13,7 +13,7 @@ describe("computeCanWriteBoard (espelha RLS)", () => {
     ).toBe(true);
   });
 
-  it("org admin escreve board sem departamento", () => {
+  it("org admin escreve board SEM departamento", () => {
     expect(
       computeCanWriteBoard({
         orgRole: "admin",
@@ -24,7 +24,7 @@ describe("computeCanWriteBoard (espelha RLS)", () => {
     ).toBe(true);
   });
 
-  it("org admin NAO escreve board com departamento sem papel no dept", () => {
+  it("org admin escreve board COM departamento", () => {
     expect(
       computeCanWriteBoard({
         orgRole: "admin",
@@ -32,7 +32,7 @@ describe("computeCanWriteBoard (espelha RLS)", () => {
         deptRole: null,
         hasDepartment: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("dept manager escreve board do departamento", () => {
@@ -46,6 +46,17 @@ describe("computeCanWriteBoard (espelha RLS)", () => {
     ).toBe(true);
   });
 
+  it("board manager escreve (editor de projeto)", () => {
+    expect(
+      computeCanWriteBoard({
+        orgRole: "viewer",
+        boardRole: "manager",
+        deptRole: null,
+        hasDepartment: false,
+      }),
+    ).toBe(true);
+  });
+
   it("board admin escreve", () => {
     expect(
       computeCanWriteBoard({
@@ -55,17 +66,6 @@ describe("computeCanWriteBoard (espelha RLS)", () => {
         hasDepartment: false,
       }),
     ).toBe(true);
-  });
-
-  it("board manager NAO escreve (RLS so admin)", () => {
-    expect(
-      computeCanWriteBoard({
-        orgRole: "viewer",
-        boardRole: "manager",
-        deptRole: null,
-        hasDepartment: false,
-      }),
-    ).toBe(false);
   });
 
   it("org manager sem board/dept NAO escreve", () => {
@@ -102,9 +102,10 @@ describe("canEditBoardUI", () => {
     ).toBe(true);
   });
 
-  it("legado: board manager nao edita (alinhado ao RLS)", () => {
-    expect(canEditBoardUI(false, "manager")).toBe(false);
+  it("legado: board manager e admin editam", () => {
+    expect(canEditBoardUI(false, "manager")).toBe(true);
     expect(canEditBoardUI(false, "admin")).toBe(true);
     expect(canEditBoardUI(true, null)).toBe(true);
+    expect(canEditBoardUI(false, "viewer")).toBe(false);
   });
 });
