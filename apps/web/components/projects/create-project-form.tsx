@@ -24,19 +24,28 @@ type Props = {
   defaultDepartmentId?: string | null;
 };
 
+function deptSelectValue(id: string | null | undefined): string {
+  return id ?? "general";
+}
+
 export function CreateProjectForm({ orgOptions, defaultOrgId, defaultDepartmentId = null }: Props) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
   const [selectedOrgId, setSelectedOrgId] = useState(defaultOrgId);
-  const [selectedDeptId, setSelectedDeptId] = useState<string>(defaultDepartmentId ?? "general");
 
   const selectedOrg = orgOptions.find((o) => o.orgId === selectedOrgId) ?? orgOptions[0];
   const deptOptions = selectedOrg?.departmentOptions ?? [{ id: null, label: "Geral" }];
+  const initialDept =
+    defaultDepartmentId !== undefined && defaultDepartmentId !== null
+      ? deptSelectValue(defaultDepartmentId)
+      : deptSelectValue(deptOptions[0]?.id);
+  const [selectedDeptId, setSelectedDeptId] = useState<string>(initialDept);
 
   function close() {
     setOpen(false);
     setFormKey((k) => k + 1);
+    setSelectedDeptId(deptSelectValue(deptOptions[0]?.id));
   }
 
   function submit(formData: FormData) {
@@ -104,8 +113,11 @@ export function CreateProjectForm({ orgOptions, defaultOrgId, defaultDepartmentI
                 name="orgId"
                 value={selectedOrgId}
                 onChange={(e) => {
-                  setSelectedOrgId(e.target.value);
-                  setSelectedDeptId("general");
+                  const nextOrgId = e.target.value;
+                  setSelectedOrgId(nextOrgId);
+                  const nextOrg = orgOptions.find((o) => o.orgId === nextOrgId);
+                  const nextDepts = nextOrg?.departmentOptions ?? [{ id: null, label: "Geral" }];
+                  setSelectedDeptId(deptSelectValue(nextDepts[0]?.id));
                 }}
                 className={inputClass + " flex-1"}
                 data-testid="create-project-org"

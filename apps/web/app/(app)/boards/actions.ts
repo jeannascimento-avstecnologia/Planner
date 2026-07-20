@@ -103,27 +103,33 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
     return { ok: false, error: "Sem permissao para criar projetos neste escopo." };
   }
 
-  const { data: created, error } = await supabase
-    .from("boards")
-    .insert({
-      org_id: targetOrgId,
-      name: sanitizeName(parsed.data.name, 120),
-      description: parsed.data.description ? sanitizeName(parsed.data.description, 2000) : null,
-      icon: parsed.data.icon ?? null,
-      color: parsed.data.color ?? null,
-      department_id: deptId,
-      created_by: user.id,
-    })
-    .select("id")
-    .single();
-  if (error || !created) return { ok: false, error: "Nao foi possivel criar o projeto." };
-
-  // Best-effort: org admin/owner ja escreve via RLS; creator vira board admin quando a policy permitir.
-  await supabase.from("board_members").insert({
-    board_id: created.id,
-    user_id: user.id,
-    role: "admin",
+  // RPC SECURITY DEFINER: boards_insert + board_members (evita chicken-egg ACL).
+  const { data: created, error } = await supabase.rpc("create_board", {
+    p_org: targetOrgId,
+    p_name: sanitizeName(parsed.data.name, 120),
+    p_description: parsed.data.description ? sanitizeName(parsed.data.description, 2000) : null,
+    p_icon: parsed.data.icon ?? null,
+    p_color: parsed.data.color ?? null,
+    p_department_id: deptId,
   });
+  if (error || !created?.id) {
+    console.error("[createBoard]", error?.code, error?.message, error?.details, error?.hint);
+    const msg = error?.message ?? "";
+    if (/forbidden|42501|policy|permission|rls/i.test(msg) || error?.code === "42501") {
+      return {
+        ok: false,
+        error: "Sem permissao no banco para criar neste escopo (RLS). Confirme papel na org/departamento.",
+      };
+    }
+    if (/not_authenticated/i.test(msg)) return { ok: false, error: "Nao autenticado." };
+    if (/department_not_found|department_org_mismatch/i.test(msg)) {
+      return { ok: false, error: "Departamento invalido para esta organizacao." };
+    }
+    return {
+      ok: false,
+      error: msg ? `Nao foi possivel criar o projeto: ${msg}` : "Nao foi possivel criar o projeto.",
+    };
+  }
 
   revalidateHomeProjects(user.id);
   revalidateOrgSettings(targetOrgId, user.id);

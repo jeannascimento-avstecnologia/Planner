@@ -51,10 +51,15 @@ const nextConfig: NextConfig = {
       isDev
         ? []
         : [{ key: "Cache-Control", value: "no-store, must-revalidate" }];
+    // Dev: nunca immutable em /_next/static — chunks webpack reusam URL e o browser
+    // serve JS stale → UnrecognizedActionError (Server Action ID antigo).
+    const staticCache = isDev
+      ? [{ key: "Cache-Control", value: "no-store, must-revalidate" }]
+      : [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }];
     return [
       {
         source: "/_next/static/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: staticCache,
       },
       {
         source: "/:path*",

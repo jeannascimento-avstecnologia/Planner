@@ -588,6 +588,17 @@ export type Database = {
         Args: { p_name: string; p_slug: string; p_legal_name?: string | null; p_cnpj?: string | null };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
+      create_board: {
+        Args: {
+          p_org: string;
+          p_name: string;
+          p_description?: string | null;
+          p_icon?: string | null;
+          p_color?: string | null;
+          p_department_id?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["boards"]["Row"];
+      };
       accept_board_invitation: {
         Args: { p_token: string };
         Returns: string;

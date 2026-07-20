@@ -7,7 +7,7 @@ Projetos ficam mais identificaveis com icone e cor proprios na home e no header.
 - `boards.icon` (text, nullable) — nome de um icone Lucide curado (ver `apps/web/lib/icon-catalog.ts`).
 - `boards.color` (text, nullable) — hex `#RRGGBB`; default visual quando nulo = accent do tema global Aurora.
 - Editar aparencia: org admin OU board admin (`app.can_write_board`).
-- Criar/excluir projeto: somente org admin (`app.has_org_role(admin)`).
+- Criar projeto: RPC `public.create_board` (SECURITY DEFINER) — org owner/admin **ou** dept admin/manager; grava criador em `board_members` (Editor + preset sistema). Excluir: org admin (`app.has_org_role(admin)`, owner incluso).
 
 ## Tema escopado por board
 - `BoardThemeScope` aplica CSS vars (`--board-accent`, `--board-bg`, etc.) apenas na area do projeto.
