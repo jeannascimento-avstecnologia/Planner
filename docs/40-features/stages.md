@@ -31,7 +31,7 @@ Seed via trigger `boards_seed_stages` + backfill migration `0014`.
 |-----------|--------|-------|
 | 4 defaults por board | `0014_stages_and_time_entries.sql` | `06_stages_time_entries_test.sql` |
 | CRUD estagios | `stages/actions.ts`, `stage-manager-modal.tsx` | `e2e/stages.spec.ts` |
-| Alterar estagio card | `stage-selector.tsx`, `setCardStage` | `e2e/stages.spec.ts` |
+| Alterar estagio card | `stage-selector.tsx` → `PATCH /api/boards/.../cards/[cardId]`, `set-card-stage.ts` | `e2e/stages.spec.ts` |
 | Cor pastel + badge | `color-utils.ts`, `board-card-tile.tsx` | `e2e/stages.spec.ts` |
 | Link apontamentos TiFlux | `card-drawer.tsx` | `e2e/stages.spec.ts` |
 | Filtro por estagio | `card-filter-bar.tsx`, `matchesFilters` | `e2e/stages.spec.ts` |

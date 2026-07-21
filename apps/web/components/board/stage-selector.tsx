@@ -2,13 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
-import { createStage, deleteStage, setCardStage } from "@/app/(app)/boards/[boardId]/stages/actions";
+import { createStage, deleteStage } from "@/app/(app)/boards/[boardId]/stages/actions";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { stageBadgeStyle } from "@/lib/color-utils";
+import { boardCardsQueryKey } from "@/lib/query/board-cards-keys";
 import { btnBoardPrimarySm, inputBoardClassSm } from "@/lib/ui-classes";
-import type { StageRow } from "./types";
+import type { BoardCard, StageRow } from "./types";
 
 type Props = {
   boardId: string;
@@ -19,6 +21,7 @@ type Props = {
 
 export function StageSelector({ boardId, cardId, currentStageId, stages }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -29,15 +32,40 @@ export function StageSelector({ boardId, cardId, currentStageId, stages }: Props
   const sorted = [...stages].sort((a, b) => a.position - b.position);
   const current = sorted.find((s) => s.id === currentStageId);
 
+  function patchStageInCache(stageId: string) {
+    const target = stages.find((s) => s.id === stageId);
+    const key = target?.system_key ?? null;
+    const completedAt =
+      key === "concluido" || key === "cancelado" ? new Date().toISOString() : null;
+    const qk = boardCardsQueryKey(boardId);
+    queryClient.setQueryData<BoardCard[]>(qk, (curr) =>
+      (curr ?? []).map((c) =>
+        c.id === cardId ? { ...c, stage_id: stageId, completed_at: completedAt } : c,
+      ),
+    );
+    void queryClient.invalidateQueries({ queryKey: qk });
+  }
+
   function applyStage(stageId: string) {
     setError(null);
     startTransition(async () => {
-      const res = await setCardStage({ cardId, boardId, stageId });
-      if ("error" in res) {
-        setError(res.error);
-        return;
+      try {
+        const httpRes = await fetch(`/api/boards/${boardId}/cards/${cardId}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stageId }),
+        });
+        const res = (await httpRes.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (!httpRes.ok) {
+          setError(res.error ?? "Falha ao atualizar estagio do card.");
+          return;
+        }
+        patchStageInCache(stageId);
+        router.refresh();
+      } catch {
+        setError("Falha ao chamar acao de estagio.");
       }
-      router.refresh();
     });
   }
 

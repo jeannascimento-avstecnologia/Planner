@@ -3,12 +3,11 @@
 import {
   createStageInput,
   deleteStageInput,
-  setCardStageInput,
   setColumnDefaultStageInput,
   updateStageInput,
 } from "@nextgen/contracts";
 import { createClient } from "@/lib/supabase/server";
-import { revalidateBoard, revalidatePlanViews } from "@/lib/revalidation";
+import { revalidateBoard } from "@/lib/revalidation";
 
 export type StageActionResult = { ok: true; stageId?: string } | { error: string; code?: string };
 
@@ -114,34 +113,12 @@ export async function setCardStage(input: {
   boardId: string;
   stageId: string | null;
 }): Promise<StageActionResult> {
-  const parsed = setCardStageInput.safeParse(input);
-  if (!parsed.success) return { error: "Dados invalidos." };
-
   const supabase = await createClient();
-
-  if (parsed.data.stageId) {
-    const { data: stage } = await supabase
-      .from("stages")
-      .select("id")
-      .eq("id", parsed.data.stageId)
-      .eq("board_id", parsed.data.boardId)
-      .single();
-    if (!stage) return { error: "Estagio nao encontrado." };
-  }
-
-  const { error } = await supabase
-    .from("cards")
-    .update({ stage_id: parsed.data.stageId })
-    .eq("id", parsed.data.cardId)
-    .eq("board_id", parsed.data.boardId);
-  if (error) return { error: "Falha ao atualizar estagio do card." };
-
-  revalidateBoard(parsed.data.boardId);
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  revalidatePlanViews(user?.id);
-  return { ok: true };
+  const { setCardStageMutation } = await import("@/lib/card-kernel/set-card-stage");
+  return setCardStageMutation(supabase, input, { userId: user?.id ?? null });
 }
 
 export async function setColumnDefaultStage(input: {
