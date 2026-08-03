@@ -6,7 +6,7 @@
 # __IMAGE_TAG__       latest
 # __CONTAINER_NAME__  agify-planner-web
 # __ROUTER_PREFIX__   agify-planner-web
-# __HOST_RULE__       Host(`apify.prosperfy.com.br`)
+# __HOST_RULE__       Host(`agify.prosperfy.com.br`)
 # __ENV_FILENAME__    agify-planner-web.env
 
 version: "3.8"

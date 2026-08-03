@@ -60,10 +60,10 @@ ufw enable
 
 ### 1.5 DNS
 
-Registro **A** apontando `apify.prosperfy.com.br` para o IP da VPS.
+Registro **A** apontando `agify.prosperfy.com.br` para o IP da VPS.
 
 ```powershell
-nslookup apify.prosperfy.com.br
+nslookup agify.prosperfy.com.br
 ```
 
 ### 1.6 Chave SSH para CI
@@ -119,7 +119,7 @@ Settings → Environments → **New environment** → `production`
 
 | Nome | Valor (Prosperfy) |
 |------|-------------------|
-| `APP_HOST_FRONTEND` | `apify.prosperfy.com.br` |
+| `APP_HOST_FRONTEND` | `agify.prosperfy.com.br` |
 
 **Secret:**
 
@@ -127,7 +127,7 @@ Settings → Environments → **New environment** → `production`
 |------|----------|
 | `ENV_FILE_WEB` | Arquivo `.env` completo — template: [`infra/env/prosperfy-production.env.example`](../../infra/env/prosperfy-production.env.example) |
 
-`NEXT_PUBLIC_APP_URL` no secret deve ser `https://apify.prosperfy.com.br` (mesmo host de `APP_HOST_FRONTEND`).
+`NEXT_PUBLIC_APP_URL` no secret deve ser `https://agify.prosperfy.com.br` (mesmo host de `APP_HOST_FRONTEND`).
 
 > **Nao use `ENV_FILE_BACKEND`.** Esse nome e do exemplo ProsperPay (API NestJS). O Planner nao tem backend em container — so Next.js. O secret correto e **`ENV_FILE_WEB`**.
 
@@ -144,7 +144,7 @@ Um unico secret `ENV_FILE_WEB` alimenta os dois: o workflow monta a imagem com B
 
 **O que falta criar no GitHub (alem dos 6 repository secrets que voce ja fez):**
 
-1. Environment `production` → Variable `APP_HOST_FRONTEND` = `apify.prosperfy.com.br`
+1. Environment `production` → Variable `APP_HOST_FRONTEND` = `agify.prosperfy.com.br`
 2. Environment `production` → Secret `ENV_FILE_WEB` = conteudo do `.env` de producao (preencher template acima)
 
 ---
@@ -165,8 +165,8 @@ npx supabase db push
 
 Dashboard → **Authentication** → **URL Configuration**:
 
-- **Site URL:** `https://apify.prosperfy.com.br`
-- **Redirect URLs:** incluir `https://apify.prosperfy.com.br/**`
+- **Site URL:** `https://agify.prosperfy.com.br`
+- **Redirect URLs:** incluir `https://agify.prosperfy.com.br/**`
 
 ### 4.3 Edge Functions
 
@@ -204,7 +204,7 @@ docker logs agify-planner-web --tail 30
 ```
 
 ```powershell
-curl -I https://apify.prosperfy.com.br
+curl -I https://agify.prosperfy.com.br
 ```
 
 Smoke: login, abrir board, convite por email.
