@@ -43,6 +43,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          no-cache: true
           tags: |
             ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USER }}/${{ env.IMAGE_NAME }}:latest
