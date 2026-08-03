@@ -41,9 +41,9 @@ jobs:
         env:
           ENV_FILE_WEB: ${{ secrets.ENV_FILE_WEB }}
         run: |
-          printf '%s' "$ENV_FILE_WEB" > /tmp/env_file_web
-          test -s /tmp/env_file_web
-          grep -c '^NEXT_PUBLIC_' /tmp/env_file_web | xargs -I{} echo "NEXT_PUBLIC_ lines: {}"
+          printf '%s' "$ENV_FILE_WEB" > build-env-file
+          test -s build-env-file
+          grep -c '^NEXT_PUBLIC_' build-env-file | xargs -I{} echo "NEXT_PUBLIC_ lines: {}"
 
       - name: Build e push da imagem (Next.js)
         uses: docker/build-push-action@v5
@@ -55,8 +55,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ secrets.REGISTRY_USER }}/${{ env.IMAGE_NAME }}:latest
-          secrets: |
-            env_file=/tmp/env_file_web
+          secret-files: |
+            env_file=build-env-file
 
       - name: Renderiza compose
         run: |
