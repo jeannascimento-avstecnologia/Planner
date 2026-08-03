@@ -17,9 +17,16 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DOCKER_BUILD=true
+# Carrega só NEXT_PUBLIC_* — evita que RESEND_FROM com "<>" quebre `source` do env inteiro.
 RUN --mount=type=secret,id=env_file \
-    set -a && . /run/secrets/env_file && set +a && \
-    npm run build --workspace=@nextgen/web
+    set -a && \
+    grep -E '^NEXT_PUBLIC_' /run/secrets/env_file | tr -d '\r' > /tmp/next-public.env && \
+    test -s /tmp/next-public.env && \
+    . /tmp/next-public.env && \
+    set +a && \
+    npm run build --workspace=@nextgen/web && \
+    REF=$(grep '^NEXT_PUBLIC_SUPABASE_URL=' /tmp/next-public.env | cut -d= -f2- | tr -d '\r' | sed 's|https://||') && \
+    grep -rq "$REF" /app/apps/web/.next/static/chunks/ || (echo "FATAL: NEXT_PUBLIC_SUPABASE_URL ausente no bundle client" && exit 1)
 
 FROM node:20-alpine AS runner
 WORKDIR /app
