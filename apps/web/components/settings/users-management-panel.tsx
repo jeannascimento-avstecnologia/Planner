@@ -8,7 +8,7 @@ import type { OrgMemberRow, OrgMemberRole } from "@nextgen/contracts";
 type PendingInvite = {
   id: string;
   email: string;
-  role: OrgMemberRole;
+  role: string;
   expires_at: string;
 };
 
@@ -88,7 +88,7 @@ export function UsersManagementPanel({
                     {pendingInvites.map((invite) => (
                       <tr key={invite.id}>
                         <td className="px-4 py-3 text-aurora-fg">{invite.email}</td>
-                        <td className="px-4 py-3 text-aurora-muted">{orgRoleLabel(invite.role)}</td>
+                        <td className="px-4 py-3 text-aurora-muted">{orgRoleLabel(invite.role as OrgMemberRole)}</td>
                         <td className="px-4 py-3 text-aurora-muted">
                           {new Date(invite.expires_at).toLocaleDateString("pt-BR")}
                         </td>
