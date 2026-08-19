@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { disableToursForE2E, loginAsStandard, openSeedBoard } from "./helpers";
+import { disableToursForE2E, loginAsStandard, openSeedBoard, expandBoardFilters } from "./helpers";
 
 test.describe("Board Tree View", () => {
   test.beforeEach(async ({ page }) => {
@@ -59,7 +59,10 @@ test.describe("Board Tree View", () => {
     await edge.click({ force: true });
 
     await expect(page.getByTestId("tree-edge-remove")).toBeVisible({ timeout: 5_000 });
-    await page.getByTestId("tree-edge-remove").dispatchEvent("mousedown");
+    await page.getByTestId("tree-edge-remove").click();
+
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Remover", exact: true }).click();
 
     await expect(page.getByText(childTitle)).toBeVisible();
     await expect(page.locator(".react-flow__edge")).toHaveCount(0, { timeout: 15_000 });
@@ -75,6 +78,7 @@ test.describe("Board Tree View", () => {
     expect(rootTitle.length).toBeGreaterThan(0);
 
     const filterInput = page.locator('[data-tour="board-filters"] input[placeholder="Buscar por titulo"]');
+    await expandBoardFilters(page);
     await filterInput.fill(rootTitle.slice(0, Math.min(6, rootTitle.length)));
 
     await expect
@@ -85,5 +89,31 @@ test.describe("Board Tree View", () => {
         return attrs.some((a) => a && a !== "none" && a !== "|1");
       }, { timeout: 5_000 })
       .toBe(true);
+  });
+
+  test("exclui card selecionado na arvore com confirmacao", async ({ page }) => {
+    await openSeedBoard(page);
+    await page.getByRole("button", { name: "Arvore" }).click();
+    await expect(page.getByTestId("board-tree-view")).toBeVisible({ timeout: 15_000 });
+
+    const root = page.getByTestId(/^tree-node-/).first();
+    const rootId = (await root.getAttribute("data-testid"))?.replace("tree-node-", "") ?? "";
+    expect(rootId).toBeTruthy();
+
+    await page.getByTestId(`tree-add-child-${rootId}`).click();
+    const childTitle = `E2E tree del ${Date.now()}`;
+    await page.getByTestId("create-child-title").fill(childTitle);
+    await page.getByTestId(`tree-create-child-${rootId}`).getByRole("button", { name: "Criar" }).click();
+    await expect(page.getByText(childTitle)).toBeVisible({ timeout: 15_000 });
+
+    const childNode = page.getByTestId(/^tree-node-/).filter({ hasText: childTitle });
+    await childNode.locator(".react-flow__handle").first().click({ force: true });
+    await expect(page.getByTestId("tree-card-delete")).toBeVisible({ timeout: 5_000 });
+    await page.getByTestId("tree-card-delete").click();
+
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Excluir", exact: true }).click();
+
+    await expect(page.getByText(childTitle)).toHaveCount(0, { timeout: 15_000 });
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Search, X, Plus } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Search, X, Plus, Filter, ChevronDown } from "lucide-react";
 import { deleteTag, createTag } from "@/app/(app)/boards/[boardId]/actions";
 import { createStage, deleteStage } from "@/app/(app)/boards/[boardId]/stages/actions";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
@@ -9,7 +9,17 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { inputBoardClassSm, btnBoardPrimarySm, TAG_DEFAULT_COLORS, chipInteractiveBoard } from "@/lib/ui-classes";
 import { tagColor } from "./badges";
-import { hasActiveFilters, memberLabel, type CardFilters, type ProfileRow, type StageRow, type TagRow } from "./types";
+import { hasActiveFilters, memberLabel, displayStageName, STAGE_NONE_LABEL, type CardFilters, type ProfileRow, type StageRow, type TagRow } from "./types";
+
+const FILTERS_EXPANDED_KEY = "ngp:board-filters-expanded";
+
+function readFiltersExpanded(): boolean {
+  try {
+    return localStorage.getItem(FILTERS_EXPANDED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 type Props = {
   boardId: string;
@@ -57,8 +67,25 @@ export function CardFilterBar({
   const [newStageColor, setNewStageColor] = useState("#6366F1");
   const [stageCreateError, setStageCreateError] = useState<string | null>(null);
   const [deleteStageTarget, setDeleteStageTarget] = useState<StageRow | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const active = hasActiveFilters(value);
   const sortedStages = [...stages].sort((a, b) => a.position - b.position);
+
+  useEffect(() => {
+    setExpanded(readFiltersExpanded());
+  }, []);
+
+  function toggleExpanded() {
+    setExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(FILTERS_EXPANDED_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
 
   function confirmDeleteTag() {
     if (!deleteTarget) return;
@@ -147,7 +174,29 @@ export function CardFilterBar({
 
   return (
     <>
-      <div className="space-y-2 rounded-xl border border-board-border bg-board-surface p-3 text-sm">
+      <div className="rounded-xl border border-board-border bg-board-surface text-sm">
+        <button
+          type="button"
+          data-testid="board-filters-toggle"
+          aria-expanded={expanded}
+          onClick={toggleExpanded}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-aurora-fg hover:bg-board-accent-muted/30"
+        >
+          <Filter className="h-4 w-4 shrink-0 text-aurora-muted" aria-hidden />
+          <span>Filtros</span>
+          {active ? (
+            <span className="rounded-full bg-board-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              ativo
+            </span>
+          ) : null}
+          <ChevronDown
+            className={`ml-auto h-4 w-4 shrink-0 text-aurora-muted transition-transform ${expanded ? "rotate-180" : ""}`}
+            aria-hidden
+          />
+        </button>
+
+        {expanded ? (
+          <div className="space-y-2 border-t border-board-border p-3 pt-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-44 flex-1">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-aurora-muted" />
@@ -274,10 +323,10 @@ export function CardFilterBar({
             data-testid="filter-tag-add"
             onClick={() => setShowNewTag((v) => !v)}
             className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-board-border text-aurora-muted hover:bg-board-accent-muted/40"
-            title="Novo marcador"
-            aria-label="Novo marcador"
+            title={showNewTag ? "Fechar" : "Novo marcador"}
+            aria-label={showNewTag ? "Fechar criacao de marcador" : "Novo marcador"}
           >
-            <Plus className="h-3.5 w-3.5" />
+            {showNewTag ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
           </button>
         </div>
 
@@ -321,7 +370,7 @@ export function CardFilterBar({
             onClick={() => onChange({ ...value, stageIds: toggle(value.stageIds, "none") })}
             className={chipClass(value.stageIds.includes("none"))}
           >
-            Sem estagio
+            {STAGE_NONE_LABEL}
           </button>
           {sortedStages.map((s) => {
             const on = value.stageIds.includes(s.id);
@@ -339,9 +388,9 @@ export function CardFilterBar({
                       ? { backgroundColor: s.color, borderColor: s.color }
                       : { backgroundColor: `${s.color}22`, borderColor: s.color }
                   }
-                  title={s.name}
+                  title={displayStageName(s.name)}
                 >
-                  {s.name}
+                  {displayStageName(s.name)}
                 </button>
                 {!s.is_system ? (
                   <button
@@ -367,9 +416,10 @@ export function CardFilterBar({
             data-testid="filter-stage-add"
             onClick={() => setShowNewStage((v) => !v)}
             className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-board-border text-aurora-muted hover:bg-board-accent-muted/40"
-            title="Novo estagio"
+            title={showNewStage ? "Fechar" : "Novo estagio"}
+            aria-label={showNewStage ? "Fechar criacao de estagio" : "Novo estagio"}
           >
-            <Plus className="h-3.5 w-3.5" />
+            {showNewStage ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
           </button>
         </div>
 
@@ -401,6 +451,8 @@ export function CardFilterBar({
             {stageCreateError ? (
               <p className="w-full text-xs font-semibold text-aurora-danger">{stageCreateError}</p>
             ) : null}
+          </div>
+        ) : null}
           </div>
         ) : null}
       </div>

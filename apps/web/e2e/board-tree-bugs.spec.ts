@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { disableToursForE2E, loginAsStandard } from "./helpers";
+import { disableToursForE2E, expandBoardFilters, loginAsStandard } from "./helpers";
 
 /** Board do vídeo (cloud) — seed 3333… não existe neste env. */
 const VIDEO_BOARD_ID = "e66af400-26ed-4517-8d12-06cd77c5655d";
@@ -43,6 +43,8 @@ test.describe("Tree bugs — E2E (vídeo)", () => {
     const removeBtn = page.getByTestId("tree-edge-remove").first();
     await expect(removeBtn).toBeVisible({ timeout: 5_000 });
     await removeBtn.click({ force: true });
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Remover", exact: true }).click();
     await expect
       .poll(async () => page.locator(".react-flow__edge").count(), { timeout: 15_000 })
       .toBeLessThan(edgesBefore);
@@ -50,6 +52,7 @@ test.describe("Tree bugs — E2E (vídeo)", () => {
     const filterInput = page.locator(
       '[data-tour="board-filters"] input[placeholder="Buscar por titulo"]',
     );
+    await expandBoardFilters(page);
     await filterInput.fill(`zzz-no-match-${Date.now()}`);
     await expect(page.getByTestId("tree-filter-empty")).toBeVisible({ timeout: 5_000 });
   });

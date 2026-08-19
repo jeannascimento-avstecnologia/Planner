@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { SettingsHubCards, type SettingsHubCard } from "@/components/settings/settings-hub-cards";
 import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 import { isOrgAdminRole, orgRoleLabel } from "@/lib/org-member-roles";
-import { Building2, Bot, FileSearch, Plug, Settings2, Shield, UserPlus, Users, Wrench } from "lucide-react";
+import { Building2, Bot, FileSearch, Plug, Settings2, Shield, Users, Wrench } from "lucide-react";
 
 export default async function SettingsHubPage() {
   const ctx = await loadOrgSettingsContext();
@@ -11,14 +11,6 @@ export default async function SettingsHubPage() {
   const isAdmin = isOrgAdminRole(ctx.userRole);
 
   const organizationCards: SettingsHubCard[] = [
-    {
-      href: "/settings/organization/invites",
-      title: "Convites",
-      description: "Envie e acompanhe convites pendentes.",
-      icon: UserPlus,
-      testId: "settings-card-invites",
-      tone: "emerald",
-    },
     {
       href: "/settings/organization/settings",
       title: "Dados da organizacao",
@@ -42,7 +34,7 @@ export default async function SettingsHubPage() {
         {
           href: "/settings/users",
           title: "Usuarios",
-          description: "Membros, perfis e acesso aos workspaces.",
+          description: "Membros, convites pendentes e acesso aos workspaces.",
           icon: Users,
           testId: "settings-card-users",
           tone: "sky",

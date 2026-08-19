@@ -2,15 +2,13 @@
 
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { Move } from "lucide-react";
-import { PriorityBadge, StageBadge, TagChip } from "./badges";
+import { PriorityBadge, StageBadge, StageNoneBadge, TagChip } from "./badges";
 import { TifluxCardButton } from "./tiflux-card-button";
 import { stageCardStyle } from "@/lib/color-utils";
 import { tileBoardInteractive, tileBoardOverdue } from "@/lib/ui-classes";
 import { formatDue, isCardOverdue, memberLabel, resolveCardStage, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
-export type CardMoveHandleProps = {
-  setActivatorNodeRef: (element: HTMLElement | null) => void;
+export type CardDragProps = {
   listeners: SyntheticListenerMap | undefined;
   attributes: DraggableAttributes;
 };
@@ -24,7 +22,9 @@ type Props = {
   tifluxEnabled: boolean;
   readOnlyTiflux?: boolean;
   subtasksProgress?: { done: number; total: number } | null;
-  moveHandle?: CardMoveHandleProps;
+  dragProps?: CardDragProps;
+  dragReady?: boolean;
+  isDragging?: boolean;
   onSelect: (id: string) => void;
   onOpenTifluxCreate: (id: string) => void;
   onOpenTifluxLink: (id: string) => void;
@@ -39,7 +39,9 @@ export function BoardCardTile({
   tifluxEnabled,
   readOnlyTiflux = false,
   subtasksProgress = null,
-  moveHandle,
+  dragProps,
+  dragReady = false,
+  isDragging = false,
   onSelect,
   onOpenTifluxCreate,
   onOpenTifluxLink,
@@ -48,6 +50,7 @@ export function BoardCardTile({
   const assignee = card.assignee_id ? profilesById[card.assignee_id] : undefined;
   const stage = resolveCardStage(card, columns, stagesById);
   const cardStyle = stage ? stageCardStyle(stage.color) : undefined;
+  const draggable = Boolean(dragProps);
 
   function openCard() {
     onSelect(card.id);
@@ -55,9 +58,11 @@ export function BoardCardTile({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
       data-testid={`board-card-${card.id}`}
+      data-drag-ready={dragReady ? "true" : undefined}
+      data-dragging={isDragging ? "true" : undefined}
+      {...(dragProps?.attributes ?? { role: "button", tabIndex: 0 })}
+      {...(dragProps?.listeners ?? {})}
       onClick={(e) => {
         e.stopPropagation();
         openCard();
@@ -68,9 +73,11 @@ export function BoardCardTile({
           openCard();
         }
       }}
-      className={`relative w-full cursor-pointer p-3 text-left ${
-        moveHandle ? "pb-9" : ""
-      } ${overdue ? tileBoardOverdue : tileBoardInteractive}`}
+      className={`relative w-full p-3 text-left ${
+        draggable ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-pointer"
+      } ${dragReady ? "z-10 scale-[1.02] shadow-lg ring-2 ring-board-accent/40" : ""} ${
+        overdue ? tileBoardOverdue : tileBoardInteractive
+      }`}
       data-overdue={overdue ? "true" : undefined}
       style={
         cardStyle
@@ -86,7 +93,11 @@ export function BoardCardTile({
     >
       <div className="flex items-start justify-between gap-1.5">
         <p className="min-w-0 flex-1 break-words text-sm leading-snug">{card.title}</p>
-        <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <span
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <TifluxCardButton
             card={card}
             tifluxEnabled={tifluxEnabled}
@@ -99,7 +110,7 @@ export function BoardCardTile({
       </div>
       <div className="mt-2 w-full">
         <div className="flex flex-wrap items-center gap-1">
-          {stage ? <StageBadge name={stage.name} color={stage.color} /> : null}
+          {stage ? <StageBadge name={stage.name} color={stage.color} /> : <StageNoneBadge />}
           <PriorityBadge priority={card.priority} />
           {card.due_date ? (
             <span className={`text-xs ${overdue ? "font-semibold text-aurora-danger" : "text-aurora-muted"}`}>
@@ -123,20 +134,6 @@ export function BoardCardTile({
           })}
         </div>
       </div>
-      {moveHandle ? (
-        <button
-          type="button"
-          ref={moveHandle.setActivatorNodeRef}
-          aria-label="Mover card"
-          data-testid={`drag-handle-${card.id}`}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-2 right-2 cursor-grab touch-none rounded-md p-1 text-aurora-muted/80 hover:bg-board-accent-muted/50 hover:text-aurora-fg active:cursor-grabbing"
-          {...moveHandle.listeners}
-          {...moveHandle.attributes}
-        >
-          <Move className="h-4 w-4" strokeWidth={2.25} />
-        </button>
-      ) : null}
     </div>
   );
 }

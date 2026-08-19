@@ -212,13 +212,14 @@ export const HELP_CATEGORIES: HelpCategory[] = [
       {
         id: "invites",
         title: "Convites",
-        href: "/settings/organization/invites",
+        href: "/settings/users#convites",
         summary:
-          "Formulario para convidar por e-mail com papel inicial. Tabela Convites pendentes mostra e-mail, papel e data de expiracao.",
+          "Em Usuarios, convide por e-mail e gerencie convites pendentes (copiar link ou cancelar).",
         steps: [
+          "Abra Configuracoes > Usuarios.",
           "Preencha e-mail e escolha papel (Visualizador, Gerente, Administrador ou Proprietario).",
-          "Envie o convite — aparece na tabela Convites pendentes.",
-          "Acompanhe expiracao e reenvie se necessario.",
+          "Envie o convite — aparece na secao Convites pendentes.",
+          "Use Copiar link ou cancele convites que nao serao usados.",
         ],
         tips: ["Apenas proprietario ou administrador pode enviar convites."],
         badge: "Admin",

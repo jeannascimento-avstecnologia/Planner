@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import type { CardPriority } from "@nextgen/contracts";
-import { getCardDeleteImpact, updateCard } from "@/app/(app)/boards/[boardId]/card-actions";
+import { updateCard } from "@/app/(app)/boards/[boardId]/card-actions";
+import { buildUpdateCardPatch } from "@/lib/card-kernel/build-update-patch";
+import { parseUpdateCardFormData } from "@/lib/parse-update-card-form";
+import { applyCardFieldsPatchToList } from "@/lib/query/board-cards-cache";
+import { boardCardsQueryKey } from "@/lib/query/board-cards-keys";
 import { inputBoardClassSm, btnBoardPrimarySm, btnBoardSecondary, btnDanger } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
-import { boardCardsQueryKey } from "@/lib/query/board-cards-keys";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useCardDeleteConfirm } from "./use-card-delete-confirm";
 import { AuroraDrawer } from "@/components/ui/aurora-drawer";
 import { stageCardStyle } from "@/lib/color-utils";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
@@ -48,6 +51,7 @@ type Props = {
   tifluxEnabled?: boolean;
   onOpenTifluxCreate?: (cardId: string) => void;
   onOpenTifluxLink?: (cardId: string) => void;
+  showTifluxActions?: boolean;
   onClose: () => void;
 };
 
@@ -66,13 +70,11 @@ export function CardDrawer({
   tifluxEnabled = false,
   onOpenTifluxCreate,
   onOpenTifluxLink,
+  showTifluxActions = true,
   onClose,
 }: Props) {
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteImpact, setDeleteImpact] = useState<{ subtasks: number; dependencies: number } | null>(null);
 
   const perms: CardDrawerPermissions = {
     editFields: permissions?.editFields ?? !readOnly,
@@ -84,19 +86,12 @@ export function CardDrawer({
     useTiflux: permissions?.useTiflux ?? !readOnly,
   };
 
-  useEffect(() => {
-    if (!perms.deleteCard || !deleteOpen) {
-      setDeleteImpact(null);
-      return;
-    }
-    let cancelled = false;
-    void getCardDeleteImpact(card.id, boardId).then((impact) => {
-      if (!cancelled) setDeleteImpact(impact);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [perms.deleteCard, deleteOpen, card.id, boardId]);
+  const cardDelete = useCardDeleteConfirm({
+    boardId,
+    cardId: card.id,
+    enabled: perms.deleteCard,
+    onSuccess: onClose,
+  });
 
   const children = useMemo(
     () =>
@@ -135,64 +130,7 @@ export function CardDrawer({
   const overdue = isCardOverdue(card, stagesById);
   const headerStyle = stage ? stageCardStyle(stage.color) : undefined;
 
-  function confirmDelete() {
-    setDeleteError(null);
-    const key = boardCardsQueryKey(boardId);
-    const previous = queryClient.getQueryData<BoardCard[]>(key);
-    // Optimistic: some da arvore/kanban imediatamente
-    queryClient.setQueryData<BoardCard[]>(key, (curr) =>
-      (curr ?? []).filter((c) => c.id !== card.id),
-    );
-    startTransition(async () => {
-      try {
-        const res = await fetch(`/api/boards/${boardId}/cards/${card.id}`, {
-          method: "DELETE",
-          credentials: "same-origin",
-        });
-        const body = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
-        if (!res.ok) {
-          if (previous) queryClient.setQueryData(key, previous);
-          const err = body.error ?? "Nao foi possivel excluir o card.";
-          setDeleteError(err);
-          appToast.error(err);
-          return;
-        }
-        setDeleteOpen(false);
-        onClose();
-        appToast.success("Card excluido");
-        void queryClient.invalidateQueries({ queryKey: key });
-      } catch {
-        if (previous) queryClient.setQueryData(key, previous);
-        const msg = "Nao foi possivel excluir o card.";
-        setDeleteError(msg);
-        appToast.error(msg);
-      }
-    });
-  }
-
   const cardFormId = `card-edit-${card.id}`;
-
-  function deleteConfirmMessage(): string {
-    const base = `Tem certeza que deseja excluir "${card.title}"? Esta acao nao pode ser desfeita.`;
-    if (!deleteImpact) return base;
-    const parts: string[] = [];
-    if (deleteImpact.subtasks > 0) {
-      parts.push(
-        deleteImpact.subtasks === 1
-          ? "1 subtarefa vinculada"
-          : `${deleteImpact.subtasks} subtarefas vinculadas`,
-      );
-    }
-    if (deleteImpact.dependencies > 0) {
-      parts.push(
-        deleteImpact.dependencies === 1
-          ? "1 dependencia vinculada"
-          : `${deleteImpact.dependencies} dependencias vinculadas`,
-      );
-    }
-    if (parts.length === 0) return base;
-    return `${base} Isso remove permanentemente ${parts.join(" e ")}.`;
-  }
 
   return (
     <AuroraDrawer onClose={onClose} showHeader={false} testId="card-drawer">
@@ -232,8 +170,27 @@ export function CardDrawer({
           action={(fd) =>
             startTransition(async () => {
               if (!perms.editFields) return;
-              await updateCard(fd);
+              const parsed = parseUpdateCardFormData(fd);
+              if (!parsed.ok) {
+                appToast.error(parsed.error);
+                return;
+              }
+              const result = await updateCard(fd);
+              if (!result.ok) {
+                appToast.error(result.error);
+                return;
+              }
+              const patch = buildUpdateCardPatch(parsed.data, {
+                start_date: card.start_date,
+                due_date: card.due_date,
+              });
+              const key = boardCardsQueryKey(boardId);
+              queryClient.setQueryData<BoardCard[]>(key, (curr) =>
+                applyCardFieldsPatchToList(curr ?? [], card.id, patch),
+              );
+              void queryClient.invalidateQueries({ queryKey: key });
               appToast.success("Card salvo");
+              onClose();
             })
           }
           className="flex flex-col gap-3 p-4 pb-2"
@@ -425,7 +382,7 @@ export function CardDrawer({
             />
           </div>
 
-          {tifluxEnabled && perms.useTiflux ? (
+          {tifluxEnabled && perms.useTiflux && showTifluxActions ? (
             <div>
               <p className="mb-1 text-xs font-medium text-aurora-muted">Tiflux</p>
               {card.tiflux_ticket_number ? (
@@ -482,27 +439,18 @@ export function CardDrawer({
             <button
               type="button"
               data-testid="delete-card"
-              onClick={() => setDeleteOpen(true)}
-              disabled={pending}
+              onClick={cardDelete.requestDelete}
+              disabled={pending || cardDelete.pending}
               className={`inline-flex items-center justify-center gap-1.5 ${btnDanger}`}
             >
               <Trash2 className="h-4 w-4" />
               Excluir card
             </button>
           ) : null}
-          {deleteError ? <p className="text-xs text-aurora-danger">{deleteError}</p> : null}
+          {cardDelete.error ? <p className="text-xs text-aurora-danger">{cardDelete.error}</p> : null}
         </div>
 
-      <ConfirmDialog
-        open={deleteOpen}
-        title="Excluir card"
-        message={deleteConfirmMessage()}
-        confirmLabel="Excluir"
-        pending={pending}
-        variant="board"
-        onConfirm={confirmDelete}
-        onCancel={() => setDeleteOpen(false)}
-      />
+      {cardDelete.dialog}
       </div>
     </AuroraDrawer>
   );

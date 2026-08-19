@@ -10,7 +10,6 @@ import {
   Shield,
   ShieldCheck,
   User,
-  UserPlus,
   Users,
   Wrench,
 } from "lucide-react";
@@ -53,7 +52,6 @@ export const SETTINGS_NAV_SECTIONS: SettingsNavSection[] = [
   {
     title: "Organizacao",
     items: [
-      { href: "/settings/organization/invites", label: "Convites", icon: UserPlus, testId: "org-settings-tab-convites" },
       { href: "/settings/organization/settings", label: "Geral", icon: Settings2, testId: "org-settings-tab-geral" },
     ],
   },

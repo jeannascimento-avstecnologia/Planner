@@ -657,6 +657,10 @@ export type Database = {
         Args: { p_card_id: string; p_work_date: string; p_default_hours?: number };
         Returns: undefined;
       };
+      sync_board_overdue_automations: {
+        Args: { p_board_id: string };
+        Returns: number;
+      };
       add_card_to_personal_plan: {
         Args: { p_card_id: string };
         Returns: undefined;

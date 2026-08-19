@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import { createStage, deleteStage } from "@/app/(app)/boards/[boardId]/stages/actions";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { stageBadgeStyle } from "@/lib/color-utils";
 import { boardCardsQueryKey } from "@/lib/query/board-cards-keys";
 import { btnBoardPrimarySm, inputBoardClassSm } from "@/lib/ui-classes";
-import type { BoardCard, StageRow } from "./types";
+import { displayStageName, STAGE_NONE_LABEL, type BoardCard, type StageRow } from "./types";
 
 type Props = {
   boardId: string;
@@ -125,11 +125,14 @@ export function StageSelector({ boardId, cardId, currentStageId, stages }: Props
           <span
             className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
             style={stageBadgeStyle(current.color)}
+            title={displayStageName(current.name)}
           >
-            {current.name}
+            {displayStageName(current.name)}
           </span>
         ) : (
-          <span className="text-aurora-muted">Alterar estagio</span>
+          <span className="text-aurora-muted" title={STAGE_NONE_LABEL}>
+            {STAGE_NONE_LABEL}
+          </span>
         )}
         <ChevronDown className="h-4 w-4 text-aurora-muted" />
       </button>
@@ -148,7 +151,9 @@ export function StageSelector({ boardId, cardId, currentStageId, stages }: Props
                   className="flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-board-accent-muted/40"
                 >
                   <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: stage.color }} />
-                  <span className="truncate">{stage.name}</span>
+                  <span className="truncate" title={displayStageName(stage.name)}>
+                    {displayStageName(stage.name)}
+                  </span>
                 </button>
                 {!stage.is_system ? (
                   <button
@@ -172,9 +177,10 @@ export function StageSelector({ boardId, cardId, currentStageId, stages }: Props
             data-testid="stage-selector-add"
             onClick={() => setShowNewStage((v) => !v)}
             className="mt-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-aurora-muted hover:bg-board-accent-muted/40"
+            aria-label={showNewStage ? "Fechar criacao de estagio" : "Novo estagio"}
           >
-            <Plus className="h-4 w-4" />
-            Novo estagio
+            {showNewStage ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showNewStage ? "Fechar" : "Novo estagio"}
           </button>
           {showNewStage ? (
             <div className="mt-1 space-y-2 border-t border-board-border p-2">

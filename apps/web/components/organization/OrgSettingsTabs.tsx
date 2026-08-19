@@ -10,8 +10,7 @@ const tabs: Array<{
   adminOnly?: boolean;
   ownerOnly?: boolean;
 }> = [
-  { href: "/settings/organization", label: "Membros", exact: true },
-  { href: "/settings/organization/invites", label: "Convites" },
+  { href: "/settings/users", label: "Membros" },
   { href: "/settings/organization/settings", label: "Geral" },
   { href: "/settings/audit", label: "Auditoria", adminOnly: true },
   { href: "/settings/integrations", label: "Integracoes", adminOnly: true },
