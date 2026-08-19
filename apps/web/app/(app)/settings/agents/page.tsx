@@ -1,16 +1,13 @@
+import { redirect } from "next/navigation";
+import { AgentsListPanel } from "@/components/settings/agents-list-panel";
+import { MOCK_AGENTS } from "@/lib/agents-mock";
 import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
-import { redirect } from "next/navigation";
 
-export default async function SettingsAgentsPlaceholderPage() {
+export default async function SettingsAgentsPage() {
   const ctx = await loadOrgSettingsContext();
   if (!ctx) redirect("/login");
   if (!isOrgAdminRole(ctx.userRole)) redirect("/settings");
 
-  return (
-    <section className="space-y-2" data-testid="settings-agents-placeholder">
-      <h2 className="text-lg font-semibold text-aurora-fg">Agentes</h2>
-      <p className="text-sm text-aurora-muted">Modulo em migracao.</p>
-    </section>
-  );
+  return <AgentsListPanel agents={MOCK_AGENTS} />;
 }
