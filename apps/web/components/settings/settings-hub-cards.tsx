@@ -16,6 +16,7 @@ type Props = {
   orgName: string;
   userRoleLabel: string;
   organizationCards: SettingsHubCard[];
+  platformCards?: SettingsHubCard[];
   adminCards: SettingsHubCard[];
 };
 
@@ -55,7 +56,7 @@ function CardGrid({ cards }: { cards: SettingsHubCard[] }) {
   );
 }
 
-export function SettingsHubCards({ orgName, userRoleLabel, organizationCards, adminCards }: Props) {
+export function SettingsHubCards({ orgName, userRoleLabel, organizationCards, platformCards = [], adminCards }: Props) {
   return (
     <div className="space-y-8" data-testid="settings-hub-page">
       <div className="rounded-xl border border-violet-200/60 bg-gradient-to-br from-violet-50/80 via-aurora-surface to-sky-50/50 p-4 dark:border-violet-900/40 dark:from-violet-950/30 dark:to-sky-950/20 md:p-5">
@@ -72,6 +73,13 @@ export function SettingsHubCards({ orgName, userRoleLabel, organizationCards, ad
         <h3 className="text-sm font-semibold text-aurora-fg">Organizacao</h3>
         <CardGrid cards={organizationCards} />
       </section>
+
+      {platformCards.length ? (
+        <section className="space-y-3" data-tour="settings-platform-cards">
+          <h3 className="text-sm font-semibold text-aurora-fg">Plataforma</h3>
+          <CardGrid cards={platformCards} />
+        </section>
+      ) : null}
 
       {adminCards.length ? (
         <section className="space-y-3" data-tour="settings-admin-cards">
