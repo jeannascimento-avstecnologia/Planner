@@ -1,16 +1,25 @@
+import { redirect } from "next/navigation";
+import { UsersManagementPanel } from "@/components/settings/users-management-panel";
 import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
-import { redirect } from "next/navigation";
 
-export default async function SettingsUsersPlaceholderPage() {
+export default async function SettingsUsersPage() {
   const ctx = await loadOrgSettingsContext();
   if (!ctx) redirect("/login");
   if (!isOrgAdminRole(ctx.userRole)) redirect("/settings");
 
+  const pending = ctx.canManageMembers ? ctx.pendingInvites : [];
+
   return (
-    <section className="space-y-2" data-testid="settings-users-placeholder">
-      <h2 className="text-lg font-semibold text-aurora-fg">Usuarios</h2>
-      <p className="text-sm text-aurora-muted">Modulo em migracao.</p>
-    </section>
+    <UsersManagementPanel
+      orgId={ctx.orgId}
+      orgName={ctx.orgName}
+      members={ctx.members}
+      pendingInvites={pending}
+      canManageMembers={ctx.canManageMembers}
+      currentUserId={ctx.currentUserId}
+      currentUserIsOwner={ctx.isOwner}
+      multiOwnerEnabled={ctx.multiOwnerEnabled}
+    />
   );
 }

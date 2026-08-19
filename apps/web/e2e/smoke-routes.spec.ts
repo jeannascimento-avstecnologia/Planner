@@ -65,8 +65,15 @@ const ROUTES: SmokeRoute[] = [
     },
   },
   {
+    path: "/settings/users",
+    assert: async (page) => {
+      await expect(page.getByTestId("org-members-page")).toBeVisible();
+    },
+  },
+  {
     path: "/settings/organization",
     assert: async (page) => {
+      await expect(page).toHaveURL(/\/settings\/users/);
       await expect(page.getByTestId("org-members-page")).toBeVisible();
     },
   },
