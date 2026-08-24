@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { loginAsStandard, loginAsViewer, loginAsOrgAdmin } from "./helpers";
 
 async function openOrgSettings(page: import("@playwright/test").Page) {
-  await page.goto("/settings/organization");
+  await page.goto("/settings/users");
   await expect(page.getByTestId("org-members-page")).toBeVisible({ timeout: 15_000 });
 }
 
@@ -18,8 +18,8 @@ test.describe("Organization management", () => {
     await page.locator("aside.aurora-sidebar-gradient").getByRole("link", { name: "Configuracoes" }).click();
     await expect(page).toHaveURL(/\/settings$/, { timeout: 15_000 });
     await expect(page.getByTestId("settings-hub-page")).toBeVisible();
-    await page.getByTestId("settings-card-organization").click();
-    await expect(page).toHaveURL(/\/settings\/organization$/);
+    await page.getByTestId("settings-card-users").click();
+    await expect(page).toHaveURL(/\/settings\/users$/);
     await expect(page.getByTestId("org-members-table")).toBeVisible();
   });
 

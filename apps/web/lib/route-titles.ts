@@ -10,6 +10,9 @@ export function getRouteTitle(pathname: string): string {
   if (pathname === "/help") return "Ajuda";
   if (pathname === "/profile") return "Perfil";
   if (pathname === "/settings") return "Configuracoes";
+  if (pathname.startsWith("/settings/users")) return "Usuarios";
+  if (pathname.startsWith("/settings/external-tools")) return "Ferramentas Externas";
+  if (pathname.startsWith("/settings/agents")) return "Agentes";
   if (pathname.startsWith("/settings/organizations")) return "Organizacoes";
   if (pathname.startsWith("/settings/organization")) return "Organizacao";
   if (pathname.startsWith("/settings/integrations")) return "Integracoes";
