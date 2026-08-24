@@ -22,7 +22,8 @@ function serverActionAllowedOrigins(): string[] {
 }
 
 const nextConfig: NextConfig = {
-  // PM2 usa `next start` — nao usar output standalone (static 404 no LAN).
+  // Docker (VPS): BUILD_MODE=standalone. PM2/LAN: omitir BUILD_MODE — next start padrao.
+  output: process.env.BUILD_MODE === "standalone" ? "standalone" : undefined,
   // Fixa a raiz do monorepo (evita inferencia errada por lockfiles vizinhos).
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   transpilePackages: ["@nextgen/contracts", "@tanstack/react-query"],

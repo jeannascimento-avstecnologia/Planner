@@ -16,6 +16,7 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV BUILD_MODE=standalone
 RUN --mount=type=secret,id=env_file \
     set -a && . /run/secrets/env_file && set +a && \
     npm run build --workspace=@nextgen/web
