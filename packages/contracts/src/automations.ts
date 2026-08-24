@@ -1,13 +1,22 @@
 import { z } from "zod";
 import { cardPriority, uuid } from "./schemas";
 
-export const automationTriggerEvent = z.enum(["card_created", "card_moved", "priority_changed"]);
+export const automationTriggerEvent = z.enum([
+  "card_created",
+  "card_moved",
+  "priority_changed",
+  "stage_changed",
+  "due_overdue",
+]);
 export type AutomationTriggerEvent = z.infer<typeof automationTriggerEvent>;
 
 export const automationActionType = z.enum([
   "move_card",
   "set_priority",
   "set_assignee",
+  "set_stage",
+  "apply_column_default_stage",
+  "add_tag",
   "send_slack",
   "send_email",
   "webhook",
@@ -17,6 +26,7 @@ export type AutomationActionType = z.infer<typeof automationActionType>;
 export const automationConditionsSchema = z
   .object({
     column_id: uuid.optional(),
+    stage_id: uuid.optional(),
     priority: cardPriority.optional(),
   })
   .strict()
@@ -26,6 +36,14 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("move_card"), target_column_id: uuid }),
   z.object({ type: z.literal("set_priority"), value: cardPriority }),
   z.object({ type: z.literal("set_assignee"), user_id: uuid }),
+  z.object({ type: z.literal("set_stage"), stage_id: uuid }),
+  z.object({ type: z.literal("apply_column_default_stage") }),
+  z.object({
+    type: z.literal("add_tag"),
+    tag_name: z.string().min(1).max(80).optional(),
+    tag_id: uuid.optional(),
+    tag_color: z.string().max(7).optional(),
+  }),
   z.object({ type: z.literal("send_slack"), message: z.string().min(1).max(3000) }),
   z.object({
     type: z.literal("send_email"),

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { loginAsStandard, openSeedBoard } from "./helpers";
+import { loginAsStandard, openSeedBoard, expandBoardFilters } from "./helpers";
 
 function closeStageManager(page: Page) {
   return page
@@ -25,6 +25,7 @@ test.describe("Estagios", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsStandard(page);
     await openSeedBoard(page);
+    await expandBoardFilters(page);
   });
 
   test("abre drawer ao clicar no card", async ({ page }) => {

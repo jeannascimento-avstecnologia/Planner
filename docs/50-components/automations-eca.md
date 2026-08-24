@@ -52,11 +52,19 @@ automation_outbox (
 
 ### Conditions (v1)
 
-- `column_is`, `priority_gte`.
+- `column_is`, `priority_gte`, `stage_id`.
 
 ### Actions (v1 internas)
 
-- `move_card`, `set_priority`, `set_assignee`.
+- `move_card`, `set_priority`, `set_assignee`, `set_stage`, `apply_column_default_stage`, `add_tag`.
+
+### Triggers (v1 board)
+
+- `card_created`, `card_moved`, `priority_changed`, `stage_changed`, `due_overdue` (cron 03:05 + on-load board).
+
+### Loop guard
+
+- Eventos emitidos durante automacao recebem `payload.triggered_by_automation = true`; motor ignora esses eventos (quebra ciclo estagio ↔ coluna).
 
 ### Actions (v1 externas — async via outbox)
 

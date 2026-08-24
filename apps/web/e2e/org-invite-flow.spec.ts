@@ -7,7 +7,7 @@ test.describe("Organization invite flow", () => {
   });
 
   test("enviar convite org exibe link copiavel", async ({ page }) => {
-    await page.goto("/settings/organization/invites");
+    await page.goto("/settings/users");
     await expect(page.getByTestId("org-invite-form")).toBeVisible({ timeout: 15_000 });
 
     const email = uniqueEmail("org-invite");
@@ -29,7 +29,7 @@ test.describe("Organization invite flow", () => {
   });
 
   test("convite org aparece na lista de pendentes", async ({ page }) => {
-    await page.goto("/settings/organization/invites");
+    await page.goto("/settings/users");
     const email = uniqueEmail("org-pending");
     await page.getByTestId("org-invite-email-input").fill(email);
     await page.getByTestId("org-invite-email-add").click();

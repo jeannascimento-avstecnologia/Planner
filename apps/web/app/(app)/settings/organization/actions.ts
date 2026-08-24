@@ -422,6 +422,73 @@ export async function inviteToOrgBatch(input: OrgInviteBatchInput): Promise<OrgI
   return { ok: true, results };
 }
 
+export async function cancelOrgInvitationAction(input: {
+  orgId: string;
+  invitationId: string;
+}): Promise<OrgActionResult> {
+  if (!input.orgId || !input.invitationId) {
+    return { ok: false, error: "Dados invalidos." };
+  }
+
+  const access = await assertOrgMemberManager(input.orgId);
+  if (!access.ok) return access;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("organization_invitations")
+    .delete()
+    .eq("id", input.invitationId)
+    .eq("org_id", input.orgId)
+    .is("accepted_at", null)
+    .select("id");
+
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: "Convite nao encontrado." };
+
+  revalidateOrgSettings(input.orgId);
+  return { ok: true };
+}
+
+export async function regenerateOrgInvitationLinkAction(input: {
+  orgId: string;
+  invitationId: string;
+}): Promise<{ ok: true; inviteUrl: string } | { ok: false; error: string }> {
+  if (!input.orgId || !input.invitationId) {
+    return { ok: false, error: "Dados invalidos." };
+  }
+
+  const access = await assertOrgMemberManager(input.orgId);
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const supabase = await createClient();
+  const { data: invite } = await supabase
+    .from("organization_invitations")
+    .select("id")
+    .eq("id", input.invitationId)
+    .eq("org_id", input.orgId)
+    .is("accepted_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (!invite) return { ok: false, error: "Convite nao encontrado ou expirado." };
+
+  const { token, hash } = makeSecureToken();
+  const expires = new Date();
+  expires.setDate(expires.getDate() + 7);
+  const appUrl = await getAppUrl();
+  const inviteUrl = `${appUrl}/invite/org?token=${token}`;
+
+  const { error } = await supabase
+    .from("organization_invitations")
+    .update({ token_hash: hash, expires_at: expires.toISOString() })
+    .eq("id", input.invitationId)
+    .eq("org_id", input.orgId);
+
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true, inviteUrl };
+}
+
 function mapOrgRpcError(message: string): string {
   const map: Record<string, string> = {
     forbidden: "Sem permissao.",

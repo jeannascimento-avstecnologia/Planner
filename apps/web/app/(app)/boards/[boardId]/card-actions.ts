@@ -11,8 +11,8 @@ import {
   toggleChecklistItemInput,
   unlinkTreeEdgeInput,
   updateCardFieldsInput,
-  updateCardInput,
 } from "@nextgen/contracts";
+import { parseUpdateCardFormData } from "@/lib/parse-update-card-form";
 import { createClient } from "@/lib/supabase/server";
 import {
   createCardMutation,
@@ -50,12 +50,6 @@ function formDateOrUndefined(raw: FormDataEntryValue | null): string | undefined
   return `${raw}T12:00:00.000Z`;
 }
 
-function formDateOrNull(raw: FormDataEntryValue | null): string | null | undefined {
-  if (raw === null) return undefined;
-  if (raw === "") return null;
-  return `${raw}T12:00:00.000Z`;
-}
-
 /** API canônica — Kanban / Tabela / Drawer / create form. */
 export async function createCard(formData: FormData): Promise<CreateCardResult> {
   const parsed = createCardInput.safeParse({
@@ -74,25 +68,12 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
   return createCardMutation(supabase, parsed.data);
 }
 
-export async function updateCard(formData: FormData): Promise<void> {
-  const assigneeRaw = formData.get("assigneeId");
-  const estRaw = formData.get("estimatedHours");
-  const parsed = updateCardInput.safeParse({
-    cardId: formData.get("cardId"),
-    boardId: formData.get("boardId"),
-    title: formData.get("title") || undefined,
-    description: formData.has("description") ? formData.get("description") || null : undefined,
-    priority: formData.get("priority") || undefined,
-    dueDate: formDateOrNull(formData.get("dueDate")),
-    startDate: formDateOrNull(formData.get("startDate")),
-    targetDate: formDateOrNull(formData.get("targetDate")),
-    assigneeId: assigneeRaw === "" ? null : assigneeRaw || undefined,
-    estimatedHours: estRaw === "" ? null : estRaw ?? undefined,
-  });
-  if (!parsed.success) return;
+export async function updateCard(formData: FormData): Promise<UpdateCardFieldsResult> {
+  const parsed = parseUpdateCardFormData(formData);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
 
   const supabase = await createClient();
-  await updateCardMutation(supabase, parsed.data);
+  return updateCardMutation(supabase, parsed.data);
 }
 
 export async function updateCardFieldsAction(

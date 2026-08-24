@@ -23,7 +23,7 @@ export type OrgSettingsContext = {
   isOwner: boolean;
   currentUserId: string;
   members: OrgMemberRow[];
-  pendingInvites: { id: string; email: string; role: string; expires_at: string }[];
+  pendingInvites: { id: string; email: string; role: string; created_at: string; expires_at: string }[];
 };
 
 export async function loadOrgSettingsContext(): Promise<OrgSettingsContext | null> {
@@ -59,7 +59,7 @@ export async function loadOrgSettingsContext(): Promise<OrgSettingsContext | nul
   if (canManageMembers) {
     const { data: pendingRaw } = await supabase
       .from("organization_invitations")
-      .select("id, email, role, expires_at")
+      .select("id, email, role, created_at, expires_at")
       .eq("org_id", org.id)
       .is("accepted_at", null)
       .gt("expires_at", new Date().toISOString())

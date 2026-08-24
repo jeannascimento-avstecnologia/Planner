@@ -5,6 +5,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -16,6 +17,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { moveCard } from "@/app/(app)/boards/[boardId]/card-actions";
 import { positionBetween } from "@/lib/fractional";
+import { KANBAN_DRAG_ACTIVATION_CONSTRAINT } from "@/lib/kanban-dnd";
 import { applyCardMoveToList, shouldIgnoreRemoteCardsSync } from "@/lib/query/board-cards-cache";
 import { boardCardsQueryKey } from "@/lib/query/board-cards-keys";
 import { appToast } from "@/lib/toast";
@@ -227,7 +229,8 @@ export function BoardKanbanView({
   }, [boardId, queryClient]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(PointerSensor, { activationConstraint: KANBAN_DRAG_ACTIVATION_CONSTRAINT }),
+    useSensor(TouchSensor, { activationConstraint: KANBAN_DRAG_ACTIVATION_CONSTRAINT }),
   );
 
   const activeCard = activeCardId ? (cardById.get(activeCardId) ?? null) : null;
@@ -387,7 +390,7 @@ export function BoardKanbanView({
       </div>
       <DragOverlay dropAnimation={null}>
         {activeCard ? (
-          <div className="w-72 rotate-1 opacity-95 shadow-lg">
+          <div className="w-72 rotate-1 shadow-2xl ring-2 ring-board-accent/30">
             <BoardCardTile
               card={activeCard}
               columns={columns}

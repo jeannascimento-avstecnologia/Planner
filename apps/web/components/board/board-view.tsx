@@ -13,6 +13,8 @@ import { BoardSkeleton } from "@/components/ui/skeleton";
 import { BoardViewSwitcher } from "./board-view-switcher";
 import { isKanbanVisibleCard } from "@/lib/card-tree/kanban-visibility";
 import { KANBAN_BOARD_REGION_CLASS } from "@/lib/kanban-layout";
+import * as boardActions from "@/app/(app)/boards/[boardId]/actions";
+import { syncBoardOverdueAutomations } from "@/app/(app)/boards/[boardId]/actions";
 
 const BoardCalendarView = dynamic(
   () => import("./board-calendar-view").then((m) => ({ default: m.BoardCalendarView })),
@@ -153,6 +155,34 @@ function BoardViewInner({
     setLocalTags(tags);
     setLocalStages(stages);
   }, [tags, stages]);
+
+  useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7417/ingest/f78416a5-92e3-4342-85d2-f8950aa1642a", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3ae528" },
+      body: JSON.stringify({
+        sessionId: "3ae528",
+        runId: "pre-fix",
+        hypothesisId: "H1-H4",
+        location: "board-view.tsx:useEffect:syncOverdue",
+        message: "syncBoardOverdueAutomations import probe",
+        data: {
+          boardId: board.id,
+          namedType: typeof syncBoardOverdueAutomations,
+          namedIsFn: typeof syncBoardOverdueAutomations === "function",
+          moduleHasKey: "syncBoardOverdueAutomations" in boardActions,
+          moduleKeyType: typeof boardActions.syncBoardOverdueAutomations,
+          moduleExportKeys: Object.keys(boardActions).filter((k) => k.includes("sync") || k.includes("Automation")),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    if (typeof syncBoardOverdueAutomations === "function") {
+      void syncBoardOverdueAutomations(board.id);
+    }
+  }, [board.id]);
 
   const changeViewMode = useCallback(
     (mode: ReturnType<typeof parseBoardViewMode>) => {
@@ -476,12 +506,10 @@ function BoardViewInner({
 
       {viewMode === "timeline" ? (
         <BoardTimelineView
+          boardId={board.id}
           cards={filtered}
-          tifluxEnabled={tifluxEnabled}
+          canEdit={canEditCardFields}
           onSelectCard={selectCard}
-          onOpenTifluxCreate={openTifluxCreate ?? (() => {})}
-          onOpenTifluxLink={openTifluxLink ?? (() => {})}
-          readOnlyTiflux={!canUseTiflux}
         />
       ) : null}
 
@@ -523,6 +551,7 @@ function BoardViewInner({
           tags={localTags}
           filters={filters}
           canEdit={canEditTree}
+          canDeleteCards={canDeleteCards}
           onSelectCard={selectCard}
         />
       ) : null}
@@ -551,6 +580,7 @@ function BoardViewInner({
           tifluxEnabled={tifluxEnabled}
           onOpenTifluxCreate={openTifluxCreate}
           onOpenTifluxLink={openTifluxLink}
+          showTifluxActions={viewMode !== "timeline"}
           onClose={closeCard}
         />
       ) : null}
@@ -580,6 +610,7 @@ function BoardViewInner({
           boardId={board.id}
           orgId={board.org_id}
           columns={columns.map((c) => ({ id: c.id, name: c.name }))}
+          stages={localStages.map((s) => ({ id: s.id, name: s.name }))}
           members={members.map((m) => ({ id: m.id, name: m.full_name ?? "Usuario" }))}
           open={automationsOpen}
           onClose={() => setAutomationsOpen(false)}

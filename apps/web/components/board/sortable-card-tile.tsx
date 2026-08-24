@@ -1,7 +1,9 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
+import { KANBAN_DRAG_ACTIVATION_DELAY_MS } from "@/lib/kanban-dnd";
 import { BoardCardTile } from "./board-card-tile";
 import type { BoardCard, ColumnRow, ProfileRow, StageRow, TagRow } from "./types";
 
@@ -29,16 +31,52 @@ export function SortableCardTile({
     attributes,
     listeners,
     setNodeRef,
-    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
   } = useSortable({ id: card.id, disabled: dragDisabled });
 
+  const [holdReady, setHoldReady] = useState(false);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHold = useCallback(() => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    setHoldReady(false);
+  }, []);
+
+  const dragListeners = useMemo(() => {
+    if (!listeners || dragDisabled) return undefined;
+    return {
+      ...listeners,
+      onPointerDown: (event: React.PointerEvent) => {
+        clearHold();
+        holdTimerRef.current = setTimeout(() => setHoldReady(true), KANBAN_DRAG_ACTIVATION_DELAY_MS);
+        listeners.onPointerDown?.(event);
+      },
+      onPointerUp: (event: React.PointerEvent) => {
+        clearHold();
+        listeners.onPointerUp?.(event);
+      },
+      onPointerCancel: (event: React.PointerEvent) => {
+        clearHold();
+        listeners.onPointerCancel?.(event);
+      },
+    };
+  }, [clearHold, dragDisabled, listeners]);
+
+  useEffect(() => {
+    if (isDragging) clearHold();
+  }, [clearHold, isDragging]);
+
+  useEffect(() => () => clearHold(), [clearHold]);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.35 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
   return (
@@ -46,12 +84,13 @@ export function SortableCardTile({
       <BoardCardTile
         card={card}
         {...tileProps}
-        moveHandle={
+        dragReady={holdReady}
+        isDragging={isDragging}
+        dragProps={
           dragDisabled
             ? undefined
             : {
-                setActivatorNodeRef: setActivatorNodeRef,
-                listeners,
+                listeners: dragListeners,
                 attributes,
               }
         }

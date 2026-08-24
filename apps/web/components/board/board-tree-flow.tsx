@@ -35,7 +35,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Network, Plus, Unlink } from "lucide-react";
+import { Network, Plus, Trash2, Unlink } from "lucide-react";
 import { createCard, linkTreeEdgeAction, unlinkTreeEdgeAction, updateCardFieldsAction } from "@/app/(app)/boards/[boardId]/card-actions";
 import {
   MAX_CARD_TREE_DEPTH,
@@ -61,8 +61,10 @@ import {
   applyTreeUnlinkToList,
   applyCardReparentToList,
 } from "@/lib/query/board-cards-cache";
-import { btnBoardSecondary, inputBoardClassSm } from "@/lib/ui-classes";
+import { btnBoardSecondary, btnDanger, inputBoardClassSm } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useCardDeleteConfirm } from "./use-card-delete-confirm";
 import { ChecklistEditor } from "./checklist-editor";
 import {
   hasActiveFilters,
@@ -95,6 +97,7 @@ type Props = {
   tags?: TagRow[];
   filters: CardFilters;
   canEdit: boolean;
+  canDeleteCards?: boolean;
   onSelectCard: (id: string) => void;
 };
 
@@ -378,7 +381,7 @@ function TreeFlowEdge({
           >
             <button
               type="button"
-              data-testid="tree-edge-remove"
+              data-testid="tree-edge-remove-label"
               title="Remover conexao"
               aria-label="Remover conexao"
               className={`inline-flex items-center gap-1 rounded-md border border-board-border bg-aurora-surface px-2 py-1 text-[11px] font-medium text-aurora-fg shadow-md hover:bg-board-accent-muted/40 ${
@@ -477,17 +480,32 @@ function TreeFlowInner({
   tags = [],
   filters,
   canEdit,
+  canDeleteCards = false,
   onSelectCard,
 }: Props) {
   const queryClient = useQueryClient();
   const { fitView } = useReactFlow();
   const [pending, startTransition] = useTransition();
   const [selectedEdgeId, setSelectedEdgeIdState] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [edgeDeleteOpen, setEdgeDeleteOpen] = useState(false);
+  const [pendingEdgeUnlinkId, setPendingEdgeUnlinkId] = useState<string | null>(null);
+  const [edgeDeletePending, startEdgeDeleteTransition] = useTransition();
   const selectedEdgeIdRef = useRef<string | null>(null);
   const setSelectedEdgeId = useCallback((id: string | null) => {
     selectedEdgeIdRef.current = id;
     setSelectedEdgeIdState(id);
   }, []);
+
+  const selectedCard = selectedNodeId
+    ? allCards.find((c) => c.id === selectedNodeId) ?? null
+    : null;
+  const cardDelete = useCardDeleteConfirm({
+    boardId,
+    cardId: selectedNodeId ?? "",
+    enabled: canDeleteCards && Boolean(selectedNodeId),
+    onSuccess: () => setSelectedNodeId(null),
+  });
   const posTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const warnRef = useRef(false);
   const allCardsRef = useRef(allCards);
@@ -871,26 +889,41 @@ function TreeFlowInner({
         })();
       });
     },
-    [boardId, commitUnlink, queryClient, setEdges],
+    [boardId, commitUnlink, queryClient, setEdges, setSelectedEdgeId],
   );
-  removeEdgeByIdRef.current = persistEdgeUnlink;
-  // Handler global acessível pelo componente TreeFlowEdge
-  treeEdgeRemoveHandler = persistEdgeUnlink;
+
+  const requestEdgeUnlink = useCallback((edgeId: string) => {
+    setPendingEdgeUnlinkId(edgeId);
+    setEdgeDeleteOpen(true);
+  }, []);
+
+  const confirmEdgeUnlink = useCallback(() => {
+    if (!pendingEdgeUnlinkId) return;
+    const edgeId = pendingEdgeUnlinkId;
+    setEdgeDeleteOpen(false);
+    setPendingEdgeUnlinkId(null);
+    startEdgeDeleteTransition(() => {
+      persistEdgeUnlink(edgeId);
+    });
+  }, [pendingEdgeUnlinkId, persistEdgeUnlink]);
+
+  removeEdgeByIdRef.current = requestEdgeUnlink;
+  treeEdgeRemoveHandler = requestEdgeUnlink;
 
   const removeSelectedEdge = useCallback(() => {
     const edgeId = selectedEdgeIdRef.current;
     if (!edgeId) return;
-    persistEdgeUnlink(edgeId);
-  }, [persistEdgeUnlink]);
+    requestEdgeUnlink(edgeId);
+  }, [requestEdgeUnlink]);
 
   /** Safety net: se RF deletar arestas por outro caminho, persiste o unlink. */
   const onEdgesDelete = useCallback(
     (deleted: Edge[]) => {
       for (const e of deleted) {
-        persistEdgeUnlink(e.id);
+        requestEdgeUnlink(e.id);
       }
     },
-    [persistEdgeUnlink],
+    [requestEdgeUnlink],
   );
 
   const topologyKey = useMemo(
@@ -968,13 +1001,18 @@ function TreeFlowInner({
   }, [selectedEdgeId, canEdit, setEdges]);
 
   // NÃO limpar seleção quando RF emite edges=[] (clique no botão fora do canvas).
-  const onSelectionChange = useCallback<OnSelectionChangeFunc>(({ edges: selEdges }) => {
-    const id = selEdges[0]?.id;
-    if (id) {
-      selectedEdgeIdRef.current = id;
-      setSelectedEdgeId(id);
+  const onSelectionChange = useCallback<OnSelectionChangeFunc>(({ edges: selEdges, nodes: selNodes }) => {
+    const edgeId = selEdges[0]?.id ?? null;
+    if (edgeId) {
+      selectedEdgeIdRef.current = edgeId;
+      setSelectedEdgeId(edgeId);
+      setSelectedNodeId(null);
+      return;
     }
-  }, []);
+    selectedEdgeIdRef.current = null;
+    setSelectedEdgeId(null);
+    setSelectedNodeId(selNodes[0]?.id ?? null);
+  }, [setSelectedEdgeId]);
   const isValidConnection = useCallback<IsValidConnection>(
     (connection) => {
       if (!canEdit || !connection.source || !connection.target) return false;
@@ -1060,13 +1098,20 @@ function TreeFlowInner({
     function onKey(e: KeyboardEvent) {
       if (!(e.key === "Delete" || e.key === "Backspace")) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (!selectedEdgeId || !canEdit) return;
-      e.preventDefault();
-      removeSelectedEdge();
+      if (!canEdit) return;
+      if (selectedEdgeId) {
+        e.preventDefault();
+        removeSelectedEdge();
+        return;
+      }
+      if (selectedNodeId && canDeleteCards) {
+        e.preventDefault();
+        cardDelete.requestDelete();
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedEdgeId, canEdit, removeSelectedEdge]);
+  }, [selectedEdgeId, selectedNodeId, canEdit, canDeleteCards, removeSelectedEdge, cardDelete]);
 
   if (allCards.length === 0) {
     return (
@@ -1134,8 +1179,20 @@ function TreeFlowInner({
               Remover conexao
             </button>
           ) : null}
+          {selectedNodeId && canDeleteCards && selectedCard ? (
+            <button
+              type="button"
+              data-testid="tree-card-delete"
+              className={btnDanger}
+              disabled={cardDelete.pending}
+              onClick={() => cardDelete.requestDelete()}
+            >
+              <Trash2 className="mr-1 inline h-3.5 w-3.5" />
+              Excluir card
+            </button>
+          ) : null}
           </div>
-          {!selectedEdgeId ? (
+          {!selectedEdgeId && !selectedNodeId ? (
             <p
               data-testid="tree-banner-help"
               className="max-w-3xl text-sm leading-snug text-aurora-muted"
@@ -1171,6 +1228,7 @@ function TreeFlowInner({
               canEdit
                 ? (_evt, edge) => {
                     setSelectedEdgeId(edge.id);
+                    setSelectedNodeId(null);
                   }
                 : undefined
             }
@@ -1180,11 +1238,14 @@ function TreeFlowInner({
                 ? (evt, edge) => {
                     evt.preventDefault();
                     evt.stopPropagation();
-                    persistEdgeUnlink(edge.id);
+                    requestEdgeUnlink(edge.id);
                   }
                 : undefined
             }
-            onPaneClick={() => setSelectedEdgeId(null)}
+            onPaneClick={() => {
+              setSelectedEdgeId(null);
+              setSelectedNodeId(null);
+            }}
             onNodeDoubleClick={(_evt, node) => onSelectCard(node.id)}
             onNodeDragStop={onNodeDragStop}
             nodeTypes={nodeTypes}
@@ -1210,6 +1271,20 @@ function TreeFlowInner({
             <MiniMap pannable zoomable className="!bg-aurora-surface" />
           </ReactFlow>
       </div>
+      <ConfirmDialog
+        open={edgeDeleteOpen}
+        title="Remover conexao"
+        message="Tem certeza que deseja remover esta conexao? Os cards permanecem no projeto; apenas o vinculo pai→filho sera desfeito."
+        confirmLabel="Remover"
+        pending={edgeDeletePending}
+        variant="board"
+        onConfirm={confirmEdgeUnlink}
+        onCancel={() => {
+          setEdgeDeleteOpen(false);
+          setPendingEdgeUnlinkId(null);
+        }}
+      />
+      {cardDelete.dialog}
     </div>
   );
 }

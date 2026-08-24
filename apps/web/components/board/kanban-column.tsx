@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { createColumn } from "@/app/(app)/boards/[boardId]/actions";
@@ -126,6 +127,7 @@ export function KanbanColumn({
 }
 
 export function NewColumnSection({ boardId }: { boardId: string }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
@@ -161,6 +163,8 @@ export function NewColumnSection({ boardId }: { boardId: string }) {
           appToast.error(result.error);
           return;
         }
+        appToast.success("Coluna criada");
+        router.refresh();
       } finally {
         releaseInFlightLock(lockKey);
         submittingRef.current = false;

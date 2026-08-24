@@ -58,15 +58,10 @@ test.describe("Organization management", () => {
     ).toHaveCount(0);
   });
 
-  test("viewer org acessa membros read-only", async ({ page }) => {
+  test("viewer org nao acessa gestao de usuarios nem convites", async ({ page }) => {
     await loginAsViewer(page);
-    await openOrgSettings(page);
-    await expect(page.getByTestId("org-members-table")).toBeVisible();
-    await expect(page.getByTestId("org-members-table")).toContainText("Admin Demo");
-    await expect(
-      page.getByTestId("org-member-role-11111111-1111-1111-1111-111111111111"),
-    ).toHaveCount(0);
-    await page.goto("/settings/organization/invites");
-    await expect(page.getByText(/Apenas proprietario ou gerente/i).first()).toBeVisible();
+    await page.goto("/settings/users");
+    await expect(page).toHaveURL(/\/settings$/, { timeout: 15_000 });
+    await expect(page.getByTestId("org-invites-section")).toHaveCount(0);
   });
 });

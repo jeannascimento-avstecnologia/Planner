@@ -47,6 +47,18 @@ export type BoardCard = {
 
 export type ColumnRow = { id: string; name: string; default_stage_id?: string | null };
 
+export const STAGE_NONE_LABEL = "Sem estágio";
+
+const LEGACY_BLANK_STAGE_LABELS = new Set(["em branco", "em_branco", "blank"]);
+
+/** Normaliza labels legadas ("Em branco") e ausência de estágio para exibição. */
+export function displayStageName(name: string | null | undefined): string {
+  if (!name?.trim()) return STAGE_NONE_LABEL;
+  const normalized = name.trim().toLowerCase();
+  if (LEGACY_BLANK_STAGE_LABELS.has(normalized)) return STAGE_NONE_LABEL;
+  return name.trim();
+}
+
 export function resolveCardStage(
   card: BoardCard,
   columns: ColumnRow[],

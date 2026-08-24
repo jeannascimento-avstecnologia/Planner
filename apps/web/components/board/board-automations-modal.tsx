@@ -10,28 +10,37 @@ import {
   deleteAutomationRule,
   updateAutomationRule,
 } from "@/app/(app)/boards/[boardId]/actions";
-import type { AutomationRuleRow, AutomationTriggerEvent } from "@nextgen/contracts";
+import type { AutomationActionType, AutomationRuleRow, AutomationTriggerEvent } from "@nextgen/contracts";
+import { ACTION_LABELS, formatAutomationRuleSummary, TRIGGER_LABELS } from "@/lib/automation-labels";
 import { createClient } from "@/lib/supabase/client";
 
 type ColumnOption = { id: string; name: string };
+type StageOption = { id: string; name: string };
 type MemberOption = { id: string; name: string };
 
 type Props = {
   boardId: string;
   orgId: string;
   columns: ColumnOption[];
+  stages: StageOption[];
   members: MemberOption[];
   open: boolean;
   onClose: () => void;
 };
 
-const TRIGGER_LABELS: Record<AutomationTriggerEvent, string> = {
-  card_created: "Card criado",
-  card_moved: "Card movido de coluna",
-  priority_changed: "Prioridade alterada",
-};
+const BOARD_ACTION_TYPES: AutomationActionType[] = [
+  "move_card",
+  "set_stage",
+  "apply_column_default_stage",
+  "add_tag",
+  "set_priority",
+  "set_assignee",
+  "send_slack",
+  "send_email",
+  "webhook",
+];
 
-export function BoardAutomationsModal({ boardId, orgId, columns, members, open, onClose }: Props) {
+export function BoardAutomationsModal({ boardId, orgId, columns, stages, members, open, onClose }: Props) {
   const [rules, setRules] = useState<AutomationRuleRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -39,11 +48,12 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
   const [name, setName] = useState("");
   const [triggerEvent, setTriggerEvent] = useState<AutomationTriggerEvent>("card_moved");
   const [conditionColumnId, setConditionColumnId] = useState("");
+  const [conditionStageId, setConditionStageId] = useState("");
   const [conditionPriority, setConditionPriority] = useState("");
-  const [actionType, setActionType] = useState<
-    "move_card" | "set_priority" | "set_assignee" | "send_slack" | "send_email" | "webhook"
-  >("set_priority");
+  const [actionType, setActionType] = useState<AutomationActionType>("set_stage");
   const [actionColumnId, setActionColumnId] = useState("");
+  const [actionStageId, setActionStageId] = useState("");
+  const [actionTagName, setActionTagName] = useState("Atrasado");
   const [actionPriority, setActionPriority] = useState("high");
   const [actionUserId, setActionUserId] = useState("");
   const [slackMessage, setSlackMessage] = useState("Card atualizado no Planner");
@@ -98,9 +108,25 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
     if (open && tab === "history" && rules.length) void loadRuns();
   }, [open, tab, rules, loadRuns]);
 
+  useEffect(() => {
+    if (triggerEvent === "due_overdue") setActionType("add_tag");
+    else if (triggerEvent === "card_created") setActionType("apply_column_default_stage");
+    else if (triggerEvent === "stage_changed") setActionType("move_card");
+    else if (triggerEvent === "card_moved") setActionType("set_stage");
+  }, [triggerEvent]);
+
   function buildActionsJson(): string {
     if (actionType === "move_card") {
       return JSON.stringify([{ type: "move_card", target_column_id: actionColumnId }]);
+    }
+    if (actionType === "set_stage") {
+      return JSON.stringify([{ type: "set_stage", stage_id: actionStageId }]);
+    }
+    if (actionType === "apply_column_default_stage") {
+      return JSON.stringify([{ type: "apply_column_default_stage" }]);
+    }
+    if (actionType === "add_tag") {
+      return JSON.stringify([{ type: "add_tag", tag_name: actionTagName.trim() || "Atrasado" }]);
     }
     if (actionType === "set_assignee") {
       return JSON.stringify([{ type: "set_assignee", user_id: actionUserId }]);
@@ -129,6 +155,10 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
       toast.error("Selecione a coluna de destino.");
       return;
     }
+    if (actionType === "set_stage" && !actionStageId) {
+      toast.error("Selecione o estagio.");
+      return;
+    }
     if (actionType === "set_assignee" && !actionUserId) {
       toast.error("Selecione o responsavel.");
       return;
@@ -152,6 +182,7 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
     fd.set("name", name.trim());
     fd.set("triggerEvent", triggerEvent);
     if (conditionColumnId) fd.set("conditionColumnId", conditionColumnId);
+    if (conditionStageId) fd.set("conditionStageId", conditionStageId);
     if (conditionPriority) fd.set("conditionPriority", conditionPriority);
     fd.set("actions", buildActionsJson());
 
@@ -164,6 +195,7 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
       toast.success("Regra criada.");
       setName("");
       setConditionColumnId("");
+      setConditionStageId("");
       setConditionPriority("");
       await loadRules();
     });
@@ -195,12 +227,16 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
     });
   }
 
+  const showColumnCondition = triggerEvent !== "stage_changed" && triggerEvent !== "due_overdue";
+  const showStageCondition = triggerEvent === "stage_changed";
+  const showPriorityCondition = triggerEvent === "priority_changed";
+
   return (
     <AuroraModal
       open={open}
       onClose={onClose}
       title="Automacoes"
-      subtitle="Se [evento] e [condicao], entao [acao] — executado no servidor ao registrar eventos."
+      subtitle="Regras por projeto: gatilho + condicao + acao. Eventos de automacao nao disparam ciclos."
       variant="board"
       size="lg"
       testId="board-automations-modal"
@@ -256,7 +292,7 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-aurora-fg">{rule.name}</p>
                     <p className="text-xs text-aurora-muted">
-                      {TRIGGER_LABELS[rule.trigger_event as AutomationTriggerEvent] ?? rule.trigger_event}
+                      {formatAutomationRuleSummary(rule, columns, stages)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -290,18 +326,19 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
-                placeholder="Ex: Done → prioridade alta"
+                placeholder="Ex: Done → estagio Concluido"
                 data-testid="automation-name-input"
               />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-aurora-muted">Quando</label>
+                <label className="mb-1 block text-xs font-medium text-aurora-muted">Gatilho</label>
                 <select
                   value={triggerEvent}
                   onChange={(e) => setTriggerEvent(e.target.value as AutomationTriggerEvent)}
                   className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                  data-testid="automation-trigger-select"
                 >
                   {(Object.keys(TRIGGER_LABELS) as AutomationTriggerEvent[]).map((k) => (
                     <option key={k} value={k}>
@@ -310,52 +347,79 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-aurora-muted">Coluna (condicao, opcional)</label>
-                <select
-                  value={conditionColumnId}
-                  onChange={(e) => setConditionColumnId(e.target.value)}
-                  className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
-                >
-                  <option value="">Qualquer coluna</option>
-                  {columns.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {showColumnCondition ? (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-aurora-muted">Coluna (condicao)</label>
+                  <select
+                    value={conditionColumnId}
+                    onChange={(e) => setConditionColumnId(e.target.value)}
+                    className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                  >
+                    <option value="">Qualquer coluna</option>
+                    {columns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              {showStageCondition ? (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-aurora-muted">Estagio (condicao)</label>
+                  <select
+                    value={conditionStageId}
+                    onChange={(e) => setConditionStageId(e.target.value)}
+                    className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                  >
+                    <option value="">Qualquer estagio</option>
+                    {stages.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-aurora-muted">Prioridade (condicao, opcional)</label>
-              <select
-                value={conditionPriority}
-                onChange={(e) => setConditionPriority(e.target.value)}
-                className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
-              >
-                <option value="">Qualquer prioridade</option>
-                <option value="low">Baixa</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
-                <option value="urgent">Urgente</option>
-              </select>
-            </div>
+            {showPriorityCondition ? (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-aurora-muted">Prioridade (condicao)</label>
+                <select
+                  value={conditionPriority}
+                  onChange={(e) => setConditionPriority(e.target.value)}
+                  className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                >
+                  <option value="">Qualquer prioridade</option>
+                  <option value="low">Baixa</option>
+                  <option value="medium">Media</option>
+                  <option value="high">Alta</option>
+                  <option value="urgent">Urgente</option>
+                </select>
+              </div>
+            ) : null}
+
+            {triggerEvent === "due_overdue" ? (
+              <p className="text-xs text-aurora-muted">
+                Verificacao diaria (03:05) e ao abrir o board. Apenas marca visual — nao move o card.
+              </p>
+            ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-aurora-muted">Entao (acao)</label>
+                <label className="mb-1 block text-xs font-medium text-aurora-muted">Acao</label>
                 <select
                   value={actionType}
-                  onChange={(e) => setActionType(e.target.value as typeof actionType)}
+                  onChange={(e) => setActionType(e.target.value as AutomationActionType)}
                   className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                  data-testid="automation-action-select"
                 >
-                  <option value="set_priority">Alterar prioridade</option>
-                  <option value="move_card">Mover para coluna</option>
-                  <option value="set_assignee">Definir responsavel</option>
-                  <option value="send_slack">Enviar Slack</option>
-                  <option value="send_email">Enviar email</option>
-                  <option value="webhook">Webhook HTTP</option>
+                  {BOARD_ACTION_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {ACTION_LABELS[t] ?? t}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -375,6 +439,39 @@ export function BoardAutomationsModal({ boardId, orgId, columns, members, open, 
                       ))}
                     </select>
                   </>
+                ) : null}
+                {actionType === "set_stage" ? (
+                  <>
+                    <label className="mb-1 block text-xs font-medium text-aurora-muted">Estagio destino</label>
+                    <select
+                      value={actionStageId}
+                      onChange={(e) => setActionStageId(e.target.value)}
+                      className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                    >
+                      <option value="">Selecione…</option>
+                      {stages.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : null}
+                {actionType === "add_tag" ? (
+                  <>
+                    <label className="mb-1 block text-xs font-medium text-aurora-muted">Nome do marcador</label>
+                    <input
+                      value={actionTagName}
+                      onChange={(e) => setActionTagName(e.target.value)}
+                      className="w-full rounded-lg border border-aurora-border bg-aurora-surface px-3 py-2 text-sm"
+                      placeholder="Atrasado"
+                    />
+                  </>
+                ) : null}
+                {actionType === "apply_column_default_stage" ? (
+                  <p className="text-xs text-aurora-muted pt-6">
+                    Usa o estagio padrao configurado na coluna do card.
+                  </p>
                 ) : null}
                 {actionType === "set_priority" ? (
                   <>

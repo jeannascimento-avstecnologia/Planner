@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Copy, X } from "lucide-react";
 import { z } from "zod";
 import {
@@ -72,6 +73,7 @@ export function OrgInviteForm({
   multiOwnerEnabled = false,
   currentUserIsOwner = false,
 }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [draftEmail, setDraftEmail] = useState("");
   const [draftRole, setDraftRole] = useState<OrgMemberRole>("viewer");
@@ -139,6 +141,7 @@ export function OrgInviteForm({
       if (failed.length === 0) {
         appToast.success("Convite(s) enviado(s)");
         setInvites([]);
+        router.refresh();
       } else {
         appToast.error(`${failed.length} convite(s) falharam`);
         const failedEmails = new Set(failed.map((r) => r.email));

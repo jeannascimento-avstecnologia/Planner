@@ -148,6 +148,33 @@ export function applyTreeUnlinkToList(
   return next;
 }
 
+/** Aplica patch de campos (drawer/tabela) no cache de cards. */
+export function applyCardFieldsPatchToList(
+  cards: BoardCard[],
+  cardId: string,
+  patch: Record<string, string | number | null>,
+): BoardCard[] {
+  const index = cards.findIndex((c) => c.id === cardId);
+  if (index === -1) return cards;
+
+  const card = cards[index]!;
+  const nextCard = { ...card };
+  let changed = false;
+
+  for (const [key, value] of Object.entries(patch)) {
+    const current = (nextCard as Record<string, unknown>)[key];
+    if (current !== value) {
+      (nextCard as Record<string, unknown>)[key] = value;
+      changed = true;
+    }
+  }
+
+  if (!changed) return cards;
+  const next = cards.slice();
+  next[index] = nextCard;
+  return next;
+}
+
 /** Durante drag/mutation local, Realtime/RSC não devem resetar o layout Kanban. */
 export function shouldIgnoreRemoteCardsSync(opts: {
   isDragging: boolean;

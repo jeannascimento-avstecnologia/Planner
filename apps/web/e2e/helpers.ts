@@ -35,6 +35,15 @@ export async function openSeedBoard(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");
 }
 
+/** Expande o accordion de filtros do board (fechado por padrao). */
+export async function expandBoardFilters(page: Page): Promise<void> {
+  const toggle = page.getByTestId("board-filters-toggle");
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
+
 /** Impede auto-start de tours globais/pagina que bloqueiam cliques nos E2E. */
 export async function disableToursForE2E(page: Page): Promise<void> {
   await page.addInitScript(() => {

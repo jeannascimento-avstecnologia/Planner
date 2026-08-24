@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { KANBAN_DRAG_ACTIVATION_DELAY_MS } from "../lib/kanban-dnd";
 import { loginAsStandard, projectLink } from "./helpers";
 
 test.describe("Board Kanban DnD", () => {
@@ -6,7 +7,7 @@ test.describe("Board Kanban DnD", () => {
     await loginAsStandard(page);
   });
 
-  test("arrasta card da primeira coluna para a segunda pelo handle", async ({ page }) => {
+  test("arrasta card da primeira coluna para a segunda (hold + move)", async ({ page }) => {
     await projectLink(page, /Roadmap/).click();
     const cardTitle = "DnD QA " + Date.now();
 
@@ -19,9 +20,9 @@ test.describe("Board Kanban DnD", () => {
     await expect(todoCol.getByRole("button", { name: cardTitle })).toBeVisible({ timeout: 15_000 });
 
     const cardRow = todoCol.getByTestId(/^sortable-card-/).filter({ hasText: cardTitle });
-    const handle = cardRow.getByTestId(/^drag-handle-/);
-    await handle.hover();
+    await cardRow.hover();
     await page.mouse.down();
+    await page.waitForTimeout(KANBAN_DRAG_ACTIVATION_DELAY_MS + 20);
     const targetBox = await doingCol.getByTestId(/^kanban-column-cards-/).boundingBox();
     if (!targetBox) throw new Error("drop target missing");
     await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + 20, { steps: 12 });

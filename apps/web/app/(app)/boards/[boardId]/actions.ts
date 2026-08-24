@@ -68,7 +68,9 @@ import {
 } from "@/lib/tiflux-api";
 import { resolveBoardTifluxTokenDetailed } from "@/lib/tiflux-credentials";
 
-export type CreateColumnResult = { ok: true } | { error: string };
+export type CreateColumnResult =
+  | { ok: true; columnId: string; name: string }
+  | { error: string };
 
 export async function createColumn(formData: FormData): Promise<CreateColumnResult> {
   const parsed = createColumnInput.safeParse({
@@ -78,6 +80,11 @@ export async function createColumn(formData: FormData): Promise<CreateColumnResu
   if (!parsed.success) return { error: "Dados invalidos." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado." };
+
   const { data: board } = await supabase
     .from("boards")
     .select("org_id")
@@ -89,17 +96,31 @@ export async function createColumn(formData: FormData): Promise<CreateColumnResu
     return { error: DUPLICATE_COLUMN_MSG };
   }
 
-  const { error } = await supabase.from("columns").insert({
-    board_id: parsed.data.boardId,
-    org_id: board.org_id,
-    name: parsed.data.name,
-    position: lexoPosition(),
-  });
+  const { data: lastColumn } = await supabase
+    .from("columns")
+    .select("position")
+    .eq("board_id", parsed.data.boardId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: inserted, error } = await supabase
+    .from("columns")
+    .insert({
+      board_id: parsed.data.boardId,
+      org_id: board.org_id,
+      name: parsed.data.name,
+      position: lexoPosition(lastColumn?.position ?? null),
+    })
+    .select("id, name")
+    .single();
+
   if (isUniqueViolation(error)) return { error: DUPLICATE_COLUMN_MSG };
-  if (error) return { error: "Nao foi possivel criar a coluna." };
+  if (error?.code === "42501") return { error: "Sem permissao." };
+  if (error || !inserted) return { error: "Nao foi possivel criar a coluna." };
 
   revalidateBoard(parsed.data.boardId);
-  return { ok: true };
+  return { ok: true, columnId: inserted.id, name: inserted.name };
 }
 
 export async function updateColumn(formData: FormData): Promise<void> {
@@ -865,6 +886,7 @@ export async function createAutomationRule(formData: FormData): Promise<Automati
     triggerEvent: formData.get("triggerEvent"),
     conditions: {
       column_id: formData.get("conditionColumnId") || undefined,
+      stage_id: formData.get("conditionStageId") || undefined,
       priority: formData.get("conditionPriority") || undefined,
     },
     actions: actionsParsed,
@@ -939,5 +961,19 @@ export async function deleteAutomationRule(formData: FormData): Promise<Automati
   if (error) return { error: error.message };
 
   revalidateBoard(parsed.data.boardId);
+  return { ok: true };
+}
+
+export async function syncBoardOverdueAutomations(boardId: string): Promise<{ ok: true } | { error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado." };
+
+  const { error } = await supabase.rpc("sync_board_overdue_automations", { p_board_id: boardId });
+  if (error) return { error: error.message };
+
+  revalidateBoard(boardId);
   return { ok: true };
 }
