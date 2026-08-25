@@ -215,6 +215,7 @@ function BoardViewInner({
   const [stagesOpen, setStagesOpen] = useState(false);
   const [automationsOpen, setAutomationsOpen] = useState(false);
   const [filters, setFilters] = useState<CardFilters>(EMPTY_FILTERS);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [groupByAssignee, setGroupByAssignee] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
 
@@ -419,21 +420,35 @@ function BoardViewInner({
       ) : null}
       </div>
 
-      <div className="shrink-0" data-tour="board-filters">
-        <CardFilterBar
-        boardId={board.id}
-        orgId={board.org_id}
-        tags={localTags}
-        stages={localStages}
-        members={members}
-        value={filters}
-        isOrgAdmin={writeAuthz.isOrgAdmin}
-        onManageStages={canManageStages ? () => setStagesOpen(true) : undefined}
-        onChange={setFilters}
-        onClear={() => setFilters(EMPTY_FILTERS)}
-        onTagsChange={setLocalTags}
-        onStagesChange={setLocalStages}
-        />
+      <div className="relative shrink-0" data-tour="board-filters">
+        <button
+          type="button"
+          onClick={() => setFiltersExpanded((v) => !v)}
+          className="absolute -bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full border border-board-border bg-board-surface px-3 py-0.5 text-xs text-aurora-muted shadow-sm transition hover:bg-board-accent-muted/40"
+          aria-label={filtersExpanded ? "Recolher filtros" : "Expandir filtros"}
+        >
+          {filtersExpanded ? "▲ Recolher" : "▼ Filtros"}
+        </button>
+        <div
+          className={`overflow-hidden transition-all duration-300 ${
+            filtersExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          <CardFilterBar
+            boardId={board.id}
+            orgId={board.org_id}
+            tags={localTags}
+            stages={localStages}
+            members={members}
+            value={filters}
+            isOrgAdmin={writeAuthz.isOrgAdmin}
+            onManageStages={canManageStages ? () => setStagesOpen(true) : undefined}
+            onChange={setFilters}
+            onClear={() => setFilters(EMPTY_FILTERS)}
+            onTagsChange={setLocalTags}
+            onStagesChange={setLocalStages}
+          />
+        </div>
       </div>
 
       <div className="shrink-0" data-tour="board-view-switcher">

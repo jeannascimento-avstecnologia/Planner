@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { createColumn } from "@/app/(app)/boards/[boardId]/actions";
 import { acquireInFlightLock, releaseInFlightLock } from "@/lib/in-flight-submit";
 import { columnInFlightLockKey } from "@/lib/board-item-names";
@@ -66,23 +67,38 @@ export function KanbanColumn({
   onCardCreated,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <section
       ref={setNodeRef}
       data-testid={`kanban-column-${column.id}`}
-      className={`${KANBAN_COLUMN_SECTION_CLASS} ${
+      className={`${KANBAN_COLUMN_SECTION_CLASS} ${expanded ? "!max-h-none" : ""} ${
         isOver ? "border-board-accent ring-1 ring-board-accent/40" : "border-board-border"
       }`}
+      style={{ maxHeight: expanded ? "none" : undefined }}
     >
-      <ColumnHeader
-        boardId={boardId}
-        columnId={column.id}
-        name={column.name}
-        cardCount={cardIds.length}
-        canRename={canRenameColumns}
-        canDelete={canDeleteColumns}
-      />
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <ColumnHeader
+            boardId={boardId}
+            columnId={column.id}
+            name={column.name}
+            cardCount={cardIds.length}
+            canRename={canRenameColumns}
+            canDelete={canDeleteColumns}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="rounded p-1 text-aurora-muted transition-all duration-300 hover:bg-board-accent-muted/40 hover:text-aurora-fg"
+          aria-label={expanded ? "Recolher coluna" : "Expandir coluna"}
+          title={expanded ? "Recolher coluna" : "Expandir coluna"}
+        >
+          {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+        </button>
+      </div>
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         <div
           className={KANBAN_COLUMN_CARDS_CLASS}

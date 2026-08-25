@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { moveCard } from "@/app/(app)/boards/[boardId]/card-actions";
 import { positionBetween } from "@/lib/fractional";
 import { KANBAN_DRAG_ACTIVATION_CONSTRAINT } from "@/lib/kanban-dnd";
@@ -151,8 +152,18 @@ export function BoardKanbanView({
   const [items, setItems] = useState<Record<string, string[]>>(() =>
     buildItemsMap(columns, cardsByColumn),
   );
+  const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(() => new Set());
   const itemsRef = useRef(items);
   const isDraggingRef = useRef(false);
+
+  const toggleLane = useCallback((key: string) => {
+    setCollapsedLanes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   const moveMutation = useMutation({
     mutationFn: async (fd: FormData) => {
@@ -305,34 +316,47 @@ export function BoardKanbanView({
 
   if (groupByAssignee && swimlanes) {
     return (
-      <div className="space-y-4">
+      <div className="max-h-[calc(100vh-12rem)] space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-board-border/60 scrollbar-track-transparent">
         {swimlanes.map((lane) => (
           <section key={lane.key} className="rounded-xl border border-board-border bg-board-surface/60 p-3">
-            <h3 className="mb-2 text-sm font-semibold text-aurora-fg">
-              {lane.label} ({lane.cards.length})
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {lane.cards.map((card) => {
+            <button
+              type="button"
+              onClick={() => toggleLane(lane.key)}
+              className="flex w-full items-center justify-between transition-all duration-300"
+            >
+              <h3 className="text-sm font-semibold text-aurora-fg">
+                {lane.label} ({lane.cards.length})
+              </h3>
+              <ChevronDown
+                className={`h-4 w-4 text-aurora-muted transition-transform duration-300 ${
+                  collapsedLanes.has(lane.key) ? "-rotate-90" : ""
+                }`}
+              />
+            </button>
+            {!collapsedLanes.has(lane.key) ? (
+              <div className="mt-2 flex max-h-80 flex-wrap gap-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-board-border/60 scrollbar-track-transparent">
+                {lane.cards.map((card) => {
                   const progress = countChildrenProgress(allCards, card.id);
                   return (
-                <div key={card.id} className="w-72">
-                  <BoardCardTile
-                    card={card}
-                    columns={columns}
-                    stagesById={stagesById}
-                    tags={tags}
-                    profilesById={profilesById}
-                    tifluxEnabled={tifluxEnabled}
-                    readOnlyTiflux={readOnlyTiflux}
-                    subtasksProgress={progress.total > 0 ? progress : null}
-                    onSelect={onSelectCard}
-                    onOpenTifluxCreate={onOpenTifluxCreate}
-                    onOpenTifluxLink={onOpenTifluxLink}
-                  />
-                </div>
+                    <div key={card.id} className="w-72">
+                      <BoardCardTile
+                        card={card}
+                        columns={columns}
+                        stagesById={stagesById}
+                        tags={tags}
+                        profilesById={profilesById}
+                        tifluxEnabled={tifluxEnabled}
+                        readOnlyTiflux={readOnlyTiflux}
+                        subtasksProgress={progress.total > 0 ? progress : null}
+                        onSelect={onSelectCard}
+                        onOpenTifluxCreate={onOpenTifluxCreate}
+                        onOpenTifluxLink={onOpenTifluxLink}
+                      />
+                    </div>
                   );
                 })}
-            </div>
+              </div>
+            ) : null}
           </section>
         ))}
       </div>

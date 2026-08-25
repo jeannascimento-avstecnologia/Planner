@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "driver.js/dist/driver.css";
+@plugin "tailwind-scrollbar";
 
 /* Tailwind dark: segue data-theme da app (nao prefers-color-scheme do SO) */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));

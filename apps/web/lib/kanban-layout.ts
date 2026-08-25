@@ -10,10 +10,10 @@ export const KANBAN_COLUMNS_ROW_CLASS =
   "flex h-full min-h-56 items-start gap-4 overflow-x-auto overflow-y-auto pb-2";
 
 export const KANBAN_COLUMN_SECTION_CLASS =
-  "flex h-auto max-h-full min-h-0 w-72 shrink-0 flex-col rounded-xl border bg-board-surface/60 p-3 transition-colors";
+  "flex max-h-[calc(100vh-16rem)] min-h-[12rem] w-72 shrink-0 flex-col rounded-xl border bg-board-surface/60 p-3 transition-colors";
 
 export const KANBAN_COLUMN_CARDS_CLASS =
-  "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto";
+  "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto scrollbar-thin scrollbar-thumb-board-border/60 scrollbar-track-transparent hover:scrollbar-thumb-board-border";
 
 export const KANBAN_COLUMN_FORM_WRAP_CLASS =
   "mt-2 shrink-0 border-t border-board-border/50 pt-2";
