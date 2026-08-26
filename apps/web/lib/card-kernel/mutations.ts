@@ -43,6 +43,16 @@ function isUniqueViolation(error: { code?: string } | null): boolean {
   return error?.code === "23505";
 }
 
+function mapCardFieldsRpcError(error: { code?: string; message?: string }): string {
+  const msg = error.message ?? "";
+  if (msg.includes("field_forbidden")) return "Campo nao permitido.";
+  if (/forbidden/i.test(msg) || error.code === "42501") return "Sem permissao.";
+  if (msg.includes("card_parent_depth")) return "Profundidade maxima de subtarefas (8) excedida.";
+  if (msg.includes("card_parent_cycle")) return "Hierarquia invalida (ciclo).";
+  if (msg.includes("card_parent_cross_board")) return "Pai deve ser do mesmo board.";
+  return msg || "Nao foi possivel salvar o card.";
+}
+
 async function boardHasCardTitle(
   supabase: SupabaseServer,
   boardId: string,
@@ -85,18 +95,7 @@ export async function updateCardFieldsMutation(
     p_patch: input.patch as Json,
   });
   if (error) {
-    return {
-      ok: false,
-      error: error.message.includes("field_forbidden")
-        ? "Campo nao permitido."
-        : error.message.includes("card_parent_depth")
-          ? "Profundidade maxima de subtarefas (8) excedida."
-          : error.message.includes("card_parent_cycle")
-            ? "Hierarquia invalida (ciclo)."
-            : error.message.includes("card_parent_cross_board")
-              ? "Pai deve ser do mesmo board."
-              : error.message,
-    };
+    return { ok: false, error: mapCardFieldsRpcError(error) };
   }
 
   const { data: card } = await supabase.from("cards").select("board_id").eq("id", input.cardId).single();
@@ -126,10 +125,7 @@ export async function updateCardMutation(
     p_patch: patch as Json,
   });
   if (error) {
-    return {
-      ok: false,
-      error: error.message.includes("field_forbidden") ? "Campo nao permitido." : error.message,
-    };
+    return { ok: false, error: mapCardFieldsRpcError(error) };
   }
 
   await revalidateAfterFieldsPatch(supabase, input.boardId, patch);
