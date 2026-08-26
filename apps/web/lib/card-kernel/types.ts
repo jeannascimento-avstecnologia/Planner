@@ -19,6 +19,8 @@ export type MoveCardResult = LegacyCardResult;
 export type DeleteCardResult = LegacyCardResult;
 export type UpdateCardFieldsResult = CardResult;
 export type CreateChecklistItemResult = LegacyCardResultWith<{ itemId: string }>;
+export type CreateCardCommentResult = LegacyCardResultWith<{ commentId: string }>;
+export type CreateCardAttachmentResult = LegacyCardResultWith<{ attachmentId: string }>;
 
 export type CardDeleteImpact = { subtasks: number; dependencies: number };
 

@@ -241,6 +241,35 @@ export const deleteChecklistItemInput = z.object({
 });
 export type DeleteChecklistItemInput = z.infer<typeof deleteChecklistItemInput>;
 
+export const createCardCommentInput = z.object({
+  cardId: uuid,
+  content: z.string().trim().min(1).max(5000),
+});
+export type CreateCardCommentInput = z.infer<typeof createCardCommentInput>;
+
+export const updateCardCommentInput = z.object({
+  commentId: uuid,
+  content: z.string().trim().min(1).max(5000),
+});
+export type UpdateCardCommentInput = z.infer<typeof updateCardCommentInput>;
+
+export const deleteCardCommentInput = z.object({
+  commentId: uuid,
+});
+export type DeleteCardCommentInput = z.infer<typeof deleteCardCommentInput>;
+
+export const createCardAttachmentInput = z.object({
+  cardId: uuid,
+  url: z.string().trim().url().max(2048),
+  label: z.string().trim().max(200).optional(),
+});
+export type CreateCardAttachmentInput = z.infer<typeof createCardAttachmentInput>;
+
+export const deleteCardAttachmentInput = z.object({
+  attachmentId: uuid,
+});
+export type DeleteCardAttachmentInput = z.infer<typeof deleteCardAttachmentInput>;
+
 /** ADR-0014: organograma multi-pai */
 export const linkTreeEdgeInput = z.object({
   boardId: uuid,

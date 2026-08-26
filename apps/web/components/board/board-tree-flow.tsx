@@ -791,6 +791,8 @@ function TreeFlowInner({
             stage_id: null,
             tagIds: [],
             checklistItems: [],
+            comments: [],
+            attachments: [],
             treeParentIds: [parent.id],
             tiflux_ticket_number: null,
             tiflux_ticket_id: null,

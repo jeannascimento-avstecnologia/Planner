@@ -156,6 +156,78 @@ export type Database = {
         Update: { id?: string; org_id?: string; blocker_card_id?: string; blocked_card_id?: string; type?: string; created_at?: string };
         Relationships: [];
       };
+      card_attachments: {
+        Row: {
+          id: string;
+          org_id: string;
+          board_id: string;
+          card_id: string;
+          kind: string;
+          url: string;
+          label: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          board_id: string;
+          card_id: string;
+          kind?: string;
+          url: string;
+          label?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          board_id?: string;
+          card_id?: string;
+          kind?: string;
+          url?: string;
+          label?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      card_comments: {
+        Row: {
+          id: string;
+          org_id: string;
+          board_id: string;
+          card_id: string;
+          author_id: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          board_id: string;
+          card_id: string;
+          author_id: string;
+          content: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          board_id?: string;
+          card_id?: string;
+          author_id?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       card_checklist_items: {
         Row: {
           id: string;

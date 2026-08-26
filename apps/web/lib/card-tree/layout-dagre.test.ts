@@ -27,6 +27,8 @@ function card(partial: Partial<BoardCard> & { id: string; title: string }): Boar
     stage_id: null,
     tagIds: [],
     checklistItems: [],
+    comments: [],
+    attachments: [],
     treeParentIds: [],
     tiflux_ticket_number: null,
     tiflux_ticket_id: null,

@@ -37,6 +37,8 @@ function card(
     stage_id: null,
     tagIds: [],
     checklistItems: [],
+    comments: [],
+    attachments: [],
     treeParentIds: opts.parent_id ? [opts.parent_id] : [],
     tiflux_ticket_number: null,
     tiflux_ticket_id: null,

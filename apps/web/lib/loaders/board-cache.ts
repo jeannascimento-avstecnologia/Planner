@@ -19,6 +19,8 @@ import { dedupeCardsById } from "@/lib/dedupe-cards";
 import type { BoardCard, ProfileRow } from "@/components/board/types";
 import type { BoardPermissionCode } from "@nextgen/contracts";
 import { groupChecklistItemsByCard } from "@/lib/card-kernel/checklist-group";
+import { groupAttachmentsByCard } from "@/lib/card-kernel/attachment-group";
+import { groupCommentsByCard } from "@/lib/card-kernel/comment-group";
 import {
   CARD_SELECT_CORE,
   CARD_SELECT_WITH_TREE,
@@ -160,7 +162,8 @@ async function fetchBoardSnapshot(
     ],
   );
 
-  const [tagsRes, profilesRes, checklistRes, treeEdgesRes] = await Promise.all([
+  const [tagsRes, profilesRes, checklistRes, commentsRes, attachmentsRes, treeEdgesRes] =
+    await Promise.all([
     cardIds.length
       ? supabase.from("card_tags").select("card_id, tag_id").in("card_id", cardIds)
       : Promise.resolve({ data: [] as { card_id: string; tag_id: string }[], error: null }),
@@ -184,6 +187,41 @@ async function fetchBoardSnapshot(
           error: null,
         }),
     cardIds.length
+      ? supabase
+          .from("card_comments")
+          .select("id, card_id, author_id, content, created_at, updated_at")
+          .in("card_id", cardIds)
+          .order("created_at")
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            card_id: string;
+            author_id: string;
+            content: string;
+            created_at: string;
+            updated_at: string;
+          }[],
+          error: null,
+        }),
+    cardIds.length
+      ? supabase
+          .from("card_attachments")
+          .select("id, card_id, kind, url, label, created_by, created_at")
+          .in("card_id", cardIds)
+          .order("created_at")
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            card_id: string;
+            kind: string;
+            url: string;
+            label: string | null;
+            created_by: string;
+            created_at: string;
+          }[],
+          error: null,
+        }),
+    cardIds.length
       ? supabase.from("card_tree_edges").select("parent_card_id, child_card_id").eq("board_id", boardId)
       : Promise.resolve({
           data: [] as { parent_card_id: string; child_card_id: string }[],
@@ -198,6 +236,8 @@ async function fetchBoardSnapshot(
   const cardTags = tagsRes.data;
   const profiles = profilesRes.data;
   const checklistRows = checklistRes.data;
+  const commentRows = commentsRes.data;
+  const attachmentRows = attachmentsRes.data;
   const treeEdgeRows = treeEdgesRes.data;
 
   const profilesById = buildProfilesById(profiles ?? []);
@@ -210,6 +250,8 @@ async function fetchBoardSnapshot(
   }
 
   const checklistByCard = groupChecklistItemsByCard(checklistRows ?? []);
+  const commentsByCard = groupCommentsByCard(commentRows ?? []);
+  const attachmentsByCard = groupAttachmentsByCard(attachmentRows ?? []);
   const treeParentsByChild = groupTreeParentsByChild(treeEdgeRows ?? []);
 
   const cards: BoardCard[] = cardsUnique.map((c) => ({
@@ -232,6 +274,8 @@ async function fetchBoardSnapshot(
     stage_id: c.stage_id ?? null,
     tagIds: tagIdsByCard.get(c.id) ?? [],
     checklistItems: checklistByCard.get(c.id) ?? [],
+    comments: commentsByCard.get(c.id) ?? [],
+    attachments: attachmentsByCard.get(c.id) ?? [],
     treeParentIds: resolveTreeParentIds(c.id, c.parent_id ?? null, treeParentsByChild),
     tiflux_ticket_number: c.tiflux_ticket_number ?? null,
     tiflux_ticket_id: c.tiflux_ticket_id ?? null,

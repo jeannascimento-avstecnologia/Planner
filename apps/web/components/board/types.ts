@@ -18,6 +18,21 @@ export type CardChecklistItem = {
   done: boolean;
   position: string;
 };
+export type CardComment = {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type CardAttachment = {
+  id: string;
+  kind: "url";
+  url: string;
+  label: string | null;
+  createdBy: string;
+  createdAt: string;
+};
 export type BoardCard = {
   id: string;
   column_id: string;
@@ -38,6 +53,8 @@ export type BoardCard = {
   stage_id: string | null;
   tagIds: string[];
   checklistItems: CardChecklistItem[];
+  comments: CardComment[];
+  attachments: CardAttachment[];
   /** ADR-0014: pais do organograma = card_tree_edges ∪ parent_id (dedupe no load). */
   treeParentIds: string[];
   tiflux_ticket_number: string | null;

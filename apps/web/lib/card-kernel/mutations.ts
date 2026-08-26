@@ -1,9 +1,14 @@
 import type {
+  CreateCardAttachmentInput,
+  CreateCardCommentInput,
   CreateChecklistItemInput,
+  DeleteCardAttachmentInput,
+  DeleteCardCommentInput,
   DeleteChecklistItemInput,
   Json,
   ReorderChecklistItemInput,
   ToggleChecklistItemInput,
+  UpdateCardCommentInput,
   UpdateCardFieldsInput,
   UpdateCardInput,
 } from "@nextgen/contracts";
@@ -19,6 +24,8 @@ import type {
   CardDeleteImpact,
   CardResult,
   CreateCardInput,
+  CreateCardAttachmentResult,
+  CreateCardCommentResult,
   CreateCardResult,
   CreateChecklistItemResult,
   DeleteCardInput,
@@ -407,6 +414,133 @@ export async function deleteChecklistItemMutation(
     return {
       ok: false,
       error: error.code === "42501" ? "Sem permissao." : "Nao foi possivel excluir o to-do.",
+    };
+  }
+
+  return { ok: true };
+}
+
+export async function createCardCommentMutation(
+  supabase: SupabaseServer,
+  input: CreateCardCommentInput,
+): Promise<CreateCardCommentResult> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado." };
+
+  const { data: card } = await supabase
+    .from("cards")
+    .select("id, org_id, board_id")
+    .eq("id", input.cardId)
+    .single();
+  if (!card) return { error: "Card nao encontrado." };
+
+  const { data: row, error } = await supabase
+    .from("card_comments")
+    .insert({
+      org_id: card.org_id,
+      board_id: card.board_id,
+      card_id: card.id,
+      author_id: user.id,
+      content: input.content,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return {
+      error: error.code === "42501" ? "Sem permissao." : "Nao foi possivel adicionar o comentario.",
+    };
+  }
+
+  return { ok: true, commentId: row.id };
+}
+
+export async function updateCardCommentMutation(
+  supabase: SupabaseServer,
+  input: UpdateCardCommentInput,
+): Promise<CardResult> {
+  const { error } = await supabase
+    .from("card_comments")
+    .update({ content: input.content })
+    .eq("id", input.commentId);
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.code === "42501" ? "Sem permissao." : "Nao foi possivel editar o comentario.",
+    };
+  }
+
+  return { ok: true };
+}
+
+export async function deleteCardCommentMutation(
+  supabase: SupabaseServer,
+  input: DeleteCardCommentInput,
+): Promise<CardResult> {
+  const { error } = await supabase.from("card_comments").delete().eq("id", input.commentId);
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.code === "42501" ? "Sem permissao." : "Nao foi possivel excluir o comentario.",
+    };
+  }
+
+  return { ok: true };
+}
+
+export async function createCardAttachmentMutation(
+  supabase: SupabaseServer,
+  input: CreateCardAttachmentInput,
+): Promise<CreateCardAttachmentResult> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado." };
+
+  const { data: card } = await supabase
+    .from("cards")
+    .select("id, org_id, board_id")
+    .eq("id", input.cardId)
+    .single();
+  if (!card) return { error: "Card nao encontrado." };
+
+  const { data: row, error } = await supabase
+    .from("card_attachments")
+    .insert({
+      org_id: card.org_id,
+      board_id: card.board_id,
+      card_id: card.id,
+      kind: "url",
+      url: input.url,
+      label: input.label ?? null,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return {
+      error: error.code === "42501" ? "Sem permissao." : "Nao foi possivel anexar o link.",
+    };
+  }
+
+  return { ok: true, attachmentId: row.id };
+}
+
+export async function deleteCardAttachmentMutation(
+  supabase: SupabaseServer,
+  input: DeleteCardAttachmentInput,
+): Promise<CardResult> {
+  const { error } = await supabase.from("card_attachments").delete().eq("id", input.attachmentId);
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.code === "42501" ? "Sem permissao." : "Nao foi possivel remover o anexo.",
     };
   }
 

@@ -99,6 +99,94 @@ export function applyChecklistRemoveToList(
   return next;
 }
 
+/** Optimistic add comment. */
+export function applyCommentAddToList(
+  cards: BoardCard[],
+  cardId: string,
+  comment: BoardCard["comments"][number],
+): BoardCard[] {
+  const index = cards.findIndex((card) => card.id === cardId);
+  if (index === -1) return cards;
+  const card = cards[index]!;
+  if (card.comments.some((c) => c.id === comment.id)) return cards;
+  const next = cards.slice();
+  next[index] = { ...card, comments: [...card.comments, comment] };
+  return next;
+}
+
+/** Optimistic update comment. */
+export function applyCommentUpdateToList(
+  cards: BoardCard[],
+  cardId: string,
+  commentId: string,
+  content: string,
+  updatedAt: string,
+): BoardCard[] {
+  const index = cards.findIndex((card) => card.id === cardId);
+  if (index === -1) return cards;
+  const card = cards[index]!;
+  const commentIndex = card.comments.findIndex((c) => c.id === commentId);
+  if (commentIndex === -1) return cards;
+  const existing = card.comments[commentIndex]!;
+  if (existing.content === content && existing.updatedAt === updatedAt) return cards;
+  const nextComments = card.comments.slice();
+  nextComments[commentIndex] = { ...existing, content, updatedAt };
+  const next = cards.slice();
+  next[index] = { ...card, comments: nextComments };
+  return next;
+}
+
+/** Optimistic remove comment. */
+export function applyCommentRemoveToList(
+  cards: BoardCard[],
+  cardId: string,
+  commentId: string,
+): BoardCard[] {
+  const index = cards.findIndex((card) => card.id === cardId);
+  if (index === -1) return cards;
+  const card = cards[index]!;
+  if (!card.comments.some((c) => c.id === commentId)) return cards;
+  const next = cards.slice();
+  next[index] = {
+    ...card,
+    comments: card.comments.filter((c) => c.id !== commentId),
+  };
+  return next;
+}
+
+/** Optimistic add attachment. */
+export function applyAttachmentAddToList(
+  cards: BoardCard[],
+  cardId: string,
+  attachment: BoardCard["attachments"][number],
+): BoardCard[] {
+  const index = cards.findIndex((card) => card.id === cardId);
+  if (index === -1) return cards;
+  const card = cards[index]!;
+  if (card.attachments.some((a) => a.id === attachment.id)) return cards;
+  const next = cards.slice();
+  next[index] = { ...card, attachments: [...card.attachments, attachment] };
+  return next;
+}
+
+/** Optimistic remove attachment. */
+export function applyAttachmentRemoveToList(
+  cards: BoardCard[],
+  cardId: string,
+  attachmentId: string,
+): BoardCard[] {
+  const index = cards.findIndex((card) => card.id === cardId);
+  if (index === -1) return cards;
+  const card = cards[index]!;
+  if (!card.attachments.some((a) => a.id === attachmentId)) return cards;
+  const next = cards.slice();
+  next[index] = {
+    ...card,
+    attachments: card.attachments.filter((a) => a.id !== attachmentId),
+  };
+  return next;
+}
+
 /** Optimistic add tree parent link (multi-pai). */
 export function applyTreeLinkToList(
   cards: BoardCard[],

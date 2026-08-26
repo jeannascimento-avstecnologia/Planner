@@ -24,6 +24,8 @@ function stub(partial: Partial<BoardCard> & Pick<BoardCard, "id" | "column_id" |
     tree_x: null,
     tree_y: null,
     checklistItems: [],
+    comments: [],
+    attachments: [],
     treeParentIds: [],
     tiflux_ticket_number: null,
     tiflux_ticket_id: null,

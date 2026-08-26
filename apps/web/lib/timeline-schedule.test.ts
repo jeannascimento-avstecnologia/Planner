@@ -28,6 +28,8 @@ function stubCard(overrides: Partial<BoardCard> = {}): BoardCard {
     stage_id: null,
     tagIds: [],
     checklistItems: [],
+    comments: [],
+    attachments: [],
     treeParentIds: [],
     tiflux_ticket_number: null,
     tiflux_ticket_id: null,

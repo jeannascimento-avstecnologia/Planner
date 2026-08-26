@@ -1,8 +1,12 @@
 "use server";
 
 import {
+  createCardAttachmentInput,
+  createCardCommentInput,
   createCardInput,
   createChecklistItemInput,
+  deleteCardAttachmentInput,
+  deleteCardCommentInput,
   deleteCardInput,
   deleteChecklistItemInput,
   linkTreeEdgeInput,
@@ -10,14 +14,19 @@ import {
   reorderChecklistItemInput,
   toggleChecklistItemInput,
   unlinkTreeEdgeInput,
+  updateCardCommentInput,
   updateCardFieldsInput,
 } from "@nextgen/contracts";
 import { parseUpdateCardFormData } from "@/lib/parse-update-card-form";
 import { fireTaskAssignedIfChanged } from "@/lib/email/notify-events";
 import { createClient } from "@/lib/supabase/server";
 import {
+  createCardAttachmentMutation,
+  createCardCommentMutation,
   createCardMutation,
   createChecklistItemMutation,
+  deleteCardAttachmentMutation,
+  deleteCardCommentMutation,
   deleteCardMutation,
   deleteChecklistItemMutation,
   getCardDeleteImpactMutation,
@@ -26,10 +35,13 @@ import {
   reorderChecklistItemMutation,
   toggleChecklistItemMutation,
   unlinkTreeEdgeMutation,
+  updateCardCommentMutation,
   updateCardFieldsMutation,
   updateCardMutation,
   type CardDeleteImpact,
   type CardResult,
+  type CreateCardAttachmentResult,
+  type CreateCardCommentResult,
   type CreateCardResult,
   type CreateChecklistItemResult,
   type DeleteCardResult,
@@ -240,4 +252,41 @@ export async function unlinkTreeEdgeAction(input: unknown): Promise<CardResult> 
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
   const supabase = await createClient();
   return unlinkTreeEdgeMutation(supabase, parsed.data);
+}
+
+export async function createCardCommentAction(input: unknown): Promise<CreateCardCommentResult> {
+  const parsed = createCardCommentInput.safeParse(input);
+  if (!parsed.success) return { error: "Dados invalidos." };
+  const supabase = await createClient();
+  return createCardCommentMutation(supabase, parsed.data);
+}
+
+export async function updateCardCommentAction(input: unknown): Promise<CardResult> {
+  const parsed = updateCardCommentInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+  const supabase = await createClient();
+  return updateCardCommentMutation(supabase, parsed.data);
+}
+
+export async function deleteCardCommentAction(input: unknown): Promise<CardResult> {
+  const parsed = deleteCardCommentInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+  const supabase = await createClient();
+  return deleteCardCommentMutation(supabase, parsed.data);
+}
+
+export async function createCardAttachmentAction(
+  input: unknown,
+): Promise<CreateCardAttachmentResult> {
+  const parsed = createCardAttachmentInput.safeParse(input);
+  if (!parsed.success) return { error: "Dados invalidos." };
+  const supabase = await createClient();
+  return createCardAttachmentMutation(supabase, parsed.data);
+}
+
+export async function deleteCardAttachmentAction(input: unknown): Promise<CardResult> {
+  const parsed = deleteCardAttachmentInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+  const supabase = await createClient();
+  return deleteCardAttachmentMutation(supabase, parsed.data);
 }

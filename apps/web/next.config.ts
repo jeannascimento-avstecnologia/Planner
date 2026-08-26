@@ -24,6 +24,7 @@ function serverActionAllowedOrigins(): string[] {
 const dockerBuild = process.env.DOCKER_BUILD === "true";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.AGIFY_DIST_DIR || ".next",
   // Docker (CI/VPS): standalone. PM2 local: `next start` (standalone quebra static no LAN).
   ...(dockerBuild ? { output: "standalone" as const } : {}),
   // Fixa a raiz do monorepo (evita inferencia errada por lockfiles vizinhos).

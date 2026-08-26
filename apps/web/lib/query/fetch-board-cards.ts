@@ -2,6 +2,8 @@ import { parseTifluxCanceledTickets } from "@/lib/tiflux-canceled-tickets";
 import { dedupeCardsById } from "@/lib/dedupe-cards";
 import { createClient } from "@/lib/supabase/client";
 import { groupChecklistItemsByCard } from "@/lib/card-kernel/checklist-group";
+import { groupAttachmentsByCard } from "@/lib/card-kernel/attachment-group";
+import { groupCommentsByCard } from "@/lib/card-kernel/comment-group";
 import {
   CARD_SELECT_CORE,
   CARD_SELECT_WITH_TREE,
@@ -69,7 +71,7 @@ export async function fetchBoardCards(boardId: string): Promise<BoardCard[]> {
   const cardsUnique = dedupeCardsById((cardsRaw ?? []) as CardRow[]);
   const cardIds = cardsUnique.map((c) => c.id);
 
-  const [tagsRes, checklistRes, treeEdgesRes] = await Promise.all([
+  const [tagsRes, checklistRes, commentsRes, attachmentsRes, treeEdgesRes] = await Promise.all([
     cardIds.length
       ? supabase.from("card_tags").select("card_id, tag_id").in("card_id", cardIds)
       : Promise.resolve({ data: [] as { card_id: string; tag_id: string }[], error: null }),
@@ -81,6 +83,41 @@ export async function fetchBoardCards(boardId: string): Promise<BoardCard[]> {
           .order("position")
       : Promise.resolve({
           data: [] as { id: string; card_id: string; title: string; done: boolean; position: string }[],
+          error: null,
+        }),
+    cardIds.length
+      ? supabase
+          .from("card_comments")
+          .select("id, card_id, author_id, content, created_at, updated_at")
+          .in("card_id", cardIds)
+          .order("created_at")
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            card_id: string;
+            author_id: string;
+            content: string;
+            created_at: string;
+            updated_at: string;
+          }[],
+          error: null,
+        }),
+    cardIds.length
+      ? supabase
+          .from("card_attachments")
+          .select("id, card_id, kind, url, label, created_by, created_at")
+          .in("card_id", cardIds)
+          .order("created_at")
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            card_id: string;
+            kind: string;
+            url: string;
+            label: string | null;
+            created_by: string;
+            created_at: string;
+          }[],
           error: null,
         }),
     cardIds.length
@@ -97,6 +134,8 @@ export async function fetchBoardCards(boardId: string): Promise<BoardCard[]> {
 
   const cardTags = tagsRes.data;
   const checklistRows = checklistRes.data;
+  const commentRows = commentsRes.data;
+  const attachmentRows = attachmentsRes.data;
   const treeEdgeRows = treeEdgesRes.data;
 
   const tagIdsByCard = new Map<string, string[]>();
@@ -107,6 +146,8 @@ export async function fetchBoardCards(boardId: string): Promise<BoardCard[]> {
   }
 
   const checklistByCard = groupChecklistItemsByCard(checklistRows ?? []);
+  const commentsByCard = groupCommentsByCard(commentRows ?? []);
+  const attachmentsByCard = groupAttachmentsByCard(attachmentRows ?? []);
   const treeParentsByChild = groupTreeParentsByChild(treeEdgeRows ?? []);
 
   return cardsUnique.map((c) => ({
@@ -129,6 +170,8 @@ export async function fetchBoardCards(boardId: string): Promise<BoardCard[]> {
     stage_id: c.stage_id ?? null,
     tagIds: tagIdsByCard.get(c.id) ?? [],
     checklistItems: checklistByCard.get(c.id) ?? [],
+    comments: commentsByCard.get(c.id) ?? [],
+    attachments: attachmentsByCard.get(c.id) ?? [],
     treeParentIds: resolveTreeParentIds(c.id, c.parent_id ?? null, treeParentsByChild),
     tiflux_ticket_number: c.tiflux_ticket_number ?? null,
     tiflux_ticket_id: c.tiflux_ticket_id ?? null,

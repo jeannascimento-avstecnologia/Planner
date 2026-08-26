@@ -23,6 +23,8 @@ function card(id: string, columnId: string, stageId: string | null): BoardCard {
     stage_id: stageId,
     tagIds: [],
     checklistItems: [],
+    comments: [],
+    attachments: [],
     treeParentIds: [],
     tiflux_ticket_number: null,
     tiflux_ticket_id: null,
