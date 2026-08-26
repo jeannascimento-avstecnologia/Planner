@@ -23,6 +23,8 @@ import { CardPlanWorkSection } from "@/components/plan/card-plan-work-section";
 import { CardDrawerReadOnly } from "./card-drawer-readonly";
 import { CreateCardForm } from "./create-card-form";
 import { ChecklistEditor } from "./checklist-editor";
+import { CardComments } from "./card-comments";
+import { CardAttachments } from "./card-attachments";
 import { countDescendants, wouldExceedMaxDepth } from "@/lib/card-tree";
 import { resolveCardStage, isCardOverdue, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
@@ -379,6 +381,28 @@ export function CardDrawer({
               boardId={boardId}
               items={card.checklistItems}
               canEdit={perms.editChecklist}
+            />
+          </div>
+
+          <div className="border-t border-board-border pt-3">
+            <h3 className="mb-2 text-sm font-semibold text-aurora-fg">Anexos</h3>
+            <CardAttachments
+              cardId={card.id}
+              boardId={boardId}
+              attachments={card.attachments}
+              currentUserId={null}
+              canManage={perms.editFields}
+            />
+          </div>
+          <div className="border-t border-board-border pt-3">
+            <h3 className="mb-2 text-sm font-semibold text-aurora-fg">Comentários</h3>
+            <CardComments
+              cardId={card.id}
+              boardId={boardId}
+              comments={card.comments}
+              members={members}
+              currentUserId={null}
+              canComment={perms.editFields}
             />
           </div>
 
