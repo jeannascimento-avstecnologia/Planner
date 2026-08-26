@@ -44,3 +44,35 @@ Escopo reduzido: apenas inbox in-app (sino na sidebar). Sem Web Push, email, dig
 ### Criterios de aceite (MVP)
 - User A nao ve notificacoes de B (pgTAP).
 - Sino mostra contador de nao-lidas; "marcar todas como lidas" zera.
+
+---
+
+## MVP email transacional (Resend)
+
+Escopo: email para eventos criticos + dedupe via `notification_log`. Sem prefs/DND/digest.
+
+### Tabela `notification_log`
+`id, org_id, recipient_id, event_type, entity_id (text), sent_at` — unique `(recipient_id, event_type, entity_id)`.
+
+### Eventos email
+| Evento | Trigger | Recipiente |
+|--------|---------|------------|
+| `task_assigned` | `assignee_id` muda (create/update card) | novo assignee |
+| `task_due_soon` | cron diario | assignee |
+| `task_overdue` | cron diario | assignee |
+| `project_created` | `create_board` | membros org (exc. criador) |
+| `schedule_created` | `schedule_card_to_day` | assignee do card |
+
+### Cron
+`GET /api/cron/due-notifications` — header `Authorization: Bearer $CRON_SECRET`.
+Cards: `due_date` <= now+3d, sem `completed_at`, com `assignee_id`.
+
+### Codigo
+- `apps/web/lib/email/resend-client.ts`, `send-notification.ts`, `templates/*`
+- `apps/web/lib/email/notify-events.ts`
+- Integracao: `card-actions.ts`, `boards/actions.ts`, `plan/actions.ts`
+
+### Criterios de aceite
+- Email fire-and-forget (nao bloqueia server action).
+- Dedupe: segundo envio do mesmo evento/entity/recipient nao reenvia.
+- `notification_log` sem policy para `authenticated` (pgTAP).

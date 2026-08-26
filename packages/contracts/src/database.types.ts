@@ -508,6 +508,21 @@ export type Database = {
         };
         Relationships: [];
       };
+      notification_log: {
+        Row: {
+          id: string; org_id: string; recipient_id: string; event_type: string;
+          entity_id: string; sent_at: string;
+        };
+        Insert: {
+          id?: string; org_id: string; recipient_id: string; event_type: string;
+          entity_id: string; sent_at?: string;
+        };
+        Update: {
+          id?: string; org_id?: string; recipient_id?: string; event_type?: string;
+          entity_id?: string; sent_at?: string;
+        };
+        Relationships: [];
+      };
       card_workload_allocations: {
         Row: {
           id: string; org_id: string; card_id: string; user_id: string;

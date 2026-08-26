@@ -12,6 +12,7 @@ import { canCreateInDepartment } from "@/lib/department-roles";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 import { getActiveOrgId } from "@/lib/active-org";
 import { mapTifluxApiErrorForSettings, validateTifluxApiToken } from "@/lib/tiflux-api";
+import { getActorDisplayName, notifyProjectCreated } from "@/lib/email/notify-events";
 
 function slugify(value: string): string {
   const base = value
@@ -133,6 +134,16 @@ export async function createBoard(formData: FormData): Promise<{ ok: true } | { 
 
   revalidateHomeProjects(user.id);
   revalidateOrgSettings(targetOrgId, user.id);
+
+  const creatorName = await getActorDisplayName(user.id);
+  void notifyProjectCreated({
+    orgId: targetOrgId,
+    boardId: created.id,
+    projectName: created.name,
+    creatorId: user.id,
+    creatorName,
+  });
+
   return { ok: true };
 }
 

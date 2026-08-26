@@ -13,6 +13,7 @@ import {
   updateCardFieldsInput,
 } from "@nextgen/contracts";
 import { parseUpdateCardFormData } from "@/lib/parse-update-card-form";
+import { fireTaskAssignedIfChanged } from "@/lib/email/notify-events";
 import { createClient } from "@/lib/supabase/server";
 import {
   createCardMutation,
@@ -65,7 +66,21 @@ export async function createCard(formData: FormData): Promise<CreateCardResult> 
   if (!parsed.success) return { error: "Dados invalidos." };
 
   const supabase = await createClient();
-  return createCardMutation(supabase, parsed.data);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const result = await createCardMutation(supabase, parsed.data);
+  if ("cardId" in result && result.cardId && parsed.data.assigneeId && user?.id) {
+    void fireTaskAssignedIfChanged(supabase, {
+      cardId: result.cardId,
+      boardId: parsed.data.boardId,
+      assigneeId: parsed.data.assigneeId,
+      previousAssigneeId: null,
+      actorId: user.id,
+    });
+  }
+  return result;
 }
 
 export async function updateCard(formData: FormData): Promise<UpdateCardFieldsResult> {
@@ -73,7 +88,31 @@ export async function updateCard(formData: FormData): Promise<UpdateCardFieldsRe
   if (!parsed.ok) return { ok: false, error: parsed.error };
 
   const supabase = await createClient();
-  return updateCardMutation(supabase, parsed.data);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let previousAssigneeId: string | null = null;
+  if (parsed.data.assigneeId !== undefined) {
+    const { data: before } = await supabase
+      .from("cards")
+      .select("assignee_id")
+      .eq("id", parsed.data.cardId)
+      .maybeSingle();
+    previousAssigneeId = before?.assignee_id ?? null;
+  }
+
+  const result = await updateCardMutation(supabase, parsed.data);
+  if (result.ok && parsed.data.assigneeId !== undefined && user?.id) {
+    void fireTaskAssignedIfChanged(supabase, {
+      cardId: parsed.data.cardId,
+      boardId: parsed.data.boardId,
+      assigneeId: parsed.data.assigneeId,
+      previousAssigneeId,
+      actorId: user.id,
+    });
+  }
+  return result;
 }
 
 export async function updateCardFieldsAction(
@@ -83,7 +122,38 @@ export async function updateCardFieldsAction(
   if (!parsed.success) return { ok: false, error: "Dados invalidos." };
 
   const supabase = await createClient();
-  return updateCardFieldsMutation(supabase, parsed.data);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let previousAssigneeId: string | null = null;
+  let boardId: string | null = null;
+  if (parsed.data.patch.assignee_id !== undefined) {
+    const { data: before } = await supabase
+      .from("cards")
+      .select("assignee_id, board_id")
+      .eq("id", parsed.data.cardId)
+      .maybeSingle();
+    previousAssigneeId = before?.assignee_id ?? null;
+    boardId = before?.board_id ?? null;
+  }
+
+  const result = await updateCardFieldsMutation(supabase, parsed.data);
+  if (
+    result.ok &&
+    parsed.data.patch.assignee_id !== undefined &&
+    boardId &&
+    user?.id
+  ) {
+    void fireTaskAssignedIfChanged(supabase, {
+      cardId: parsed.data.cardId,
+      boardId,
+      assigneeId: parsed.data.patch.assignee_id,
+      previousAssigneeId,
+      actorId: user.id,
+    });
+  }
+  return result;
 }
 
 export async function moveCard(formData: FormData): Promise<MoveCardResult> {

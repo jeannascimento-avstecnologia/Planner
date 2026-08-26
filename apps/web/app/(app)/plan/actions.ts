@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePlanViews } from "@/lib/revalidation";
+import { notifyScheduleCreated } from "@/lib/email/notify-events";
 
 export type PlanActionResult = { ok: true } | { ok: false; error: string };
 
@@ -101,12 +102,34 @@ export async function scheduleCardToDayAction(input: unknown): Promise<PlanActio
   const defaultHours = parsed.data.defaultHours ?? 0;
 
   const supabase = await createClient();
+  const { data: card } = await supabase
+    .from("cards")
+    .select("id, title, board_id, org_id, assignee_id, boards(name)")
+    .eq("id", parsed.data.cardId)
+    .maybeSingle();
+
   const { error } = await supabase.rpc("schedule_card_to_day", {
     p_card_id: parsed.data.cardId,
     p_work_date: parsed.data.workDate,
     p_default_hours: defaultHours,
   });
   if (error) return { ok: false, error: error.message };
+
+  if (card?.assignee_id && card.org_id && card.board_id) {
+    const boardName =
+      card.boards && typeof card.boards === "object" && "name" in card.boards
+        ? String((card.boards as { name: string }).name)
+        : "Projeto";
+    void notifyScheduleCreated({
+      orgId: card.org_id,
+      boardId: card.board_id,
+      cardId: card.id,
+      taskTitle: card.title,
+      projectName: boardName,
+      workDate: parsed.data.workDate,
+      assigneeId: card.assignee_id,
+    });
+  }
 
   await revalidatePlanForClient(supabase);
   return { ok: true };
