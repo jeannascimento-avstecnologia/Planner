@@ -80,7 +80,12 @@ export function SortableCardTile({
   };
 
   return (
-    <div ref={setNodeRef} style={style} data-testid={`sortable-card-${card.id}`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="transition-all duration-300"
+      data-testid={`sortable-card-${card.id}`}
+    >
       <BoardCardTile
         card={card}
         {...tileProps}

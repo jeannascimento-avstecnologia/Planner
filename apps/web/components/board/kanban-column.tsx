@@ -1,13 +1,14 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { CheckCircle2, Circle, Maximize2, Minimize2 } from "lucide-react";
 import { createColumn } from "@/app/(app)/boards/[boardId]/actions";
 import { acquireInFlightLock, releaseInFlightLock } from "@/lib/in-flight-submit";
 import { columnInFlightLockKey } from "@/lib/board-item-names";
+import { sortCardIdsByStageWeight } from "@/lib/card-sort-by-stage";
 import { btnBoardPrimarySm, inputBoardClassSm } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
 import { ColumnHeader } from "./column-header";
@@ -19,7 +20,7 @@ import {
   KANBAN_COLUMN_FORM_WRAP_CLASS,
   KANBAN_COLUMN_SECTION_CLASS,
 } from "@/lib/kanban-layout";
-import type { BoardCard, ColumnRow, ProfileRow, StageRow, TagRow } from "./types";
+import { resolveCardStage, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type Props = {
   boardId: string;
@@ -68,6 +69,50 @@ export function KanbanColumn({
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const [expanded, setExpanded] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(false);
+  const [hideNoStage, setHideNoStage] = useState(false);
+
+  const sortedCardIds = useMemo(
+    () => sortCardIdsByStageWeight(cardIds, cardsById, columns, stagesById),
+    [cardIds, cardsById, columns, stagesById],
+  );
+
+  const filteredCardIds = useMemo(() => {
+    if (!hideCompleted && !hideNoStage) return sortedCardIds;
+    return sortedCardIds.filter((id) => {
+      const card = cardsById.get(id);
+      if (!card) return true;
+      const stage = resolveCardStage(card, columns, stagesById);
+      if (hideCompleted) {
+        if (card.completed_at || stage?.system_key === "concluido") return false;
+      }
+      if (hideNoStage) {
+        if (!stage) return false;
+      }
+      return true;
+    });
+  }, [sortedCardIds, cardsById, columns, stagesById, hideCompleted, hideNoStage]);
+
+  const hiddenCompletedCount = useMemo(() => {
+    if (!hideCompleted) return 0;
+    return sortedCardIds.filter((id) => {
+      const card = cardsById.get(id);
+      if (!card) return false;
+      const stage = resolveCardStage(card, columns, stagesById);
+      return card.completed_at || stage?.system_key === "concluido";
+    }).length;
+  }, [sortedCardIds, cardsById, columns, stagesById, hideCompleted]);
+
+  const hiddenNoStageCount = useMemo(() => {
+    if (!hideNoStage) return 0;
+    return sortedCardIds.filter((id) => {
+      const card = cardsById.get(id);
+      if (!card) return false;
+      return !resolveCardStage(card, columns, stagesById);
+    }).length;
+  }, [sortedCardIds, cardsById, columns, stagesById, hideNoStage]);
+
+  const displayCardCount = hideCompleted || hideNoStage ? filteredCardIds.length : cardIds.length;
 
   return (
     <section
@@ -84,11 +129,49 @@ export function KanbanColumn({
             boardId={boardId}
             columnId={column.id}
             name={column.name}
-            cardCount={cardIds.length}
+            cardCount={displayCardCount}
             canRename={canRenameColumns}
             canDelete={canDeleteColumns}
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setHideCompleted((v) => !v)}
+          className={`relative rounded p-1 transition-all duration-300 ${
+            hideCompleted
+              ? "bg-green-500/20 text-green-400"
+              : "text-aurora-muted hover:bg-board-accent-muted/40 hover:text-aurora-fg"
+          }`}
+          aria-label={hideCompleted ? "Mostrar concluídos" : "Ocultar concluídos"}
+          title={hideCompleted ? "Mostrar concluídos" : "Ocultar concluídos"}
+          data-testid={`kanban-filter-completed-${column.id}`}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {hideCompleted && hiddenCompletedCount > 0 ? (
+            <span className="absolute -right-1 -top-1 min-w-[0.875rem] rounded-full bg-green-500 px-0.5 text-[9px] font-semibold leading-none text-white">
+              {hiddenCompletedCount}
+            </span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          onClick={() => setHideNoStage((v) => !v)}
+          className={`relative rounded p-1 transition-all duration-300 ${
+            hideNoStage
+              ? "bg-gray-500/20 text-gray-400"
+              : "text-aurora-muted hover:bg-board-accent-muted/40 hover:text-aurora-fg"
+          }`}
+          aria-label={hideNoStage ? "Mostrar sem estágio" : "Ocultar sem estágio"}
+          title={hideNoStage ? "Mostrar sem estágio" : "Ocultar sem estágio"}
+          data-testid={`kanban-filter-no-stage-${column.id}`}
+        >
+          <Circle className="h-3.5 w-3.5" />
+          {hideNoStage && hiddenNoStageCount > 0 ? (
+            <span className="absolute -right-1 -top-1 min-w-[0.875rem] rounded-full bg-gray-500 px-0.5 text-[9px] font-semibold leading-none text-white">
+              {hiddenNoStageCount}
+            </span>
+          ) : null}
+        </button>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -99,12 +182,12 @@ export function KanbanColumn({
           {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
+      <SortableContext items={filteredCardIds} strategy={verticalListSortingStrategy}>
         <div
           className={KANBAN_COLUMN_CARDS_CLASS}
           data-testid={`kanban-column-cards-${column.id}`}
         >
-          {cardIds.map((id) => {
+          {filteredCardIds.map((id) => {
             const card = cardsById.get(id);
             if (!card) return null;
             const progress = countChildrenProgress(allCards, card.id);
