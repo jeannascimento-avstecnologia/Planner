@@ -4,6 +4,7 @@ node_modules/
 
 # build
 .next/
+.next-assistente/
 out/
 dist/
 build/
