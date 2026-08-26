@@ -389,6 +389,7 @@ export function CardDrawer({
             <CardAttachments
               cardId={card.id}
               boardId={boardId}
+              orgId={orgId}
               attachments={card.attachments}
               currentUserId={null}
               canManage={perms.editFields}

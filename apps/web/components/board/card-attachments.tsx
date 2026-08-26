@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
+import { useRef, useTransition } from "react";
+import { ExternalLink, Paperclip, Trash2, Upload } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   createCardAttachmentAction,
@@ -12,7 +12,7 @@ import {
   applyAttachmentAddToList,
   applyAttachmentRemoveToList,
 } from "@/lib/query/board-cards-cache";
-import { inputBoardClassSm } from "@/lib/ui-classes";
+import { isCloudinaryConfigured, uploadFileToCloudinary } from "@/lib/cloudinary-client-upload";
 import { appToast } from "@/lib/toast";
 import { useAuthUserId } from "@/hooks/use-auth-user-id";
 import type { BoardCard, CardAttachment } from "./types";
@@ -20,6 +20,7 @@ import type { BoardCard, CardAttachment } from "./types";
 type Props = {
   cardId: string;
   boardId: string;
+  orgId: string;
   attachments: CardAttachment[];
   currentUserId: string | null;
   canManage: boolean;
@@ -32,22 +33,19 @@ function displayLabel(attachment: CardAttachment): string {
 export function CardAttachments({
   cardId,
   boardId,
+  orgId,
   attachments,
   currentUserId: propUserId,
   canManage,
 }: Props) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthUserId(propUserId);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
-  const [url, setUrl] = useState("");
-  const [label, setLabel] = useState("");
   const key = boardCardsQueryKey(boardId);
+  const cloudinaryReady = isCloudinaryConfigured();
 
-  function addAttachment(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmedUrl = url.trim();
-    if (!trimmedUrl || !canManage || !currentUserId) return;
-
+  function persistAttachment(url: string, label: string) {
     const tempId = `tmp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const previous = queryClient.getQueryData<BoardCard[]>(key);
@@ -57,20 +55,18 @@ export function CardAttachments({
         applyAttachmentAddToList(previous, cardId, {
           id: tempId,
           kind: "url",
-          url: trimmedUrl,
-          label: label.trim() || null,
-          createdBy: currentUserId,
+          url,
+          label: label || null,
+          createdBy: currentUserId!,
           createdAt: now,
         }),
       );
     }
-    setUrl("");
-    setLabel("");
     startTransition(async () => {
       const result = await createCardAttachmentAction({
         cardId,
-        url: trimmedUrl,
-        label: label.trim() || undefined,
+        url,
+        label: label || undefined,
       });
       if ("error" in result) {
         if (previous) queryClient.setQueryData(key, previous);
@@ -78,8 +74,29 @@ export function CardAttachments({
         return;
       }
       void queryClient.invalidateQueries({ queryKey: key });
-      appToast.success("Link anexado");
+      appToast.success("Arquivo anexado");
     });
+  }
+
+  async function handleFileSelect(file: File) {
+    if (!canManage || !currentUserId) return;
+    if (!cloudinaryReady) {
+      appToast.error("Upload nao configurado (Cloudinary).");
+      return;
+    }
+
+    try {
+      const secureUrl = await uploadFileToCloudinary(file, {
+        orgId,
+        purpose: "card",
+        cardId,
+      });
+      persistAttachment(secureUrl, file.name);
+    } catch (e) {
+      appToast.error(e instanceof Error ? e.message : "Erro no upload.");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   function removeAttachment(attachmentId: string) {
@@ -110,7 +127,7 @@ export function CardAttachments({
               className="group flex items-center gap-2 rounded-md border border-board-border px-2 py-1.5"
               data-testid={`card-attachment-${attachment.id}`}
             >
-              <Link2 className="h-3.5 w-3.5 shrink-0 text-aurora-muted" />
+              <Paperclip className="h-3.5 w-3.5 shrink-0 text-aurora-muted" />
               <a
                 href={attachment.url}
                 target="_blank"
@@ -123,7 +140,7 @@ export function CardAttachments({
                 href={attachment.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Abrir link"
+                aria-label="Abrir anexo"
                 className="shrink-0 text-aurora-muted hover:text-aurora-fg"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -145,34 +162,31 @@ export function CardAttachments({
       )}
 
       {canManage ? (
-        <form onSubmit={addAttachment} className="space-y-1.5" data-testid={`card-attachment-add-${cardId}`}>
+        <div data-testid={`card-attachment-add-${cardId}`}>
           <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://..."
-            type="url"
-            className={inputBoardClassSm}
-            disabled={pending}
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            disabled={pending || !cloudinaryReady}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleFileSelect(file);
+            }}
           />
-          <div className="flex items-center gap-1">
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Titulo (opcional)"
-              maxLength={200}
-              className={`min-w-0 flex-1 ${inputBoardClassSm}`}
-              disabled={pending}
-            />
-            <button
-              type="submit"
-              disabled={pending || !url.trim()}
-              aria-label="Anexar link"
-              className="rounded p-1.5 text-aurora-muted hover:bg-board-accent-muted/40 hover:text-aurora-fg disabled:opacity-40"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-        </form>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={pending || !cloudinaryReady}
+            aria-label="Anexar arquivo"
+            className="inline-flex items-center gap-1.5 rounded-md border border-board-border px-2.5 py-1.5 text-xs text-aurora-fg hover:bg-board-accent-muted/40 disabled:opacity-40"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            {pending ? "Salvando..." : "Anexar arquivo"}
+          </button>
+          {!cloudinaryReady ? (
+            <p className="mt-1 text-[11px] text-aurora-muted">Cloudinary nao configurado.</p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
