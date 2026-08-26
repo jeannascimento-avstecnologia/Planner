@@ -86,11 +86,7 @@ export function CardAttachments({
     }
 
     try {
-      const secureUrl = await uploadFileToCloudinary(file, {
-        orgId,
-        purpose: "card",
-        cardId,
-      });
+      const secureUrl = await uploadFileToCloudinary(file, cardId);
       persistAttachment(secureUrl, file.name);
     } catch (e) {
       appToast.error(e instanceof Error ? e.message : "Erro no upload.");
