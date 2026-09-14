@@ -10,6 +10,8 @@ test.describe("Workload hardening", () => {
     await firstCard.click();
     await expect(page.getByTestId("card-drawer")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("card-estimated-hours")).toBeVisible();
+    await expect(page.getByTestId("card-story-points")).toBeVisible();
+    await expect(page.getByTestId("card-drawer").getByRole("option", { name: "Média" })).toBeAttached();
   });
 
   test("manager edita capacidade na pagina de carga", async ({ page }) => {

@@ -17,6 +17,7 @@ describe("buildPageDriveSteps", () => {
     });
     const titles = steps.map((s) => s.popover?.title);
     expect(titles).toContain("Carga da equipe");
+    expect(titles).toContain("Organizacao ativa");
     expect(steps.length).toBeGreaterThan(0);
   });
 

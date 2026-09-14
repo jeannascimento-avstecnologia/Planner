@@ -9,6 +9,7 @@ import { SignOutButton } from "./sign-out-button";
 import { NavLink } from "./nav-link";
 import { isSamePath } from "@/lib/client-url-state";
 import { isNavigationInFlight, setNavigationInFlight } from "@/lib/navigation-in-flight";
+import { DebugReportSidebarButton } from "@/components/debug-report/debug-report-sidebar-button";
 
 import type { BoardMeta } from "@/lib/recent-boards";
 import { useOnboardingTour } from "@/components/onboarding/onboarding-tour-provider";
@@ -162,6 +163,7 @@ export function AppSidebar({
 
       <div className={`mt-auto space-y-1 border-t border-aurora-sidebar-border pt-3 ${tight ? "text-center" : ""}`}>
         {!tight ? <p className="mb-2 truncate text-xs text-white/70">{userEmail}</p> : null}
+        <DebugReportSidebarButton collapsed={tight} />
         <NavLink
           href="/help"
           data-tour="nav-help"

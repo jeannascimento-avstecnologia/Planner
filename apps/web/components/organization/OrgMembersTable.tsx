@@ -11,6 +11,7 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { orgRoleLabel } from "@/lib/org-member-roles";
 import { appToast } from "@/lib/toast";
+import { parseLocaleNumber } from "@/lib/parse-number";
 import type { OrgMemberRow, OrgMemberRole } from "@nextgen/contracts";
 
 type Props = {
@@ -48,8 +49,8 @@ export function OrgMembersTable({
   const ownerCount = members.filter((m) => m.role === "owner").length;
 
   function changeCapacity(userId: string, raw: string, current: number) {
-    const v = Number(raw);
-    if (!Number.isFinite(v) || v < 1 || v > 168) {
+    const v = parseLocaleNumber(raw);
+    if (v === null || v < 1 || v > 168) {
       appToast.error("Capacidade entre 1 e 168 horas.");
       return;
     }
@@ -180,10 +181,7 @@ export function OrgMembersTable({
                     <td className="px-4 py-3">
                       {canManage ? (
                         <input
-                          type="number"
-                          min={1}
-                          max={168}
-                          step={1}
+                          inputMode="decimal"
                           defaultValue={member.weekly_capacity_hours ?? 40}
                           className="w-16 rounded border border-aurora-border bg-aurora-surface px-2 py-1 text-xs"
                           data-testid={`org-member-capacity-${member.user_id}`}

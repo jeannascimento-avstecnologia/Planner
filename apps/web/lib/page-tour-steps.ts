@@ -137,6 +137,13 @@ export const PAGE_TOUR_STEP_DEFS: Record<PageTourId, PageTourStepDef[]> = {
       requiresWorkload: true,
     },
     {
+      id: "workload-org-switcher",
+      tourTarget: "workload-org-switcher",
+      title: "Organizacao ativa",
+      description: "A carga e da org selecionada. Com mais de uma org de gestao, troque pelo bloco.",
+      requiresWorkload: true,
+    },
+    {
       id: "workload-mode",
       tourTarget: "workload-mode",
       title: "Semana ou 15 dias",

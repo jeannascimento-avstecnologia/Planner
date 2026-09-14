@@ -12,6 +12,7 @@ import {
   utilizationPct,
 } from "@/lib/workload/utilization";
 import type { WorkloadDrilldownCard, WorkloadMemberRow } from "@/lib/load-workload";
+import { parseLocaleNumber, formatHoursLabel } from "@/lib/parse-number";
 import { inputClassSm, linkClass, memberAvatarClass } from "@/lib/ui-classes";
 import { WorkloadDrilldown } from "./workload-drilldown";
 
@@ -39,8 +40,8 @@ export function WorkloadMemberRow({ orgId, row, weekIso, drilldownCards, canEdit
 
   function saveCapacity(raw: string) {
     if (pending || savingRef.current) return;
-    const v = Number(raw);
-    if (!Number.isFinite(v) || v < 1 || v > 168) {
+    const v = parseLocaleNumber(raw);
+    if (v === null || v < 1 || v > 168) {
       toast.error("Capacidade entre 1 e 168 horas.");
       return;
     }
@@ -94,14 +95,14 @@ export function WorkloadMemberRow({ orgId, row, weekIso, drilldownCards, canEdit
             </span>
           </div>
         </td>
-        <td className="px-4 py-3 tabular-nums">{row.totalHours}h</td>
+        <td className="px-4 py-3 tabular-nums">{formatHoursLabel(row.totalHours) || "0h"}</td>
+        <td className="px-4 py-3 tabular-nums" data-testid={`workload-points-${row.userId}`}>
+          {row.totalPoints}
+        </td>
         <td className="px-4 py-3 tabular-nums">
           {canEditCapacity ? (
             <input
-              type="number"
-              min={1}
-              max={168}
-              step={1}
+              inputMode="decimal"
               defaultValue={row.capacityHours}
               disabled={pending}
               className={inputClassSm + " w-16 tabular-nums"}
@@ -112,7 +113,7 @@ export function WorkloadMemberRow({ orgId, row, weekIso, drilldownCards, canEdit
               }}
             />
           ) : (
-            `${row.capacityHours}h`
+            formatHoursLabel(row.capacityHours) || `${row.capacityHours}h`
           )}
         </td>
         <td className="px-4 py-3 tabular-nums text-aurora-muted">{row.cardCount}</td>
@@ -142,7 +143,7 @@ export function WorkloadUnscheduledRow({
         </Link>
       </td>
       <td className="px-4 py-3 text-aurora-muted">{card.boardName}</td>
-      <td className="px-4 py-3 tabular-nums">{card.estimatedHours ?? 0}h</td>
+      <td className="px-4 py-3 tabular-nums">{formatHoursLabel(card.estimatedHours) || "0h"}</td>
     </tr>
   );
 }

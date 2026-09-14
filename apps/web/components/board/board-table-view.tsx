@@ -6,6 +6,7 @@ import { updateCardFieldsAction } from "@/app/(app)/boards/[boardId]/card-action
 import { acquireInFlightLock, releaseInFlightLock } from "@/lib/in-flight-submit";
 import { PriorityBadge, TagChip } from "./badges";
 import { TifluxCardButton } from "./tiflux-card-button";
+import { parseLocaleNumber, formatHours, formatHoursLabel } from "@/lib/parse-number";
 import { formatDue, formatStart, isCardOverdue, memberLabel, type BoardCard, type ColumnRow, type ProfileRow, type StageRow, type TagRow } from "./types";
 
 type SortKey = "title" | "due_date";
@@ -93,13 +94,13 @@ export function BoardTableView({
           <tr>
             <th className="px-3 py-2">
               <button type="button" onClick={() => toggleSort("title")} className="hover:text-aurora-fg">
-                Titulo {sortKey === "title" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                Título {sortKey === "title" ? (sortDir === "asc" ? "↑" : "↓") : ""}
               </button>
             </th>
             {tifluxEnabled ? <th className="px-3 py-2">Tiflux</th> : null}
             <th className="px-3 py-2">Coluna</th>
             <th className="px-3 py-2">Prioridade</th>
-            <th className="px-3 py-2">Inicio</th>
+            <th className="px-3 py-2">Início</th>
             <th className="px-3 py-2">Entrega est.</th>
             <th className="px-3 py-2">
               <button type="button" onClick={() => toggleSort("due_date")} className="hover:text-aurora-fg">
@@ -107,14 +108,15 @@ export function BoardTableView({
               </button>
             </th>
             <th className="px-3 py-2">Horas</th>
-            <th className="px-3 py-2">Responsavel</th>
+            <th className="px-3 py-2">Pontos</th>
+            <th className="px-3 py-2">Responsável</th>
             <th className="px-3 py-2">Marcadores</th>
           </tr>
         </thead>
         <tbody>
           {sorted.length === 0 ? (
             <tr>
-              <td colSpan={tifluxEnabled ? 11 : 10} className="px-3 py-8 text-center text-aurora-muted">
+              <td colSpan={tifluxEnabled ? 12 : 11} className="px-3 py-8 text-center text-aurora-muted">
                 Nenhum card com os filtros atuais.
               </td>
             </tr>
@@ -193,16 +195,17 @@ export function BoardTableView({
                 <td className="px-3 py-2 tabular-nums text-aurora-muted" onClick={(e) => e.stopPropagation()}>
                   {canEdit ? (
                     <input
-                      type="number"
-                      min={0}
-                      max={999.99}
-                      step={0.5}
-                      defaultValue={c.estimated_hours ?? ""}
+                      inputMode="decimal"
+                      defaultValue={formatHours(c.estimated_hours)}
                       className="w-16 rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-board-border focus:border-board-accent"
                       data-testid={`table-edit-hours-${c.id}`}
                       onBlur={async (e) => {
                         const raw = e.target.value.trim();
-                        const v = raw === "" ? null : Number(raw);
+                        const v = raw === "" ? null : parseLocaleNumber(raw);
+                        if (raw !== "" && v === null) {
+                          toast.error("Horas estimadas invalidas.");
+                          return;
+                        }
                         const cur = c.estimated_hours;
                         if (v === cur || (v === null && cur == null)) return;
                         await commitField(c.id, "estimated_hours", () =>
@@ -214,7 +217,36 @@ export function BoardTableView({
                       }}
                     />
                   ) : (
-                    c.estimated_hours != null ? `${c.estimated_hours}h` : "—"
+                    formatHoursLabel(c.estimated_hours) || "—"
+                  )}
+                </td>
+                <td className="px-3 py-2 tabular-nums text-aurora-muted" onClick={(e) => e.stopPropagation()}>
+                  {canEdit ? (
+                    <input
+                      inputMode="numeric"
+                      defaultValue={c.story_points ?? ""}
+                      className="w-12 rounded border border-transparent bg-transparent px-1 py-0.5 hover:border-board-border focus:border-board-accent"
+                      data-testid={`table-edit-points-${c.id}`}
+                      onBlur={async (e) => {
+                        const raw = e.target.value.trim();
+                        const parsed = raw === "" ? null : parseLocaleNumber(raw);
+                        if (raw !== "" && (parsed === null || !Number.isInteger(parsed))) {
+                          toast.error("Pontos invalidos.");
+                          return;
+                        }
+                        const v = parsed === null ? null : Math.round(parsed);
+                        const cur = c.story_points;
+                        if (v === cur || (v === null && cur == null)) return;
+                        await commitField(c.id, "story_points", () =>
+                          updateCardFieldsAction({
+                            cardId: c.id,
+                            patch: { story_points: v },
+                          }),
+                        );
+                      }}
+                    />
+                  ) : (
+                    c.story_points != null ? String(c.story_points) : "—"
                   )}
                 </td>
                 <td className="px-3 py-2 text-aurora-muted">

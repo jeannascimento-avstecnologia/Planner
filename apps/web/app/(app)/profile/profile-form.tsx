@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateProfile } from "./actions";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
+import { formatPhoneBr } from "@/lib/phone-br";
 import { btnPrimary, inputClass } from "@/lib/ui-classes";
 
 type Initial = {
@@ -28,6 +29,7 @@ export function ProfileForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl);
+  const [phone, setPhone] = useState(initial.phone ? formatPhoneBr(initial.phone) : "");
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +39,7 @@ export function ProfileForm({
         setStatus("idle");
         setError(null);
         fd.set("avatarUrl", avatarUrl);
+        fd.set("phone", phone);
         startTransition(async () => {
           const res = await updateProfile(fd);
           if (res.ok) {
@@ -81,14 +84,22 @@ export function ProfileForm({
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-aurora-fg">Telefone</label>
-          <input name="phone" defaultValue={initial.phone} placeholder="+55 ..." className={inputClass} />
+          <input
+            name="phone"
+            value={phone}
+            onChange={(e) => setPhone(formatPhoneBr(e.target.value))}
+            type="tel"
+            inputMode="tel"
+            placeholder="(11) 98888-8888"
+            className={inputClass}
+          />
         </div>
       </div>
 
       <div className="space-y-1">
         <label className="text-sm font-medium text-aurora-fg">Idioma preferido</label>
         <select name="locale" defaultValue={initial.locale} className={inputClass}>
-          <option value="pt-BR">Portugues (Brasil)</option>
+          <option value="pt-BR">Português (Brasil)</option>
           <option value="en-US">English (US)</option>
         </select>
       </div>

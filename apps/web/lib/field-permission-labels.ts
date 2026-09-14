@@ -3,8 +3,8 @@ import type { FieldAccess } from "@nextgen/contracts";
 import { orgRoleLabel } from "@/lib/org-member-roles";
 
 export const CARD_FIELD_LABELS: Record<CardPermissionField, string> = {
-  title: "Titulo",
-  description: "Descricao",
+  title: "Título",
+  description: "Descrição",
   due_date: "Prazo final",
   start_date: "Data de inicio",
   target_date: "Meta de entrega",
@@ -12,6 +12,7 @@ export const CARD_FIELD_LABELS: Record<CardPermissionField, string> = {
   assignee_id: "Responsavel",
   column_id: "Coluna",
   estimated_hours: "Horas estimadas",
+  story_points: "Pontos",
   parent_id: "Card pai",
   tree_x: "Posicao X (arvore)",
   tree_y: "Posicao Y (arvore)",

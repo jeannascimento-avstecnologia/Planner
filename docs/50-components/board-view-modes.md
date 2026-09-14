@@ -50,10 +50,14 @@ No modo `tree`: match no nó **ou** ancestral no path → highlight forte no mat
 
 ## Timeline / Gantt
 
-- `start_date` + `due_date`: barra contínua
-- Só `due_date`: barra de 1 dia
-- Sem datas: faixa "Sem prazo"
-- Janela: -14 a +56 dias a partir de hoje
+Detalhe: [timeline-redesign.md](../40-features/timeline-redesign.md).
+
+- Um card por linha: título, descrição, estágio efetivo, responsável (coluna sticky) + barra diária.
+- `start_date` + `due_date`: barra inclusiva no intervalo. Sem datas: faixa "Sem prazo" (backlog).
+- Domínio: hoje + cards agendados, padding 14d, mínimo -14/+56. Zoom (`timelineZoom`): Dia/Semana/Mês/Trimestre — só `pxPerDay`/ticks.
+- Agrupamento (`timelineGroup`): Coluna / Responsável / Marcador / Estágio / Nenhum — **depois** de `matchesFilters`. Não é filtro.
+- Drop backlog/barra abre modal de período; resize de bordas persiste direto. Write via `updateCardFieldsAction`.
+- Dependências FS: setas SVG display-only.
 
 ## Calendário (board)
 
@@ -75,6 +79,6 @@ Hierarquia N níveis (`cards.parent_id`), depth máx 8. Spec completa: [board-tr
 | Topbar labels (incl. Arvore) | `topbar-title.tsx` `VIEW_LABELS` | `board-view-topbar-title` |
 | Banner description / fallback tree | `board-view.tsx` | `tree-page-description` |
 | Filtros persistem | `board-view.tsx` state | `ux-refinements.spec.ts` |
-| Gantt start→due | `board-timeline-view.tsx` + migration `0008` | timeline bar visible |
+| Gantt diário + zoom/grupo | `board-timeline-view.tsx` + `lib/timeline-*.ts` | `e2e/timeline.spec.ts` |
 | Tree forest + highlight | `board-tree-view.tsx` / `board-tree-flow.tsx` + `lib/card-tree/` | tree e2e + Vitest |
 | Kanban viewport fill | shell + `board-view` + `kanban-column` | visual / E2E scroll |

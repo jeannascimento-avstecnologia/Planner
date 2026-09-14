@@ -10,6 +10,7 @@
 - SELECT: `app.is_org_member(org_id)` (ou `app.can_access_board(board_id)` em tabelas de board).
 - INSERT/UPDATE/DELETE: `app.has_org_role(org_id, array['admin'])` (viewer = read-only).
 - `card_events`: INSERT permitido a membros; UPDATE/DELETE negados a todos (append-only).
+- `card_dependencies` SELECT: `app.can_access_board` no board do `blocker_card_id` (não só `is_org_member`) — ver [card-dependencies.md](./card-dependencies.md).
 
 ## Exemplo
 ```sql

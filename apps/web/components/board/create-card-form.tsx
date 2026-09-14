@@ -5,6 +5,7 @@ import { createCard } from "@/app/(app)/boards/[boardId]/card-actions";
 import { acquireInFlightLock, releaseInFlightLock } from "@/lib/in-flight-submit";
 import { cardInFlightLockKey } from "@/lib/board-item-names";
 import { btnBoardPrimarySm, inputBoardClassSm } from "@/lib/ui-classes";
+import { CARD_PRIORITY_OPTIONS, cardPriorityLabel } from "@/lib/card-priority";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
 
 type Props = {
@@ -87,10 +88,11 @@ export function CreateCardForm({ boardId, columnId, parentId, onCardCreated, com
       {compact ? null : (
         <>
           <select name="priority" defaultValue="medium" disabled={disabled} className={inputBoardClassSm}>
-            <option value="low">low</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-            <option value="urgent">urgent</option>
+            {CARD_PRIORITY_OPTIONS.map((p) => (
+              <option key={p} value={p}>
+                {cardPriorityLabel(p)}
+              </option>
+            ))}
           </select>
           <DatePickerPopover name="dueDate" variant="board" clearLabel="Limpar prazo" />
         </>

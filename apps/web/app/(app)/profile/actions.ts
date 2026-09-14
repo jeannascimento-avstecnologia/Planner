@@ -17,7 +17,8 @@ export async function updateProfile(formData: FormData): Promise<UpdateProfileRe
     avatarUrl: String(formData.get("avatarUrl") ?? "") || null,
   });
   if (!parsed.success) {
-    return { ok: false, error: "Dados invalidos." };
+    const issue = parsed.error.issues[0];
+    return { ok: false, error: issue?.message ?? "Dados invalidos." };
   }
 
   const supabase = await createClient();

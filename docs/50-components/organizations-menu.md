@@ -22,7 +22,7 @@ Abas: **Identidade** (logo) | **Membros** | **Convites** | **Avancado** (transfe
 
 ## Dialogs
 
-- `CreateOrganizationDialog` — nome + slug, RPC `create_organization`, define org ativa
+- `CreateOrganizationDialog` — nome legal + nome de exibição + CNPJ (opcional). Slug só no servidor. RPC `create_organization`, define org ativa. CNPJ: máscara + módulo 11; caracteres não numéricos no paste = erro inline (não gravar `null` em silêncio).
 - `MoveProjectDialog` — select org destino, dupla confirmacao, RPC `move_board_to_org`
 
 ## Permissoes UI
@@ -48,3 +48,4 @@ Abas: **Identidade** (logo) | **Membros** | **Convites** | **Avancado** (transfe
 - [ ] Mover projeto atualiza org_id em cascata (pgTAP)
 - [ ] Excluir ultima org → `/boards` (criar org), sem ir para login
 - [ ] Excluir org com outras restantes → hub `/settings/organizations` com org ativa valida
+- [ ] CNPJ inválido (checksum ou não-dígitos) bloqueia criar/salvar; vazio permitido

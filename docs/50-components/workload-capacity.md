@@ -62,9 +62,14 @@ workload_by_member_week (
 
 ### UI `/workload`
 
+- Bloco da org ativa (logo + nome), igual ao de Configurações. Cookie `ngp:active-org` (ADR-0007).
+- Seletor: só orgs em que o user é owner/admin/manager (`canViewWorkload`). 1 org elegível = bloco estático; 2+ = dropdown.
+- Troca de org recarrega membros/capacidade da org escolhida; org sem permissão de carga não entra no menu desta tela.
+- Badge de contexto: papel + departamentos (nome da org fica no bloco).
 - Filtro: semana (navigator).
-- Tabela: membro | utilização | horas | capacidade (editável manager) | cards.
-- Drill-down: click membro → lista cards contribuindo (mostra `target_date` e `due_date` quando distintos).
+- Tabela: membro | utilização | horas | pontos | capacidade (editável manager) | cards.
+- Capacidade: parse decimal pt-BR (`40` / `40,5`); 1–168.
+- Drill-down: click membro → lista cards contribuindo (mostra `target_date`, `due_date` e `story_points` quando distintos).
 - Permissão view: manager+ org ou board manager.
 - Permissão edit capacity: manager+ org.
 
@@ -77,6 +82,9 @@ workload_by_member_week (
 - [x] Card com 8h assignee + target na semana atual incrementa carga.
 - [x] Membership capacity 32h → utilização = alocado/32.
 - [x] Viewer não acessa `/workload` (link oculto na sidebar).
+- [ ] `/workload` exibe bloco logo+nome da org ativa.
+- [ ] Gestor em 2+ orgs troca tenant no bloco; tabela/capacidade passam a ser da org B.
+- [ ] Org em que o user não tem `canViewWorkload` não aparece no seletor de `/workload`.
 - [x] Manager edita capacidade de membro na org ativa.
 - [x] Capacidade em org A não altera org B do mesmo usuário.
 - [x] `due_date` diferente de `target_date` exibidos sem confusão.
@@ -99,5 +107,6 @@ workload_by_member_week (
 | RPC capacidade | `update_member_capacity` | pgTAP |
 | Loader | `lib/load-workload.ts` | Vitest |
 | UI page | `workload/page.tsx` | Playwright |
+| Org switcher | `org-switcher.tsx`, `workload/page.tsx` | Playwright |
 | Inline edit hours | drawer/table + RPC | E2E |
 | Inline edit capacity | workload-member-row, OrgMembersTable | E2E |

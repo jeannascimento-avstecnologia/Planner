@@ -29,7 +29,7 @@ describe("auditPayloadSummary", () => {
         title: "Entrega Q3",
         changed_fields: ["title", "due_date"],
       }),
-    ).toBe('Card "Entrega Q3" — Campos: Titulo, Prazo final');
+    ).toBe('Card "Entrega Q3" — Campos: Título, Prazo final');
   });
 
   it("board_renamed", () => {

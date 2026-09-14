@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { SettingsHubCards, type SettingsHubCard } from "@/components/settings/settings-hub-cards";
 import { loadOrgSettingsContext } from "@/lib/load-org-settings";
 import { isOrgAdminRole, orgRoleLabel } from "@/lib/org-member-roles";
-import { Building2, Bot, FileSearch, Plug, Settings2, Shield, Users, Wrench } from "lucide-react";
+import { Building2, FileSearch, Plug, Settings2, Shield, Users } from "lucide-react";
 
 export default async function SettingsHubPage() {
   const ctx = await loadOrgSettingsContext();
@@ -14,7 +14,7 @@ export default async function SettingsHubPage() {
     {
       href: "/settings/organization/settings",
       title: "Dados da organizacao",
-      description: "Nome, slug, logo e configuracoes gerais.",
+      description: "Nome legal, nome de exibição, CNPJ e logo.",
       icon: Settings2,
       testId: "settings-card-org-settings",
       tone: "amber",
@@ -33,27 +33,11 @@ export default async function SettingsHubPage() {
     ? [
         {
           href: "/settings/users",
-          title: "Usuarios",
+          title: "Usuários",
           description: "Membros, convites pendentes e acesso aos workspaces.",
           icon: Users,
           testId: "settings-card-users",
           tone: "sky",
-        },
-        {
-          href: "/settings/external-tools",
-          title: "Ferramentas Externas",
-          description: "Providers e integracoes de IA externas.",
-          icon: Wrench,
-          testId: "settings-card-external-tools",
-          tone: "orange",
-        },
-        {
-          href: "/settings/agents",
-          title: "Agentes",
-          description: "Configure agentes de IA e prompts.",
-          icon: Bot,
-          testId: "settings-card-agents",
-          tone: "violet",
         },
       ]
     : [];

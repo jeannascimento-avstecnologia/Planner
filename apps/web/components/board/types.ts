@@ -33,6 +33,13 @@ export type CardAttachment = {
   createdBy: string;
   createdAt: string;
 };
+export type CardDependencyRow = {
+  id: string;
+  blocker_card_id: string;
+  blocked_card_id: string;
+  type: "finish_to_start";
+};
+
 export type BoardCard = {
   id: string;
   column_id: string;

@@ -40,6 +40,8 @@ Specs sao a fonte de verdade. Nenhuma linha de codigo sem spec aprovada. Leia ta
 | Estrategia de Testes | `60-quality/test-strategy.md` | OK |
 | CI/CD | `70-ops/ci-cd.md` | OK |
 | Ambientes & Paridade | `70-ops/environments.md` | OK |
+| Timeline redesign (D.Timeline) | `40-features/timeline-redesign.md` | OK (Fase 2 · D) |
+| Debug report | `50-components/debug-report.md` | OK (ops paralelo) |
 | Component specs | `50-components/` | TODO (por sprint) |
 | Realtime / Caching detalhados | `20-architecture/` | TODO (por sprint) |
 | Whiteboard spec | `40-api/whiteboard.md` | TODO (S7) |

@@ -26,6 +26,8 @@ type Props = {
   onChange?: (value: string) => void;
   variant?: "global" | "board";
   overdue?: boolean;
+  /** Acima de modais (ex. periodo da Timeline z=180). */
+  zIndex?: number;
 };
 
 const PANEL_W = 256;
@@ -39,6 +41,7 @@ export function DatePickerPopover({
   onChange,
   variant = "global",
   overdue = false,
+  zIndex = 100,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(defaultValue);
@@ -151,7 +154,7 @@ export function DatePickerPopover({
       open
       variant={variant === "board" ? "board" : "app"}
       testId="date-picker-popover"
-      zIndex={100}
+      zIndex={zIndex}
       style={{ top: pos.top, left: pos.left, width: PANEL_W }}
       className="p-3"
       onClick={(e) => e.stopPropagation()}

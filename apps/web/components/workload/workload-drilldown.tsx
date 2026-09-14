@@ -21,7 +21,7 @@ export function WorkloadDrilldown({ open, onClose, memberName, weekIso, cards }:
 
   return (
     <tr className="border-t border-aurora-border bg-aurora-brand-muted/15 aurora-row-hover">
-      <td colSpan={5} className="px-4 py-4">
+      <td colSpan={6} className="px-4 py-4">
         <div
           className="hub-panel-enter rounded-xl border border-aurora-border bg-aurora-surface p-4 shadow-sm"
           data-testid="workload-drilldown"
@@ -68,6 +68,7 @@ export function WorkloadDrilldown({ open, onClose, memberName, weekIso, cards }:
                     <span className="text-xs text-aurora-muted">
                       {c.boardName}
                       {hoursLabel ? ` · ${hoursLabel}` : ""}
+                      {c.storyPoints != null ? ` · ${c.storyPoints} pts` : ""}
                       {dateParts.length > 0 ? ` · ${dateParts.join(" · ")}` : ""}
                       {c.weekHours != null && c.weekHours > 0 ? (
                         <>

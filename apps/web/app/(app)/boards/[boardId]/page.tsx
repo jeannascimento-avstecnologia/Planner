@@ -38,6 +38,7 @@ async function BoardPageContent({ boardId }: { boardId: string }) {
           currentUserId={user?.id ?? null}
           writeAuthz={snapshot.writeAuthz}
           accessPresets={accessPresets}
+          cardDependencies={snapshot.cardDependencies}
         />
       </BoardThemeScope>
     </>

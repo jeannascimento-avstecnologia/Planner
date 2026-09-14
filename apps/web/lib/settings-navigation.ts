@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Bot,
   Building2,
   FileSearch,
   Home,
@@ -11,7 +10,6 @@ import {
   ShieldCheck,
   User,
   Users,
-  Wrench,
 } from "lucide-react";
 
 export type SettingsNavItem = {
@@ -37,16 +35,7 @@ export const SETTINGS_NAV_SECTIONS: SettingsNavSection[] = [
   {
     title: "Plataforma",
     items: [
-      { href: "/settings/users", label: "Usuarios", icon: Users, exact: true, adminOnly: true, testId: "settings-nav-users" },
-      {
-        href: "/settings/external-tools",
-        label: "Ferramentas Externas",
-        icon: Wrench,
-        exact: true,
-        adminOnly: true,
-        testId: "settings-nav-external-tools",
-      },
-      { href: "/settings/agents", label: "Agentes", icon: Bot, adminOnly: true, testId: "settings-nav-agents" },
+      { href: "/settings/users", label: "Usuários", icon: Users, exact: true, adminOnly: true, testId: "settings-nav-users" },
     ],
   },
   {

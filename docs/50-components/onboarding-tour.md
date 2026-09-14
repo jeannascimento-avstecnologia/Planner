@@ -41,7 +41,7 @@ Copy com tom de produto premium (beneficio + nomes reais de ferramentas), deriva
 | `projects` | `/projects` | Header, filtros, grade, painel lateral |
 | `calendar` | `/calendar` | Header, iCal, grade mensal, lista |
 | `plan` | `/plan` | Header, legenda, toolbar, sidebar, grade |
-| `workload` | `/workload` | Header, modo semana/15d, tabela/mapa de cores *(so gestores)* |
+| `workload` | `/workload` | Header, org ativa, modo semana/15d, tabela/mapa de cores *(so gestores)* |
 | `settings` | `/settings` (hub) | Header, org switcher, cards org/admin |
 | `help` | `/help` | Busca/indice, categorias, tour global |
 | `board-kanban` | `/boards/[boardId]` (sem subpath) | Header, visoes, guia Arvore, filtros, colunas, acoes |

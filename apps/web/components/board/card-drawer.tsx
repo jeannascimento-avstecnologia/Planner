@@ -3,7 +3,8 @@
 import { useMemo, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
-import type { CardPriority } from "@nextgen/contracts";
+import { CARD_PRIORITY_OPTIONS, cardPriorityLabel } from "@/lib/card-priority";
+import { formatHours } from "@/lib/parse-number";
 import { updateCard } from "@/app/(app)/boards/[boardId]/card-actions";
 import { buildUpdateCardPatch } from "@/lib/card-kernel/build-update-patch";
 import { parseUpdateCardFormData } from "@/lib/parse-update-card-form";
@@ -201,12 +202,12 @@ export function CardDrawer({
           <input type="hidden" name="boardId" value={boardId} />
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-aurora-muted">Titulo</label>
+            <label className="mb-1 block text-xs font-medium text-aurora-muted">Título</label>
             <input name="title" defaultValue={card.title} required className={inputBoardClassSm} />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-aurora-muted">Descricao</label>
+            <label className="mb-1 block text-xs font-medium text-aurora-muted">Descrição</label>
             <textarea
               name="description"
               defaultValue={card.description ?? ""}
@@ -217,7 +218,7 @@ export function CardDrawer({
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-aurora-muted">Inicio</label>
+            <label className="mb-1 block text-xs font-medium text-aurora-muted">Início</label>
               <DatePickerPopover
                 name="startDate"
                 defaultValue={startValue}
@@ -252,28 +253,38 @@ export function CardDrawer({
             <div />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-aurora-muted">Horas estimadas</label>
-            <input
-              name="estimatedHours"
-              type="number"
-              min={0}
-              max={999.99}
-              step={0.5}
-              defaultValue={card.estimated_hours ?? ""}
-              placeholder="ex: 8"
-              className={inputBoardClassSm}
-              data-testid="card-estimated-hours"
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-aurora-muted">Horas estimadas</label>
+              <input
+                name="estimatedHours"
+                inputMode="decimal"
+                defaultValue={formatHours(card.estimated_hours)}
+                placeholder="ex: 8,5"
+                className={inputBoardClassSm}
+                data-testid="card-estimated-hours"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-aurora-muted">Pontos</label>
+              <input
+                name="storyPoints"
+                inputMode="numeric"
+                defaultValue={card.story_points ?? ""}
+                placeholder="ex: 3"
+                className={inputBoardClassSm}
+                data-testid="card-story-points"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-aurora-muted">Prioridade</label>
               <select name="priority" defaultValue={card.priority} className={inputBoardClassSm}>
-                {(["low", "medium", "high", "urgent"] as CardPriority[]).map((p) => (
+                {CARD_PRIORITY_OPTIONS.map((p) => (
                   <option key={p} value={p}>
-                    {p}
+                    {cardPriorityLabel(p)}
                   </option>
                 ))}
               </select>

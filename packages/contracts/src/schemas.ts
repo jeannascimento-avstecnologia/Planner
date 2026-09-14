@@ -199,6 +199,7 @@ export const updateCardInput = z.object({
   targetDate: z.string().nullable().optional(),
   assigneeId: uuid.nullable().optional(),
   estimatedHours: z.coerce.number().min(0).max(999.99).nullable().optional(),
+  storyPoints: z.coerce.number().int().min(0).max(999).nullable().optional(),
 });
 export type UpdateCardInput = z.infer<typeof updateCardInput>;
 
@@ -468,8 +469,28 @@ export type ProfileLocale = z.infer<typeof profileLocale>;
 
 export const updateProfileInput = z.object({
   fullName: z.string().min(1).max(120).optional(),
-  backupEmail: z.string().email().nullable().optional(),
-  phone: z.string().max(40).nullable().optional(),
+  backupEmail: z.preprocess((v) => {
+    if (v == null || v === "") return null;
+    if (typeof v === "string") return v.trim().toLowerCase() || null;
+    return v;
+  }, z.string().email("E-mail de backup inválido").nullable().optional()),
+  phone: z.preprocess((v) => {
+    if (v == null || v === "") return null;
+    if (typeof v !== "string") return v;
+    const digits = v.replace(/\D/g, "").slice(0, 13);
+    return digits || null;
+  }, z
+    .string()
+    .nullable()
+    .optional()
+    .refine(
+      (v) =>
+        v == null ||
+        v.length === 10 ||
+        v.length === 11 ||
+        ((v.length === 12 || v.length === 13) && v.startsWith("55")),
+      { message: "Telefone invalido." },
+    )),
   locale: profileLocale.optional(),
   avatarUrl: z.string().url().nullable().optional(),
 });

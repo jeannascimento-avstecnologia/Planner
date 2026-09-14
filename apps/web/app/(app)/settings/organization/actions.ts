@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidateOrgIdentity, revalidateHomeProjects, revalidateOrgSettings } from "@/lib/revalidation";
-import { slugifyOrgDisplayName } from "@/lib/org-slug";
+import { slugifyOrgDisplayName, cnpjSubmitError } from "@/lib/org-slug";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
@@ -242,6 +242,9 @@ export async function updateOrganizationAction(input: {
     input.displayName.trim() !== input.previousDisplayName.trim()
       ? slugifyOrgDisplayName(input.displayName)
       : input.currentSlug;
+
+  const cnpjError = cnpjSubmitError(input.cnpj ?? "");
+  if (cnpjError) return { ok: false, error: cnpjError };
 
   const parsed = updateOrganizationInput.safeParse({
     orgId: input.orgId,

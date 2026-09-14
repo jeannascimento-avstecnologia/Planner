@@ -32,6 +32,7 @@ import {
 } from "@/app/(app)/plan/actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { appToast } from "@/lib/toast";
+import { parseLocaleNumber } from "@/lib/parse-number";
 import { PlanToolbar } from "@/components/plan/plan-toolbar";
 import { PlanSidebar } from "@/components/plan/plan-sidebar";
 import { classifyPlanSidebarBucket } from "@/lib/plan/classify-sidebar";
@@ -315,8 +316,8 @@ function DayDropCell({
   const skipBlurCommitRef = useRef(false);
 
   function commit() {
-    const val = parseFloat(draft.replace(",", "."));
-    if (Number.isNaN(val) || val < 0 || val > 24) {
+    const val = parseLocaleNumber(draft);
+    if (val === null || val < 0 || val > 24) {
       appToast.error("Horas invalidas (0–24).");
       setDraft(String(hours || ""));
       setEditing(false);
@@ -359,10 +360,8 @@ function DayDropCell({
     >
       {canEdit && editing ? (
         <input
-          type="number"
-          min={0}
-          max={24}
-          step={0.5}
+          type="text"
+          inputMode="decimal"
           value={draft}
           autoFocus
           onChange={(e) => setDraft(e.target.value)}

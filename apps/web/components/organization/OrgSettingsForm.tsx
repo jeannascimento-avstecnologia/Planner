@@ -3,7 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { updateOrganizationAction } from "@/app/(app)/settings/organization/actions";
-import { formatCnpj, normalizeCnpj } from "@/lib/org-slug";
+import { cnpjHasInvalidChars, cnpjSubmitError, formatCnpj } from "@/lib/org-slug";
 import { btnPrimary, inputClass } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
 
@@ -30,20 +30,38 @@ export function OrgSettingsForm({
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [cnpj, setCnpj] = useState(initialCnpj ? formatCnpj(initialCnpj) : "");
   const [error, setError] = useState<string | null>(null);
+  const [cnpjError, setCnpjError] = useState<string | null>(null);
 
   if (!canManage) {
     return <p className="text-sm text-aurora-muted">Apenas o proprietario pode editar a organizacao.</p>;
   }
 
+  function onCnpjChange(raw: string) {
+    if (cnpjHasInvalidChars(raw)) {
+      setCnpj(raw);
+      setCnpjError("CNPJ deve conter apenas numeros.");
+      return;
+    }
+    setCnpjError(null);
+    setCnpj(formatCnpj(raw));
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    const localError = cnpjSubmitError(cnpj);
+    if (localError) {
+      setCnpjError(localError);
+      setError(localError);
+      appToast.error(localError);
+      return;
+    }
     startTransition(async () => {
       const res = await updateOrganizationAction({
         orgId,
         legalName: legalName.trim(),
         displayName: displayName.trim(),
-        cnpj: normalizeCnpj(cnpj),
+        cnpj,
         previousDisplayName: initialDisplayName,
         currentSlug: initialSlug,
       });
@@ -93,12 +111,13 @@ export function OrgSettingsForm({
         <input
           id="org-cnpj"
           value={cnpj}
-          onChange={(e) => setCnpj(formatCnpj(e.target.value))}
+          onChange={(e) => onCnpjChange(e.target.value)}
           className={inputClass}
           placeholder="00.000.000/0000-00"
           inputMode="numeric"
           data-testid="org-settings-cnpj"
         />
+        {cnpjError ? <p className="text-xs text-aurora-danger">{cnpjError}</p> : null}
       </div>
       {error ? <p className="text-sm text-aurora-danger">{error}</p> : null}
       <button type="submit" disabled={pending} className={btnPrimary} data-testid="org-settings-save">

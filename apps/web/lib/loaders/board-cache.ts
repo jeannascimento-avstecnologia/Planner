@@ -16,7 +16,7 @@ import {
 import { isOrgAdminRole } from "@/lib/org-member-roles";
 import { computeCanWriteBoard, type BoardWriteAuthzInput } from "@/lib/board-authz";
 import { dedupeCardsById } from "@/lib/dedupe-cards";
-import type { BoardCard, ProfileRow } from "@/components/board/types";
+import type { BoardCard, CardDependencyRow, ProfileRow } from "@/components/board/types";
 import type { BoardPermissionCode } from "@nextgen/contracts";
 import { groupChecklistItemsByCard } from "@/lib/card-kernel/checklist-group";
 import { groupAttachmentsByCard } from "@/lib/card-kernel/attachment-group";
@@ -27,6 +27,7 @@ import {
   isMissingTreeCoordColumnError,
 } from "@/lib/card-select";
 import { groupTreeParentsByChild, resolveTreeParentIds } from "@/lib/card-tree/tree-parents";
+import { filterBoardDependencies } from "@/lib/timeline-dependencies";
 
 const BOARD_SELECT =
   "id, org_id, name, description, icon, color, tiflux_enabled, department_id, archived, created_by";
@@ -71,6 +72,7 @@ export type BoardSnapshot = {
   isOrgAdmin: boolean;
   /** Authz fresco (nunca confiar so no cache cross-request). */
   writeAuthz: BoardWriteAuthz;
+  cardDependencies: CardDependencyRow[];
 };
 
 async function fetchBoardSnapshot(
@@ -162,7 +164,7 @@ async function fetchBoardSnapshot(
     ],
   );
 
-  const [tagsRes, profilesRes, checklistRes, commentsRes, attachmentsRes, treeEdgesRes] =
+  const [tagsRes, profilesRes, checklistRes, commentsRes, attachmentsRes, treeEdgesRes, depsBlockerRes, depsBlockedRes] =
     await Promise.all([
     cardIds.length
       ? supabase.from("card_tags").select("card_id, tag_id").in("card_id", cardIds)
@@ -227,11 +229,45 @@ async function fetchBoardSnapshot(
           data: [] as { parent_card_id: string; child_card_id: string }[],
           error: null,
         }),
+    cardIds.length
+      ? supabase
+          .from("card_dependencies")
+          .select("id, blocker_card_id, blocked_card_id, type")
+          .in("blocker_card_id", cardIds)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            blocker_card_id: string;
+            blocked_card_id: string;
+            type: string;
+          }[],
+          error: null,
+        }),
+    cardIds.length
+      ? supabase
+          .from("card_dependencies")
+          .select("id, blocker_card_id, blocked_card_id, type")
+          .in("blocked_card_id", cardIds)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            blocker_card_id: string;
+            blocked_card_id: string;
+            type: string;
+          }[],
+          error: null,
+        }),
   ]);
 
   if (treeEdgesRes.error) {
     throw new Error(treeEdgesRes.error.message ?? "Falha ao carregar arestas da arvore");
   }
+  const depRows = [
+    ...(depsBlockerRes.error ? [] : (depsBlockerRes.data ?? [])),
+    ...(depsBlockedRes.error ? [] : (depsBlockedRes.data ?? [])),
+  ];
+  const cardIdSet = new Set(cardIds);
+  const cardDependencies = filterBoardDependencies(depRows, cardIdSet);
 
   const cardTags = tagsRes.data;
   const profiles = profilesRes.data;
@@ -315,6 +351,7 @@ async function fetchBoardSnapshot(
     profilesById,
     isOrgAdmin: writeAuthz.isOrgAdmin,
     writeAuthz,
+    cardDependencies,
   };
 }
 
@@ -408,7 +445,7 @@ export async function loadBoardSnapshotCached(boardId: string, userId: string): 
   } else {
     snapshot = await unstable_cache(
       () => fetchBoardSnapshot(createCachedSupabaseClient(accessToken), boardId, userId),
-      [`board-snapshot-${userId}-${boardId}`],
+      [`board-snapshot-v2-${userId}-${boardId}`],
       { tags: [CACHE_TAGS.board(boardId)] },
     )();
   }

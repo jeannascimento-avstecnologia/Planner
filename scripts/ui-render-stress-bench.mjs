@@ -201,6 +201,40 @@ function runSize(n) {
     return tiles.length;
   });
 
+  r.timelineGroupLayout = bench(`timelineGroupLayout@${n}`, () => {
+    const lanes = new Map();
+    for (const c of cards) {
+      const key = c.column_id;
+      const list = lanes.get(key) ?? [];
+      list.push(c);
+      lanes.set(key, list);
+    }
+    const ROW = 64;
+    const HEADER = 28;
+    let y = 0;
+    const rects = new Map();
+    for (const list of lanes.values()) {
+      y += HEADER;
+      for (const c of list) {
+        rects.set(c.id, { x: (c.tree_x ?? 0) % 400, y: y + 22, width: 80, height: 20 });
+        y += ROW;
+      }
+    }
+    const deps = [];
+    const limit = Math.min(n, 200);
+    for (let i = 0; i < limit; i += 2) {
+      const from = rects.get(cards[i].id);
+      const to = rects.get(cards[i + 1]?.id);
+      if (!from || !to) continue;
+      const x1 = from.x + from.width;
+      const y1 = from.y + from.height / 2;
+      const x2 = to.x;
+      const y2 = to.y + to.height / 2;
+      deps.push(y1 === y2 ? `M ${x1} ${y1} L ${x2} ${y2}` : `M ${x1} ${y1} H ${x1 + 10} V ${y2} H ${x2}`);
+    }
+    return deps.length + rects.size;
+  });
+
   return r;
 }
 

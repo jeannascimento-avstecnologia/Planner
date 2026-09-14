@@ -13,6 +13,7 @@ describe("buildUpdateCardPatch", () => {
         priority: "high",
         assigneeId: "33333333-3333-3333-3333-333333333333",
         estimatedHours: 4,
+        storyPoints: 3,
         description: "desc",
         targetDate: "2026-07-08T12:00:00.000Z",
       },
@@ -24,6 +25,7 @@ describe("buildUpdateCardPatch", () => {
       priority: "high",
       assignee_id: "33333333-3333-3333-3333-333333333333",
       estimated_hours: 4,
+      story_points: 3,
       description: "desc",
       target_date: "2026-07-08T12:00:00.000Z",
     });

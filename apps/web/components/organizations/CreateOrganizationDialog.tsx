@@ -7,7 +7,7 @@ import { createOrganizationHubAction } from "@/app/(app)/settings/organizations/
 import type { CreatedOrganization } from "@/app/(app)/settings/organizations/actions";
 import { AuroraModal } from "@/components/ui/aurora-modal";
 import { btnBoardPrimary, btnBoardSecondary, inputClass } from "@/lib/ui-classes";
-import { formatCnpj } from "@/lib/org-slug";
+import { cnpjHasInvalidChars, cnpjSubmitError, formatCnpj } from "@/lib/org-slug";
 import { appToast } from "@/lib/toast";
 
 type Props = {
@@ -21,9 +21,26 @@ export function CreateOrganizationDialog({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [cnpj, setCnpj] = useState("");
+  const [cnpjError, setCnpjError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  function onCnpjChange(raw: string) {
+    if (cnpjHasInvalidChars(raw)) {
+      setCnpj(raw);
+      setCnpjError("CNPJ deve conter apenas numeros.");
+      return;
+    }
+    setCnpjError(null);
+    setCnpj(formatCnpj(raw));
+  }
+
   function submit() {
+    const localError = cnpjSubmitError(cnpj);
+    if (localError) {
+      setCnpjError(localError);
+      appToast.error(localError);
+      return;
+    }
     startTransition(async () => {
       const res = await createOrganizationHubAction({
         name,
@@ -96,12 +113,13 @@ export function CreateOrganizationDialog({ open, onClose, onCreated }: Props) {
           <span className="text-sm font-medium text-aurora-fg">CNPJ (opcional)</span>
           <input
             value={cnpj}
-            onChange={(e) => setCnpj(formatCnpj(e.target.value))}
+            onChange={(e) => onCnpjChange(e.target.value)}
             className={inputClass}
             placeholder="00.000.000/0000-00"
             inputMode="numeric"
             data-testid="create-org-cnpj"
           />
+          {cnpjError ? <p className="text-xs text-aurora-danger">{cnpjError}</p> : null}
         </label>
       </div>
     </AuroraModal>

@@ -3,7 +3,7 @@ const WORKLOAD_VIEW_PATCH_KEYS = new Set([
   "target_date",
   "assignee_id",
   "start_date",
-  "due_date",
+  "story_points",
 ]);
 
 export function patchAffectsWorkloadViews(patch: Record<string, unknown>): boolean {

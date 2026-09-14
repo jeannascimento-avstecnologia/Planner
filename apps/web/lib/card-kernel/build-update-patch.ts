@@ -28,6 +28,7 @@ export function buildUpdateCardPatch(
   }
   if (input.assigneeId !== undefined) patch.assignee_id = input.assigneeId;
   if (input.estimatedHours !== undefined) patch.estimated_hours = input.estimatedHours;
+  if (input.storyPoints !== undefined) patch.story_points = input.storyPoints;
 
   return patch;
 }

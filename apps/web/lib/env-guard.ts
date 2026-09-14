@@ -7,6 +7,7 @@ const FORBIDDEN_PUBLIC_FRAGMENTS = [
   "PRIVATE_KEY",
   "PRIVATE",
   "RESEND_",
+  "DEBUG_REPORT",
   "TIFLUX_",
   "AZURE_CLIENT",
 ] as const;

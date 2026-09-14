@@ -1,4 +1,5 @@
 import type { CardPriority } from "@nextgen/contracts";
+import { cardPriorityLabel } from "@/lib/card-priority";
 import { stageBadgeStyle } from "@/lib/color-utils";
 import { priorityClass, TAG_DEFAULT_COLORS } from "@/lib/ui-classes";
 import { displayStageName, STAGE_NONE_LABEL, type TagRow } from "./types";
@@ -10,7 +11,7 @@ export function tagColor(color: string | null | undefined): string {
 export function PriorityBadge({ priority }: { priority: CardPriority }) {
   return (
     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${priorityClass[priority]}`}>
-      {priority}
+      {cardPriorityLabel(priority)}
     </span>
   );
 }

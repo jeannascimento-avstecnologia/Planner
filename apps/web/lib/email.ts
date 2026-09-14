@@ -9,11 +9,18 @@ export type EmailSendErrorCode =
 
 export type SendEmailResult = { ok: true } | { ok: false; code: EmailSendErrorCode };
 
+export type SendEmailAttachment = {
+  filename: string;
+  contentBase64: string;
+};
+
 export type SendEmailOptions = {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
+  attachments?: SendEmailAttachment[];
 };
 
 function mapResendError(status: number, body: string): EmailSendErrorCode {
@@ -42,19 +49,28 @@ export async function sendEmail(opts: SendEmailOptions): Promise<SendEmailResult
     return { ok: false, code: "invalid_from" };
   }
 
+  const payload: Record<string, unknown> = {
+    from,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    text: opts.text,
+  };
+  if (opts.replyTo) payload.reply_to = opts.replyTo;
+  if (opts.attachments?.length) {
+    payload.attachments = opts.attachments.map((a) => ({
+      filename: a.filename,
+      content: a.contentBase64,
+    }));
+  }
+
   const res = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to: opts.to,
-      subject: opts.subject,
-      html: opts.html,
-      text: opts.text,
-    }),
+    body: JSON.stringify(payload),
     cache: "no-store",
   });
 

@@ -13,7 +13,6 @@ import { BoardSkeleton } from "@/components/ui/skeleton";
 import { BoardViewSwitcher } from "./board-view-switcher";
 import { isKanbanVisibleCard } from "@/lib/card-tree/kanban-visibility";
 import { KANBAN_BOARD_REGION_CLASS } from "@/lib/kanban-layout";
-import * as boardActions from "@/app/(app)/boards/[boardId]/actions";
 import { syncBoardOverdueAutomations } from "@/app/(app)/boards/[boardId]/actions";
 
 const BoardCalendarView = dynamic(
@@ -83,6 +82,7 @@ import {
   memberLabel,
   parseBoardViewMode,
   type BoardCard,
+  type CardDependencyRow,
   type CardFilters,
   type ColumnRow,
   type ProfileRow,
@@ -114,6 +114,7 @@ type Props = {
   /** Authz fresco do loader (espelha RLS). */
   writeAuthz: BoardWriteAuthz;
   accessPresets?: AccessPresetRow[];
+  cardDependencies?: CardDependencyRow[];
 };
 
 function BoardViewInner({
@@ -130,6 +131,7 @@ function BoardViewInner({
   currentUserId,
   writeAuthz,
   accessPresets,
+  cardDependencies = [],
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -157,28 +159,6 @@ function BoardViewInner({
   }, [tags, stages]);
 
   useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7417/ingest/f78416a5-92e3-4342-85d2-f8950aa1642a", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3ae528" },
-      body: JSON.stringify({
-        sessionId: "3ae528",
-        runId: "pre-fix",
-        hypothesisId: "H1-H4",
-        location: "board-view.tsx:useEffect:syncOverdue",
-        message: "syncBoardOverdueAutomations import probe",
-        data: {
-          boardId: board.id,
-          namedType: typeof syncBoardOverdueAutomations,
-          namedIsFn: typeof syncBoardOverdueAutomations === "function",
-          moduleHasKey: "syncBoardOverdueAutomations" in boardActions,
-          moduleKeyType: typeof boardActions.syncBoardOverdueAutomations,
-          moduleExportKeys: Object.keys(boardActions).filter((k) => k.includes("sync") || k.includes("Automation")),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     if (typeof syncBoardOverdueAutomations === "function") {
       void syncBoardOverdueAutomations(board.id);
     }
@@ -523,6 +503,12 @@ function BoardViewInner({
         <BoardTimelineView
           boardId={board.id}
           cards={filtered}
+          columns={columns}
+          members={members}
+          tags={localTags}
+          stagesById={stagesById}
+          profilesById={profilesById}
+          dependencies={cardDependencies}
           canEdit={canEditCardFields}
           onSelectCard={selectCard}
         />

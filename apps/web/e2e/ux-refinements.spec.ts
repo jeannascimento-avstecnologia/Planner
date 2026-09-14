@@ -197,7 +197,7 @@ test.describe("UI v2 — sidebar, tema, share, filtros, aparencia", () => {
   test("perfil salva idioma e telefone", async ({ page }) => {
     await page.goto("/profile");
     await expect(page.getByRole("main").getByRole("heading", { name: "Perfil" })).toBeVisible();
-    await page.getByPlaceholder("+55 ...").fill("+55 11 99999-0000");
+    await page.getByPlaceholder("(11) 98888-8888").fill("11999990000");
     await page.getByRole("button", { name: /Salvar alteracoes/ }).click();
     await expect(page.getByText("Perfil atualizado!")).toBeVisible({ timeout: 15_000 });
   });

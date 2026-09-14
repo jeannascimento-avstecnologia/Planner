@@ -160,6 +160,19 @@ from (values
 join public.columns c on c.board_id = '33333333-3333-3333-3333-333333333333' and c.name = v.col_name
 on conflict do nothing;
 
+insert into public.card_dependencies (org_id, blocker_card_id, blocked_card_id, type)
+select
+  '22222222-2222-2222-2222-222222222222',
+  a.id,
+  b.id,
+  'finish_to_start'
+from public.cards a
+join public.cards b on b.board_id = a.board_id
+where a.board_id = '33333333-3333-3333-3333-333333333333'
+  and a.title = 'Configurar Supabase local'
+  and b.title = 'RLS + pgTAP'
+on conflict (blocker_card_id, blocked_card_id) do nothing;
+
 insert into public.tags (id, org_id, board_id, name, color) values
   ('55555555-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', 'backend', '#456993'),
   ('55555555-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', 'urgente', '#334155')

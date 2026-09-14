@@ -12,6 +12,9 @@ test.describe("Organizations menu", () => {
     if (await expand.isVisible()) await expand.click();
     await page.locator("aside.aurora-sidebar-gradient").getByRole("link", { name: "Configuracoes" }).click();
     await expect(page).toHaveURL(/\/settings$/, { timeout: 15_000 });
+    await expect(page.getByTestId("settings-card-agents")).toHaveCount(0);
+    await expect(page.getByTestId("settings-card-external-tools")).toHaveCount(0);
+    await expect(page.getByTestId("settings-nav-agents")).toHaveCount(0);
     await page.getByTestId("settings-card-organizations").click();
     await expect(page).toHaveURL(/\/settings\/organizations/);
     await expect(page.getByTestId("organizations-hub-page")).toBeVisible({ timeout: 15_000 });
@@ -45,5 +48,15 @@ test.describe("Organizations menu", () => {
     await page.getByTestId("create-org-submit").click();
     await expect(page.getByTestId("create-org-dialog")).toBeHidden({ timeout: 15_000 });
     await expect(page.getByText(name)).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("CNPJ invalido no create mostra erro", async ({ page }) => {
+    await page.goto("/settings/organizations");
+    await page.getByTestId("create-org-button").click();
+    await page.getByTestId("create-org-name").fill("Org CNPJ QA");
+    await page.getByTestId("create-org-cnpj").fill("foo@bar.com");
+    await expect(page.getByText("CNPJ deve conter apenas numeros.")).toBeVisible();
+    await page.getByTestId("create-org-submit").click();
+    await expect(page.getByTestId("create-org-dialog")).toBeVisible();
   });
 });

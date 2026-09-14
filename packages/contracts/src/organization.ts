@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { membershipRole, orgManageableRole, orgMemberRole, uuid } from "./schemas";
+import { isValidCnpj, normalizeCnpj } from "./cnpj";
+import { membershipRole, orgMemberRole, uuid } from "./schemas";
 
 export const orgMemberRowSchema = z.object({
   user_id: uuid,
@@ -55,8 +56,8 @@ export const updateOrganizationInput = z.object({
   cnpj: z
     .string()
     .optional()
-    .transform((v) => (v ? v.replace(/\D/g, "") : ""))
-    .refine((v) => v === "" || v.length === 14, { message: "CNPJ invalido." }),
+    .transform((v) => (v ? normalizeCnpj(v) : ""))
+    .refine((v) => v === "" || isValidCnpj(v), { message: "CNPJ invalido." }),
   slug: z.string().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
 });
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationInput>;

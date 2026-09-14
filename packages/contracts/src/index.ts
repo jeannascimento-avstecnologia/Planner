@@ -1,3 +1,4 @@
+export * from "./cnpj";
 export * from "./schemas";
 export * from "./organization";
 export * from "./audit-events";

@@ -74,9 +74,9 @@ export function CardDrawerReadOnly({
         </header>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <ReadOnlyField label="Titulo">{card.title}</ReadOnlyField>
+          <ReadOnlyField label="Título">{card.title}</ReadOnlyField>
 
-          <ReadOnlyField label="Descricao">
+          <ReadOnlyField label="Descrição">
             {card.description?.trim() ? (
               <p className="whitespace-pre-wrap">{card.description}</p>
             ) : (
@@ -85,7 +85,7 @@ export function CardDrawerReadOnly({
           </ReadOnlyField>
 
           <div className="grid grid-cols-2 gap-3">
-            <ReadOnlyField label="Inicio">
+            <ReadOnlyField label="Início">
               {card.start_date ? formatDue(card.start_date) : <span className="text-aurora-muted">—</span>}
             </ReadOnlyField>
             <ReadOnlyField label="Entrega estimada">
@@ -100,13 +100,16 @@ export function CardDrawerReadOnly({
             <ReadOnlyField label="Horas estimadas">
               {card.estimated_hours != null ? `${card.estimated_hours}h` : <span className="text-aurora-muted">—</span>}
             </ReadOnlyField>
+            <ReadOnlyField label="Pontos">
+              {card.story_points != null ? card.story_points : <span className="text-aurora-muted">—</span>}
+            </ReadOnlyField>
           </div>
 
           <ReadOnlyField label="Prioridade">
             <PriorityBadge priority={card.priority} />
           </ReadOnlyField>
 
-          <ReadOnlyField label="Responsavel">
+            <ReadOnlyField label="Responsável">
             {assignee ? memberLabel(assignee) : <span className="text-aurora-muted">Sem responsavel</span>}
           </ReadOnlyField>
 

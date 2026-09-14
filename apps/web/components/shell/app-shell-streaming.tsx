@@ -5,6 +5,7 @@ import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
 import { OnboardingTourProvider, useOnboardingTour } from "@/components/onboarding/onboarding-tour-provider";
 import { PageTourAutoTrigger } from "@/components/onboarding/page-tour-auto-trigger";
+import { DebugReportProvider } from "@/components/debug-report/debug-report-provider";
 import type { ShellCacheData } from "@/lib/loaders/shell-cache";
 
 type Props = {
@@ -69,6 +70,7 @@ export function AppShellStreaming({
 
   return (
     <OnboardingTourProvider setMobileOpen={setMobileOpen} hasActiveOrg={hasActiveOrg}>
+      <DebugReportProvider app="planner-web">
       <PageTourAutoTrigger />
       <div className="flex h-dvh min-h-0">
         <ShellChrome
@@ -89,6 +91,7 @@ export function AppShellStreaming({
           </main>
         </div>
       </div>
+      </DebugReportProvider>
     </OnboardingTourProvider>
   );
 }

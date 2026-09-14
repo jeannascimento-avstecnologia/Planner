@@ -1,7 +1,7 @@
 # Card Drawer — spec MVP
 
 ## Objetivo
-Painel lateral para editar card: titulo, descricao, prioridade, prazo, responsavel, marcadores.
+Painel lateral para editar card: título, descrição, prioridade, prazo, responsável, marcadores, horas estimadas, pontos.
 
 ## Marcadores (TagPickerPopover)
 - Exibe **apenas** tags anexadas ao card como chips com `x`.
@@ -10,6 +10,13 @@ Painel lateral para editar card: titulo, descricao, prioridade, prazo, responsav
 
 ## Prazo
 - `DatePickerPopover` substitui `<input type="date">`.
+
+## Prioridade
+- Valores persistidos: `low|medium|high|urgent`. Labels UI: Baixa, Média, Alta, Urgente (`CARD_PRIORITY_LABELS`).
+
+## Horas e pontos
+- Horas: `inputMode="decimal"`, aceita `8,5` e `8.5`; rejeita `NaN`/`e`.
+- `story_points`: inteiro 0–999 no drawer, tabela e readonly. Patch via `updateCard` / `update_card_fields`.
 
 ## Responsavel
 - Select lista **membros da org + integrantes do board** (`board_members`), ordenados por nome.
@@ -43,6 +50,8 @@ Painel lateral para editar card: titulo, descricao, prioridade, prazo, responsav
 - Tags orfaos nao aparecem no card ate selecao explicita no `+`.
 - Excluir exige confirmacao explicita citando subtarefas/dependencias afetadas.
 - Viewer (`readOnly`) nao ve botao Excluir.
+- Prioridade exibe label pt-BR no badge e nos selects.
+- Horas com vírgula e pontos salvam e reaparecem após reload.
 
 ## Codigo
 - `apps/web/components/board/card-drawer.tsx`

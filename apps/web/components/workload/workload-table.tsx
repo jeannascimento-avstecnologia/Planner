@@ -23,6 +23,7 @@ export function WorkloadTable({ orgId, members, weekIso, drilldownByUser, unsche
               <th className="px-4 py-3 font-semibold">Membro</th>
               <th className="px-4 py-3 font-semibold">Utilizacao</th>
               <th className="px-4 py-3 font-semibold">Horas</th>
+              <th className="px-4 py-3 font-semibold">Pontos</th>
               <th className="px-4 py-3 font-semibold">Capacidade</th>
               <th className="px-4 py-3 font-semibold">Cards</th>
             </tr>
@@ -30,7 +31,7 @@ export function WorkloadTable({ orgId, members, weekIso, drilldownByUser, unsche
           <tbody>
             {members.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-aurora-muted" data-testid="workload-empty">
+                <td colSpan={6} className="px-4 py-10 text-center text-aurora-muted" data-testid="workload-empty">
                   Nenhum membro nesta organizacao.
                 </td>
               </tr>

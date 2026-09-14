@@ -75,7 +75,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           "Cards criados na Arvore (com Adicionar card Filho) tambem aparecem no Kanban, Tabela e Calendario.",
           "No Kanban, marque Agrupar por responsavel para ver faixas por pessoa (Sem responsavel + nomes dos membros).",
           "Arraste cards entre colunas para mudar status — exige papel Editor no projeto ou admin da org (Visualizador nao arrasta).",
-          "Clique no card para abrir o painel: Titulo, Descricao, Inicio, Entrega estimada, Prazo final, Horas estimadas, Prioridade, Responsavel, Marcadores.",
+          "Clique no card para abrir o painel: Titulo, Descricao, Inicio, Entrega estimada, Prazo final, Horas estimadas, Pontos, Prioridade, Responsavel, Marcadores.",
           "Se voce e responsavel, o bloco Plano de trabalho mostra link Abrir em Meu plano.",
           "Use a barra de filtros: Buscar por titulo, Estagios, prazos (3d/5d/10d/30d ou Dia exato), Responsavel, Marcador e Estagio.",
           "Automacoes (topo): org admin ou Editor/Administrador do projeto. Gerenciar acesso e Convidar integrante: Administrador do projeto ou admin/owner da org.",
@@ -243,10 +243,10 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         title: "Geral da organizacao",
         href: "/settings/organization/settings",
         summary:
-          "Logo, nome legal, CNPJ, slug e departamentos. Owner pode transferir propriedade, habilitar multi-owner ou excluir a org; demais membros veem Sair da organizacao.",
+          "Logo, nome legal, CNPJ e departamentos. Owner pode transferir propriedade, habilitar multi-owner ou excluir a org; demais membros veem Sair da organizacao.",
         steps: [
           "Faca upload do logo da organizacao.",
-          "Edite Dados da organizacao: nome de exibicao, razao social, CNPJ e slug.",
+          "Edite Dados da organizacao: nome de exibicao, razao social e CNPJ (mascara e dígitos verificadores).",
           "Configure departamentos para segmentar projetos e filtros.",
           "Owner: opcoes avancadas de transferencia e exclusao da org.",
         ],
@@ -297,7 +297,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         badge: "Admin",
         steps: [
           "Selecione o Membro no dropdown (mostra nome e papel na org).",
-          "Para cada campo (Titulo, Descricao, Prazo final, Data de inicio, Meta de entrega, Prioridade, Responsavel, Coluna, Horas estimadas), escolha Padrao do papel, Leitura, Edicao ou Oculto.",
+          "Para cada campo (Titulo, Descricao, Prazo final, Data de inicio, Meta de entrega, Prioridade, Responsavel, Coluna, Horas estimadas, Pontos), escolha Padrao do papel, Leitura, Edicao ou Oculto.",
           "Coluna Efetiva mostra resultado final com badge Leitura/Edicao/Oculto e indicador (papel) se nao houver override.",
           "Alteracoes salvam imediatamente — toast Permissao atualizada.",
         ],
@@ -327,7 +327,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         title: "Meu perfil",
         href: "/profile",
         summary:
-          "Dados pessoais: avatar, nome completo, e-mail de backup, telefone e idioma preferido (Portugues ou English). E-mail da conta e somente leitura.",
+          "Dados pessoais: avatar, nome completo, e-mail de backup, telefone (mascara BR) e idioma preferido (Portugues ou English). E-mail da conta e somente leitura.",
         steps: [
           "Faca upload do avatar.",
           "Edite Nome completo, E-mail de backup e Telefone.",

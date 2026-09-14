@@ -41,7 +41,7 @@ export async function loadWorkloadViewerContext(
 }
 
 export function formatWorkloadContextBadge(ctx: WorkloadViewerContext): string {
-  const parts = [ctx.orgName, ctx.orgRoleLabel];
+  const parts = [ctx.orgRoleLabel];
   if (ctx.departmentNames.length) {
     parts.push(`Dept. ${ctx.departmentNames.join(", ")}`);
   }

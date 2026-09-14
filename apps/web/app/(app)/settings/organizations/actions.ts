@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
-import { slugifyOrgDisplayName, normalizeCnpj } from "@/lib/org-slug";
+import { slugifyOrgDisplayName, normalizeCnpj, cnpjSubmitError } from "@/lib/org-slug";
 
 function slugify(value: string): string {
   const base = slugifyOrgDisplayName(value).slice(0, 40);
@@ -52,6 +52,8 @@ function revalidateOrgPaths() {
   revalidatePath("/boards");
   revalidatePath("/projects");
   revalidatePath("/calendar");
+  revalidatePath("/plan");
+  revalidatePath("/workload");
   revalidatePath("/settings/organizations");
   revalidatePath("/settings/organization");
 }
@@ -75,10 +77,9 @@ export async function createOrganizationHubAction(input: {
   const displayName = input.displayName?.trim() || legalName;
   if (!legalName) return { ok: false, error: "Nome obrigatorio." };
 
+  const cnpjError = cnpjSubmitError(input.cnpj ?? "");
+  if (cnpjError) return { ok: false, error: cnpjError };
   const cnpjDigits = input.cnpj ? normalizeCnpj(input.cnpj) : "";
-  if (cnpjDigits && cnpjDigits.length !== 14) {
-    return { ok: false, error: "CNPJ invalido." };
-  }
 
   const supabase = await createClient();
   const {

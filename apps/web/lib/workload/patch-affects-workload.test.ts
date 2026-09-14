@@ -7,7 +7,7 @@ describe("patchAffectsWorkloadViews", () => {
   });
 
   it("detects workload fields", () => {
-    expect(patchAffectsWorkloadViews({ estimated_hours: 4 })).toBe(true);
+    expect(patchAffectsWorkloadViews({ story_points: 3 })).toBe(true);
     expect(patchAffectsWorkloadViews({ target_date: "2026-07-07T12:00:00.000Z" })).toBe(true);
   });
 });
