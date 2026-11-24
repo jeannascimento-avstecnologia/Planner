@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { loginAsStandard, openSeedBoard, projectLink } from "./helpers";
+import { loginAsStandard, openSeedBoard, projectLink, projectTile } from "./helpers";
 
 test.describe("Boards / Kanban", () => {
   test.beforeEach(async ({ page }) => {
@@ -120,6 +120,29 @@ test.describe("Boards / Kanban", () => {
     await page.getByRole("button", { name: "Tabela" }).click();
     await expect(page.getByText("Walking skeleton de auth")).toBeHidden({ timeout: 15_000 });
     await expect(page.locator("main")).toBeVisible();
+  });
+
+  test("criador duplica projeto pelo modal de configuracoes", async ({ page }) => {
+    const name = "Dup QA " + Date.now();
+    await page.getByTestId("create-project-open").click();
+    await expect(page.getByTestId("create-project-modal")).toBeVisible();
+    await page.locator('#create-project-form input[name="name"]').fill(name);
+    await page.getByTestId("create-project-submit").click();
+    await expect(projectLink(page, new RegExp(name))).toBeVisible({ timeout: 15_000 });
+
+    const tile = projectTile(page, new RegExp(name));
+    await tile.hover();
+    await tile.getByTestId("project-settings").click();
+    await expect(page.getByTestId("project-settings-modal")).toBeVisible();
+    await page.getByTestId("project-settings-duplicate").click();
+    await page.getByRole("button", { name: "Duplicar", exact: true }).click();
+    await expect(page).toHaveURL(/\/boards\/[0-9a-f-]+/, { timeout: 20_000 });
+
+    await page.goto("/boards");
+    await expect(page.getByRole("main").getByRole("heading", { name: "Home", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(projectLink(page, new RegExp(`${name} \\(cópia\\)`))).toBeVisible({ timeout: 15_000 });
   });
 
   test("visualizacao lista de projetos com agrupamento", async ({ page }) => {

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   deleteBoard,
+  duplicateBoard,
   getBoardTifluxStatusAction,
   updateBoardSettings,
 } from "@/app/(app)/boards/actions";
@@ -17,7 +18,7 @@ import { AuroraModal } from "@/components/ui/aurora-modal";
 import { MODAL_BODY_PADDED_CLASS } from "@/components/ui/aurora-surface";
 import { ShareProjectPanel, type BoardMember } from "@/components/board/share-project-panel";
 import { canManageBoardMembers } from "@/lib/board-member-roles";
-import { inputClass, btnPrimary, btnDanger } from "@/lib/ui-classes";
+import { inputClass, btnPrimary, btnDanger, btnSecondary } from "@/lib/ui-classes";
 import { appToast } from "@/lib/toast";
 import { removeRecentBoard } from "@/lib/recent-boards";
 import type { ProjectBoardRow } from "./types";
@@ -43,6 +44,8 @@ export function ProjectSettingsModal({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const canDuplicate = Boolean(currentUserId && board.created_by === currentUserId);
   const [deptContext, setDeptContext] = useState<BoardDepartmentContext | null>(null);
   const [departmentId, setDepartmentId] = useState<string>("general");
   const [tifluxEnabled, setTifluxEnabled] = useState(board.tiflux_enabled);
@@ -123,6 +126,25 @@ export function ProjectSettingsModal({
       }
       router.refresh();
       onClose();
+    });
+  }
+
+  function confirmDuplicate() {
+    const fd = new FormData();
+    fd.set("boardId", board.id);
+    startTransition(async () => {
+      const result = await duplicateBoard(fd);
+      if (!result.ok) {
+        setError(result.error);
+        appToast.error(result.error);
+        setDuplicateOpen(false);
+        return;
+      }
+      appToast.success("Projeto duplicado");
+      setDuplicateOpen(false);
+      onClose();
+      router.push(`/boards/${result.boardId}`);
+      router.refresh();
     });
   }
 
@@ -246,13 +268,24 @@ export function ProjectSettingsModal({
           {error ? <p className="text-sm text-aurora-danger">{error}</p> : null}
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-aurora-border pt-4">
-            {isOrgAdmin ? (
-              <button type="button" onClick={() => setDeleteOpen(true)} className={btnDanger} disabled={pending}>
-                Excluir projeto
-              </button>
-            ) : (
-              <span />
-            )}
+            <div className="flex flex-wrap gap-2">
+              {canDuplicate ? (
+                <button
+                  type="button"
+                  onClick={() => setDuplicateOpen(true)}
+                  className={btnSecondary}
+                  disabled={pending}
+                  data-testid="project-settings-duplicate"
+                >
+                  Duplicar projeto
+                </button>
+              ) : null}
+              {isOrgAdmin ? (
+                <button type="button" onClick={() => setDeleteOpen(true)} className={btnDanger} disabled={pending}>
+                  Excluir projeto
+                </button>
+              ) : null}
+            </div>
             <button type="submit" disabled={pending} className={btnPrimary} data-testid="project-settings-save">
               {pending ? "Salvando..." : "Salvar"}
             </button>
@@ -270,6 +303,15 @@ export function ProjectSettingsModal({
         </div>
       </AuroraModal>
 
+      <ConfirmDialog
+        open={duplicateOpen}
+        title="Duplicar projeto?"
+        message="Cria uma copia na mesma organizacao, sem membros extras e sem tokens de integracao."
+        confirmLabel="Duplicar"
+        pending={pending}
+        onConfirm={confirmDuplicate}
+        onCancel={() => setDuplicateOpen(false)}
+      />
       <ConfirmDialog
         open={deleteOpen}
         title="Excluir projeto?"

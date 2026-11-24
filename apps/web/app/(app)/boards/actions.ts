@@ -6,7 +6,13 @@ import { sanitizeName } from "@/lib/sanitize";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org";
-import { createBoardInput, updateBoardAppearanceInput, updateBoardSettingsInput, deleteBoardInput } from "@nextgen/contracts";
+import {
+  createBoardInput,
+  updateBoardAppearanceInput,
+  updateBoardSettingsInput,
+  deleteBoardInput,
+  duplicateBoardInput,
+} from "@nextgen/contracts";
 import type { Database } from "@nextgen/contracts";
 import { canCreateInDepartment } from "@/lib/department-roles";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
@@ -295,4 +301,59 @@ export async function deleteBoard(formData: FormData): Promise<BoardSettingsResu
 
   revalidateHomeProjects(user.id);
   return { ok: true };
+}
+
+export type DuplicateBoardResult =
+  | { ok: true; boardId: string }
+  | { ok: false; error: string };
+
+export async function duplicateBoard(formData: FormData): Promise<DuplicateBoardResult> {
+  const parsed = duplicateBoardInput.safeParse({ boardId: formData.get("boardId") });
+  if (!parsed.success) return { ok: false, error: "Dados invalidos." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Nao autenticado." };
+
+  const rl = await rateLimitAction(user.id, "duplicateBoard", 20, 60_000);
+  if (!rl.ok) return { ok: false, error: "Muitas requisicoes. Aguarde alguns segundos." };
+
+  const { data: source } = await supabase
+    .from("boards")
+    .select("id, org_id, created_by, name")
+    .eq("id", parsed.data.boardId)
+    .maybeSingle();
+  if (!source) return { ok: false, error: "Projeto nao encontrado." };
+  if (source.created_by !== user.id) {
+    return { ok: false, error: "Apenas o criador pode duplicar este projeto." };
+  }
+
+  const { data: created, error } = await supabase.rpc("duplicate_board", {
+    p_board_id: parsed.data.boardId,
+  });
+  if (error || !created?.id) {
+    const msg = error?.message ?? "";
+    if (/forbidden/i.test(msg)) {
+      return { ok: false, error: "Sem permissao para duplicar este projeto." };
+    }
+    if (/not_authenticated/i.test(msg)) return { ok: false, error: "Nao autenticado." };
+    console.error("[duplicateBoard]", error?.code, error?.message);
+    return { ok: false, error: "Nao foi possivel duplicar o projeto." };
+  }
+
+  revalidateHomeProjects(user.id);
+  revalidateOrgSettings(source.org_id, user.id);
+
+  const creatorName = await getActorDisplayName(user.id);
+  void notifyProjectCreated({
+    orgId: source.org_id,
+    boardId: created.id,
+    projectName: created.name,
+    creatorId: user.id,
+    creatorName,
+  });
+
+  return { ok: true, boardId: created.id };
 }

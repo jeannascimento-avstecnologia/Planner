@@ -686,6 +686,10 @@ export type Database = {
         };
         Returns: Database["public"]["Tables"]["boards"]["Row"];
       };
+      duplicate_board: {
+        Args: { p_board_id: string };
+        Returns: Database["public"]["Tables"]["boards"]["Row"];
+      };
       accept_board_invitation: {
         Args: { p_token: string };
         Returns: string;

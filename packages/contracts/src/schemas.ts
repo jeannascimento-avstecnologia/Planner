@@ -96,6 +96,11 @@ export const deleteBoardInput = z.object({
 });
 export type DeleteBoardInput = z.infer<typeof deleteBoardInput>;
 
+export const duplicateBoardInput = z.object({
+  boardId: uuid,
+});
+export type DuplicateBoardInput = z.infer<typeof duplicateBoardInput>;
+
 export const tifluxLookupKind = z.enum([
   "client",
   "desk",

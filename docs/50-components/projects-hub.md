@@ -24,6 +24,7 @@
 6. Lista 10 tarefas abertas com `due_date` mais proximo do projeto.
 7. CTA **Abrir Projeto** → `/boards/[id]`.
 8. **Trocar projeto** limpa selecao.
+9. Modal de configuracoes (engrenagem): criador do projeto (`boards.created_by`) ve **Duplicar projeto**. Ver [duplicate-board.md](../40-api/duplicate-board.md).
 
 ## Papeis board
 
@@ -42,6 +43,7 @@
 - [ ] Administrador do projeto / org admin|owner ve formulario de convite; Editor e Visualizador nao.
 - [ ] Abrir Projeto navega para kanban.
 - [ ] Tiles grid com altura uniforme.
+- [ ] Criador duplica o projeto pelo modal de configuracoes.
 
 ## Matriz Spec → Codigo → Teste
 
@@ -51,3 +53,4 @@
 | Home direto | `boards/page.tsx`, `hubMode={false}` | `e2e/boards.spec.ts` |
 | Participantes | `share-project-panel.tsx` | `e2e/board-permissions.spec.ts` |
 | 10 tarefas | `project-hub-detail.tsx` | `e2e/projects-hub.spec.ts` |
+| Duplicar (criador) | `duplicateBoard`, `project-settings-modal.tsx` | `51_duplicate_board_test.sql`, `e2e/boards.spec.ts` |
