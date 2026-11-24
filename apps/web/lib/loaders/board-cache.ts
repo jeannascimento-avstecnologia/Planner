@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseTifluxCanceledTickets } from "@/lib/tiflux-canceled-tickets";
 import {
   buildProfilesById,
-  collectAssigneeUserIds,
+  collectAssignableUserIds,
   sortAssigneeProfiles,
 } from "@/lib/board-assignees";
 import { isOrgAdminRole } from "@/lib/org-member-roles";
@@ -110,7 +110,7 @@ async function fetchBoardSnapshot(
       .select("id, name, color, position, is_system, system_key")
       .eq("board_id", boardId)
       .order("position"),
-    supabase.from("memberships").select("user_id").eq("org_id", board.org_id),
+    supabase.from("memberships").select("user_id, role").eq("org_id", board.org_id),
   ]);
 
   let cardsRaw: unknown[] | null = cardsFirst.data as unknown[] | null;
@@ -156,13 +156,27 @@ async function fetchBoardSnapshot(
   const cardsUnique = dedupeCardsById((cardsRaw ?? []) as CardRow[]);
   const cardIds = cardsUnique.map((c) => c.id);
 
-  const assigneeIds = collectAssigneeUserIds(
-    (memberships ?? []).map((m) => m.user_id),
-    [
-      ...(boardMembers ?? []).map((m) => m.user_id),
-      ...cardsUnique.map((c) => c.assignee_id).filter((id): id is string => Boolean(id)),
-    ],
-  );
+  const deptMemberIds: string[] = [];
+  if (board.department_id) {
+    const { data: deptMembers } = await supabase
+      .from("department_members")
+      .select("user_id")
+      .eq("department_id", board.department_id);
+    for (const row of deptMembers ?? []) deptMemberIds.push(row.user_id);
+  }
+
+  const assignableIds = collectAssignableUserIds({
+    departmentId: board.department_id ?? null,
+    createdBy: board.created_by ?? null,
+    orgMemberIds: (memberships ?? []).map((m) => m.user_id),
+    orgOwnerIds: (memberships ?? []).filter((m) => m.role === "owner").map((m) => m.user_id),
+    departmentMemberIds: deptMemberIds,
+    boardMemberIds: (boardMembers ?? []).map((m) => m.user_id),
+  });
+  const currentAssigneeIds = cardsUnique
+    .map((c) => c.assignee_id)
+    .filter((id): id is string => Boolean(id));
+  const assigneeIds = [...new Set([...assignableIds, ...currentAssigneeIds])];
 
   const [tagsRes, profilesRes, checklistRes, commentsRes, attachmentsRes, treeEdgesRes, depsBlockerRes, depsBlockedRes] =
     await Promise.all([
@@ -318,8 +332,11 @@ async function fetchBoardSnapshot(
     tiflux_canceled_tickets: parseTifluxCanceledTickets(c.tiflux_canceled_tickets),
   }));
 
+  const assignableSet = new Set(assignableIds);
   const members: ProfileRow[] = sortAssigneeProfiles(
-    (profiles ?? []).map((p) => ({ id: p.id, full_name: p.full_name })),
+    (profiles ?? [])
+      .filter((p) => assignableSet.has(p.id))
+      .map((p) => ({ id: p.id, full_name: p.full_name })),
   );
 
   const bmList = (boardMembers ?? []).map((bm) => ({

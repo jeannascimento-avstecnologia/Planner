@@ -19,8 +19,12 @@ Painel lateral para editar card: título, descrição, prioridade, prazo, respon
 - `story_points`: inteiro 0–999 no drawer, tabela e readonly. Patch via `updateCard` / `update_card_fields`.
 
 ## Responsavel
-- Select lista **membros da org + integrantes do board** (`board_members`), ordenados por nome.
-- Convidados que aceitaram convite (sem `memberships` na org) aparecem como opcao de responsavel.
+- Select lista **somente quem pode acessar o board** (`app.can_access_board_as`), ordenados por nome.
+  - Board **Geral** (`department_id` null): membros da org + `board_members` + criador.
+  - Board de **departamento**: owner da org + membros do departamento + `board_members` + criador. Membro da org fora do dept **nao** aparece.
+- Convidados que aceitaram convite (sem `memberships` na org) aparecem se estiverem em `board_members`.
+- Persistencia: trigger `cards_guard_assignee_access` rejeita `assignee_id` sem acesso (`assignee_forbidden`). `null` (sem responsavel) permitido.
+- Responsavel atual sem acesso permanece visivel no select ate ser trocado.
 - Loader: `lib/board-assignees.ts` + `boards/[boardId]/page.tsx`.
 
 ## Modo visualizador (`viewer`)
@@ -52,8 +56,11 @@ Painel lateral para editar card: título, descrição, prioridade, prazo, respon
 - Viewer (`readOnly`) nao ve botao Excluir.
 - Prioridade exibe label pt-BR no badge e nos selects.
 - Horas com vírgula e pontos salvam e reaparecem após reload.
+- Responsavel: so usuarios com acesso ao board; RPC/trigger recusa outsider.
 
 ## Codigo
 - `apps/web/components/board/card-drawer.tsx`
 - `apps/web/components/board/tag-picker-popover.tsx`
+- `apps/web/lib/board-assignees.ts`
 - `apps/web/app/(app)/boards/[boardId]/actions.ts`
+- Teste: `supabase/tests/52_assignee_board_access_test.sql`

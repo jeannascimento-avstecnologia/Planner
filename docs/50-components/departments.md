@@ -27,6 +27,7 @@ Isolar projetos por departamento dentro de uma organizacao, com CRUD de dept (ow
 | Membros dept | Owner org ou gerente do dept (`manager`) |
 | Criar projeto | Org admin/owner OU gerente/admin do dept alvo |
 | Escrever no board (`can_write_board`) | Org owner/admin (qualquer board da org); ou `board_members.admin`/`manager`; ou admin/manager do departamento do board |
+| Responsavel do card | So usuarios com `can_access_board` naquele projeto (dept restrito / Geral). Ver [card-drawer.md](./card-drawer.md). |
 | Mover projeto | Owner OU gerente+ origem+destino; envolvendo Geral exige `can_write_board` |
 
 ## RPCs

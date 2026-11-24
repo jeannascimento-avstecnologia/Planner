@@ -301,6 +301,11 @@ export function CardDrawer({
               className={inputBoardClassSm}
             >
               <option value="">Sem responsavel</option>
+              {card.assignee_id && !members.some((m) => m.id === card.assignee_id) ? (
+                <option value={card.assignee_id}>
+                  {`${card.assignee_id.slice(0, 8)} (sem acesso)`}
+                </option>
+              ) : null}
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.full_name ?? m.id.slice(0, 8)}

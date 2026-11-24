@@ -45,6 +45,7 @@ function isUniqueViolation(error: { code?: string } | null): boolean {
 
 function mapCardFieldsRpcError(error: { code?: string; message?: string }): string {
   const msg = error.message ?? "";
+  if (msg.includes("assignee_forbidden")) return "Responsavel sem acesso a este projeto.";
   if (msg.includes("field_forbidden")) return "Campo nao permitido.";
   if (/forbidden/i.test(msg) || error.code === "42501") return "Sem permissao.";
   if (msg.includes("card_parent_depth")) return "Profundidade maxima de subtarefas (8) excedida.";
@@ -214,6 +215,9 @@ export async function createCardMutation(
   }
   if (error?.message?.includes("card_parent_cross_board")) {
     return { error: "Pai deve ser do mesmo board." };
+  }
+  if (error?.message?.includes("assignee_forbidden")) {
+    return { error: "Responsavel sem acesso a este projeto." };
   }
   if (error || !card) return { error: "Nao foi possivel criar o card." };
 

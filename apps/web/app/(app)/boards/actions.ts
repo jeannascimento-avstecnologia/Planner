@@ -333,13 +333,18 @@ export async function duplicateBoard(formData: FormData): Promise<DuplicateBoard
   const { data: created, error } = await supabase.rpc("duplicate_board", {
     p_board_id: parsed.data.boardId,
   });
-  if (error || !created?.id) {
+  const row = Array.isArray(created) ? created[0] : created;
+  if (error || !row?.id) {
     const msg = error?.message ?? "";
+    const code = error?.code ?? "";
     if (/forbidden/i.test(msg)) {
       return { ok: false, error: "Sem permissao para duplicar este projeto." };
     }
     if (/not_authenticated/i.test(msg)) return { ok: false, error: "Nao autenticado." };
-    console.error("[duplicateBoard]", error?.code, error?.message);
+    if (code === "PGRST202" || /could not find the function/i.test(msg)) {
+      return { ok: false, error: "Funcao duplicate_board ausente no banco. Rode supabase db push." };
+    }
+    console.error("[duplicateBoard]", code, msg);
     return { ok: false, error: "Nao foi possivel duplicar o projeto." };
   }
 
@@ -349,11 +354,11 @@ export async function duplicateBoard(formData: FormData): Promise<DuplicateBoard
   const creatorName = await getActorDisplayName(user.id);
   void notifyProjectCreated({
     orgId: source.org_id,
-    boardId: created.id,
-    projectName: created.name,
+    boardId: row.id,
+    projectName: row.name,
     creatorId: user.id,
     creatorName,
   });
 
-  return { ok: true, boardId: created.id };
+  return { ok: true, boardId: row.id };
 }
